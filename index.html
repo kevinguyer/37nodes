@@ -1,0 +1,3999 @@
+<!doctype html>
+<!-- data-theme seeds the default (Nordic) so the first paint is already themed;
+     boot replaces it with the saved preference, if there is one -->
+<html lang="en" data-theme="nordic">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>37nodes &middot; Infinite depth. Zero chaos.</title>
+<link id="favicon" rel="icon">
+<style>
+/* ============================================================
+   37nodes — tokens & themes
+   A theme is ONLY a block of custom-property overrides on html.
+   ============================================================ */
+:root{
+  --bg:#fdfdfc;
+  --panel:#f4f4f1;
+  --panel-2:#eaeae6;
+  --fg:#1f2023;
+  --fg-dim:#8b8b86;
+  --fg-faint:#c2c2bc;
+  --accent:#4a72d4;
+  --accent-soft:rgba(74,114,212,.12);
+  --bullet:#a9a9a4;
+  --bullet-ring:#e3e3de;
+  --line:#ebebe8;
+  --mark:#ffe9a8;
+  --danger:#c0392b;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --mono:ui-monospace,"Cascadia Code",Consolas,"SF Mono",Menlo,monospace;
+  --radius:6px;
+  --shadow:0 6px 28px rgba(0,0,0,.10);
+  --tour-dim:rgba(12,13,16,.58);
+  --page-max:700px;
+  --motion:1;
+  --glow:none;
+  color-scheme:light;
+}
+html[data-theme="dark"]{
+  --bg:#16181d; --panel:#1e2127; --panel-2:#262a31;
+  --fg:#d9dbdf; --fg-dim:#83878e; --fg-faint:#4b4f56;
+  --accent:#82a1f2; --accent-soft:rgba(130,161,242,.16);
+  --bullet:#5b6069; --bullet-ring:#31353c;
+  --line:#24272d; --mark:#7a611c; --danger:#e07060;
+  --shadow:0 6px 28px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+html[data-theme="eink"]{
+  --bg:#f7f6f1; --panel:#efeee8; --panel-2:#e5e4dd;
+  --fg:#141414; --fg-dim:#4a4a46; --fg-faint:#9a9a92;
+  --accent:#141414; --accent-soft:rgba(20,20,20,.08);
+  --bullet:#141414; --bullet-ring:#c9c8c0;
+  --line:#d4d3cb; --mark:#dcd9c8; --danger:#7a2018;
+  --font:Georgia,"Times New Roman",serif;
+  --radius:2px; --shadow:none; --motion:0;
+  --tour-dim:rgba(20,20,20,.5);
+  color-scheme:light;
+}
+html[data-theme="crt"]{
+  --bg:#051005; --panel:#0a1c0c; --panel-2:#0e2611;
+  --fg:#3dff77; --fg-dim:#22a04b; --fg-faint:#14602e;
+  --accent:#9dffbb; --accent-soft:rgba(61,255,119,.14);
+  --bullet:#22a04b; --bullet-ring:#123c1f;
+  --line:#0e2a14; --mark:rgba(61,255,119,.28); --danger:#ff7755;
+  --font:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --mono:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --radius:0px; --shadow:0 0 24px rgba(0,0,0,.6);
+  --glow:0 0 5px rgba(61,255,119,.45);
+  color-scheme:dark;
+}
+html[data-theme="ibm5151"]{ /* amber-on-sepia monochrome tube */
+  --bg:#191106; --panel:#221808; --panel-2:#2c1f0b;
+  --fg:#f2b13d; --fg-dim:#a87a20; --fg-faint:#664a12;
+  --accent:#ffd47e; --accent-soft:rgba(242,177,61,.14);
+  --bullet:#a87a20; --bullet-ring:#3d2c0e;
+  --line:#2e2110; --mark:rgba(242,177,61,.28); --danger:#ff8b5e;
+  --font:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --mono:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --radius:0px; --shadow:0 0 24px rgba(0,0,0,.6);
+  --glow:0 0 6px rgba(242,177,61,.4);
+  color-scheme:dark;
+}
+html[data-theme="wyse60"]{ /* pale white-phosphor terminal */
+  --bg:#0a0c0e; --panel:#12161a; --panel-2:#1a2026;
+  --fg:#e8eef2; --fg-dim:#93a0a9; --fg-faint:#4d565e;
+  --accent:#b5e3f5; --accent-soft:rgba(232,238,242,.12);
+  --bullet:#93a0a9; --bullet-ring:#28303a;
+  --line:#1d242b; --mark:rgba(232,238,242,.22); --danger:#ff8f7a;
+  --font:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --mono:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --radius:0px; --shadow:0 0 24px rgba(0,0,0,.65);
+  --glow:0 0 5px rgba(232,238,242,.35);
+  color-scheme:dark;
+}
+html[data-theme="nordic"]{ /* dark blue-slate, ice accent */
+  --bg:#1d2129; --panel:#242935; --panel-2:#2c3341;
+  --fg:#d5dce6; --fg-dim:#8b95a5; --fg-faint:#4d5666;
+  --accent:#7cb9cc; --accent-soft:rgba(124,185,204,.15);
+  --bullet:#5d6980; --bullet-ring:#333c4c;
+  --line:#2a303d; --mark:#6d5c22; --danger:#e08574;
+  --shadow:0 6px 28px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+html[data-theme="parchment"]{ /* warm manuscript cream, brown ink */
+  --bg:#f4ecd9; --panel:#ece2ca; --panel-2:#e3d7ba;
+  --fg:#3c2f1d; --fg-dim:#7c6b51; --fg-faint:#b5a88d;
+  --accent:#8a5a2b; --accent-soft:rgba(138,90,43,.12);
+  --bullet:#8a7a5e; --bullet-ring:#dcd0b2;
+  --line:#ded2b4; --mark:#e9d387; --danger:#96331f;
+  --font:Georgia,"Times New Roman",serif;
+  --radius:4px; --shadow:0 6px 22px rgba(92,72,40,.16);
+  --tour-dim:rgba(60,47,29,.5);
+  color-scheme:light;
+}
+html[data-theme="evergreen"]{ /* deep spruce, sage accent */
+  --bg:#141a15; --panel:#1b231c; --panel-2:#222d24;
+  --fg:#d2e0d4; --fg-dim:#81957f; --fg-faint:#465244;
+  --accent:#8cc29a; --accent-soft:rgba(140,194,154,.14);
+  --bullet:#5f7360; --bullet-ring:#28362a;
+  --line:#202a21; --mark:rgba(196,187,102,.3); --danger:#dd8168;
+  --shadow:0 6px 28px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+
+/* ============================================================
+   Reset & base
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:var(--font); font-size:15px; line-height:1.5;
+  text-shadow:var(--glow);
+  min-height:100vh;
+}
+html[data-theme="crt"] body::after,
+html[data-theme="ibm5151"] body::after,
+html[data-theme="wyse60"] body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:999;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 1px, transparent 1px 3px);
+  opacity:.3;
+}
+button,input,select,textarea{font:inherit;color:inherit;}
+button{cursor:pointer;background:none;border:none;padding:0;}
+a{color:var(--accent);}
+::selection{background:var(--accent-soft);}
+kbd{
+  font-family:var(--mono); font-size:.82em;
+  background:var(--panel-2); border:1px solid var(--line); border-bottom-width:2px;
+  border-radius:4px; padding:0 5px;
+}
+mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 1px;}
+@media (prefers-reduced-motion: reduce){ :root{--motion:0;} }
+
+/* ============================================================
+   Top bar
+   ============================================================ */
+#topbar{
+  position:sticky; top:0; z-index:50;
+  display:flex; align-items:center; gap:12px;
+  padding:8px 16px;
+  background:var(--bg); border-bottom:1px solid var(--line);
+}
+#logo{
+  display:flex; align-items:center; flex:0 0 auto;
+  color:var(--fg); /* currentColor: the mark re-inks itself on every theme */
+  transition:color calc(120ms * var(--motion)) ease, transform calc(120ms * var(--motion)) ease;
+}
+#logo:hover{color:var(--accent); transform:scale(1.08);}
+#breadcrumbs{flex:1; min-width:0; display:flex; align-items:center; white-space:nowrap; overflow:hidden;}
+.crumb{
+  color:var(--fg-dim); text-decoration:none; font-size:13px;
+  overflow:hidden; text-overflow:ellipsis; max-width:180px; flex:0 1 auto;
+}
+a.crumb:hover{color:var(--accent);}
+.crumb:not(:last-child)::after{content:"\203A"; margin:0 7px; color:var(--fg-faint);}
+.crumb.current{color:var(--fg); font-weight:600;}
+.crumb.app-name{letter-spacing:.04em;}
+.tagline{
+  margin-left:12px; font-size:12px; font-style:italic;
+  color:var(--fg-faint); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+@media (max-width:560px){ .tagline{display:none;} }
+#topbar-right{display:flex; align-items:center; gap:10px;}
+#save-indicator{font-size:12px; color:var(--fg-faint); min-width:52px; text-align:right;}
+#save-indicator.error{color:var(--danger); font-weight:600;}
+#search{
+  width:180px; padding:4px 12px;
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  outline:none; font-size:13px; color:var(--fg);
+  transition:width calc(160ms * var(--motion)) ease, border-color calc(160ms * var(--motion)) ease;
+}
+#search:focus{width:260px; border-color:var(--accent);}
+#search::placeholder{color:var(--fg-faint);}
+#menu-btn{
+  font-size:16px; color:var(--fg-dim); padding:2px 8px; border-radius:var(--radius);
+}
+#menu-btn:hover{background:var(--panel); color:var(--fg);}
+
+/* ============================================================
+   Banner (storage warnings) — a quiet corner toast, not a headline
+   ============================================================ */
+/* display:flex would defeat the hidden attribute (UA display:none loses
+   to any author display) — restate it explicitly */
+#banner[hidden]{display:none;}
+#banner{
+  position:fixed; right:16px; bottom:16px; z-index:200;
+  display:flex; align-items:center; gap:10px;
+  max-width:380px; padding:10px 12px;
+  background:var(--panel); border:1px solid var(--line);
+  border-left:3px solid var(--danger);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+  font-size:12.5px; color:var(--fg-dim);
+}
+#banner.notice{border-left-color:var(--accent);}
+#banner-msg{flex:1;}
+#banner button{color:var(--accent); font-weight:600; white-space:nowrap;}
+#banner #banner-close{color:var(--fg-dim); font-weight:400;}
+#save-indicator.error{cursor:pointer;}
+
+/* ============================================================
+   Page & focus header
+   ============================================================ */
+#page{max-width:var(--page-max); margin:0 auto; padding:20px 24px 45vh;}
+/* wide layout: follow the window, but never spend the whole of it. 86vw keeps
+   a real margin on both sides; the 1400px cap stops a line of text from running
+   the full width of a 4K display, and the 700px floor means "wide" is never
+   narrower than the default column on a small window. */
+body.wide{--page-max:clamp(700px, 86vw, 1400px);}
+#focus-head{margin-bottom:14px;}
+#focus-title{
+  font-size:24px; font-weight:700; line-height:1.3;
+  outline:none; white-space:pre-wrap; word-break:break-word;
+  margin:0 0 2px;
+}
+#focus-note{font-size:13.5px; color:var(--fg-dim); min-height:0;}
+#focus-note .md{cursor:text;}
+#empty-hint{
+  color:var(--fg-faint); font-size:14px; padding:8px 0 8px 38px; cursor:text;
+}
+
+/* ============================================================
+   Outline rows
+   ============================================================ */
+#tree{outline:none;}
+.node{position:relative;}
+/* Off-screen subtrees skip layout & paint — this keeps focus()/layout
+   flushes cheap in 20k-node outlines. Scoped to the first two levels of
+   the current view: enough to prune almost everything off-screen, without
+   paying containment bookkeeping on every one of 20k rows. */
+#tree > .node,
+#tree > .node > .children > .node{
+  content-visibility:auto;
+  contain-intrinsic-size:auto 26px;
+}
+.row{
+  position:relative;
+  display:flex; align-items:flex-start;
+  padding:1px 0; border-radius:var(--radius);
+}
+.row:focus-within{background:var(--accent-soft);}
+.toggle{
+  flex:0 0 18px; height:24px; line-height:24px;
+  color:var(--fg-faint); font-size:10px; text-align:center;
+  visibility:hidden; opacity:0; user-select:none;
+  transition:opacity calc(120ms * var(--motion)) ease, transform calc(120ms * var(--motion)) ease;
+}
+.node.has-children > .row > .toggle{visibility:visible;}
+.row:hover > .toggle, .node.collapsed > .row > .toggle{opacity:1;}
+.node.expanded > .row > .toggle{transform:rotate(90deg);}
+.toggle:hover{color:var(--fg-dim);}
+.bullet{
+  flex:0 0 18px; height:24px;
+  display:flex; align-items:center; justify-content:center;
+  text-decoration:none; cursor:pointer; user-select:none;
+}
+.bullet .dot{
+  width:7px; height:7px; border-radius:50%;
+  background:var(--bullet);
+  transition:transform calc(120ms * var(--motion)) ease, box-shadow calc(120ms * var(--motion)) ease;
+}
+.bullet:hover .dot{transform:scale(1.35);}
+.node.collapsed > .row > .bullet .dot{box-shadow:0 0 0 3.5px var(--bullet-ring);}
+.title{
+  flex:1; min-width:0; min-height:24px;
+  padding:1px 4px 1px 2px; line-height:22px;
+  outline:none; white-space:pre-wrap; word-break:break-word;
+}
+.title:empty::before{content:attr(data-ph); color:var(--fg-faint); pointer-events:none;}
+.title .tag{
+  color:var(--accent); background:var(--accent-soft);
+  border-radius:999px; padding:0 6px; cursor:pointer;
+}
+.title .tag:hover{filter:brightness(1.15);}
+.title .tag.active{background:var(--accent); color:var(--bg);}
+.wikilink{color:var(--accent); text-decoration:none; cursor:pointer;}
+a.wikilink:hover{text-decoration:underline; text-underline-offset:2px;}
+.wikilink.broken{color:var(--fg-dim); text-decoration:underline dashed; text-underline-offset:2px; cursor:default;}
+.progress{
+  flex:0 0 auto; align-self:center; margin-left:6px; padding:0 7px;
+  font-size:11px; line-height:17px; color:var(--fg-dim);
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  user-select:none; white-space:nowrap;
+}
+.node.completed > .row > .title{text-decoration:line-through; color:var(--fg-dim);}
+body.hide-completed .node.completed{display:none;}
+.node.dim > .row > .title{color:var(--fg-faint);}
+.node.dim > .row > .bullet .dot{opacity:.45;}
+.children{
+  margin-left:19px; padding-left:9px;
+  border-left:1px solid var(--line);
+}
+.node.collapsed > .children{display:none;}
+@keyframes node-expand{from{opacity:0; transform:translateY(-3px);} to{opacity:1; transform:none;}}
+.children.just-expanded{animation:node-expand calc(140ms * var(--motion)) ease;}
+
+/* drag & drop */
+.node.dragging{opacity:.35;}
+.row.drop-before::before, .row.drop-after::after{
+  content:""; position:absolute; left:36px; right:0; height:2px;
+  background:var(--accent); border-radius:1px; z-index:5;
+}
+.row.drop-before::before{top:-1px;}
+.row.drop-after::after{bottom:-1px;}
+.row.drop-into{background:var(--accent-soft); box-shadow:inset 0 0 0 1.5px var(--accent);}
+
+/* ============================================================
+   Notes
+   ============================================================ */
+.note{margin:-2px 0 2px 40px;}
+.note-edit{
+  display:block; width:100%;
+  background:transparent; border:none; outline:none; resize:none;
+  font-family:var(--mono); font-size:12.5px; line-height:1.55;
+  color:var(--fg-dim); padding:0; overflow:hidden;
+}
+.note-edit::placeholder{color:var(--fg-faint);}
+#focus-note .note-edit{font-size:13px;}
+.note .md, #focus-note .md{cursor:text;}
+
+/* rendered markdown */
+.md{font-size:12.5px; line-height:1.55; color:var(--fg-dim); word-break:break-word;}
+#focus-note > .md{font-size:13.5px;}
+.md > :first-child{margin-top:0;}
+.md > :last-child{margin-bottom:0;}
+.md p{margin:0 0 6px;}
+.md h1,.md h2,.md h3{color:var(--fg); margin:8px 0 4px; line-height:1.3;}
+.md h1{font-size:15px;} .md h2{font-size:14px;} .md h3{font-size:13px;}
+.md ul,.md ol{margin:0 0 6px; padding-left:20px;}
+.md li{margin:1px 0;}
+.md code{
+  font-family:var(--mono); font-size:.92em;
+  background:var(--panel-2); border-radius:4px; padding:1px 5px;
+}
+.md pre{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:8px 10px; margin:4px 0 8px; overflow-x:auto;
+}
+.md pre code{background:none; padding:0; font-size:12px;}
+.md blockquote{
+  margin:4px 0 8px; padding:2px 12px;
+  border-left:3px solid var(--fg-faint); color:var(--fg-dim);
+}
+.md blockquote .md{font-size:inherit;}
+.md hr{border:none; border-top:1px solid var(--line); margin:10px 0;}
+.md a{color:var(--accent); text-decoration:underline; text-underline-offset:2px;}
+.md strong{color:var(--fg);}
+
+/* ============================================================
+   Menu panel
+   ============================================================ */
+#menu-panel{
+  position:fixed; top:46px; right:14px; z-index:100;
+  width:280px; padding:6px;
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+#menu-panel hr{border:none; border-top:1px solid var(--line); margin:6px 4px;}
+.menu-row{
+  display:flex; align-items:center; gap:8px;
+  width:100%; padding:7px 10px; text-align:left;
+  font-size:13.5px; border-radius:var(--radius);
+}
+.menu-row[hidden], .menu-note[hidden]{display:none;} /* display:flex would beat [hidden] */
+button.menu-row:hover{background:var(--panel);}
+.menu-field{justify-content:space-between; cursor:default;}
+.menu-field select{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:3px 6px; font-size:13px; outline:none;
+}
+.menu-row kbd{margin-left:auto;}
+.menu-note{font-size:12px; color:var(--fg-faint); padding:2px 10px 4px;}
+.days-field{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--fg-dim);}
+.days-field input{
+  width:56px; padding:2px 6px; text-align:right;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  color:var(--fg); outline:none;
+}
+.days-field input:focus{border-color:var(--accent);}
+
+/* ============================================================
+   Dialogs
+   ============================================================ */
+dialog{
+  background:var(--bg); color:var(--fg);
+  border:1px solid var(--line); border-radius:calc(var(--radius) * 1.5);
+  box-shadow:var(--shadow); padding:20px 24px;
+  max-width:480px; width:calc(100vw - 48px);
+}
+dialog::backdrop{background:rgba(0,0,0,.35);}
+dialog h2{margin:0 0 10px; font-size:17px;}
+.dialog-tagline{margin:-6px 0 12px; font-size:12.5px; font-style:italic; color:var(--fg-faint);}
+.help-brand{display:flex; align-items:center; gap:9px;}
+.help-subhead{margin:12px 0 4px; font-size:14px;}
+.dialog-warn{font-size:13px; color:var(--fg-dim);}
+.dialog-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:16px;}
+.dialog-actions button{
+  padding:6px 16px; border-radius:var(--radius);
+  background:var(--panel); border:1px solid var(--line); font-size:13.5px;
+}
+.dialog-actions button:hover{background:var(--panel-2);}
+.dialog-actions button.danger{color:var(--danger); border-color:var(--danger);}
+#help-grid{
+  display:grid; grid-template-columns:auto 1fr; gap:6px 18px;
+  font-size:13px; margin:12px 0;
+}
+#help-grid em{color:var(--fg-dim); font-style:italic; font-size:12px;}
+.help-note{font-size:12.5px; color:var(--fg-dim); margin:10px 0 0;}
+
+/* ---------- jump palette (Ctrl+K) ---------- */
+#palette-dialog{margin-top:10vh; max-width:560px; padding:10px;}
+#palette-input{
+  width:100%; box-sizing:border-box; padding:8px 12px; font-size:14.5px;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  color:var(--fg); outline:none; font-family:inherit;
+}
+#palette-input:focus{border-color:var(--accent);}
+#palette-input::placeholder{color:var(--fg-faint);}
+#palette-results{max-height:52vh; overflow-y:auto; margin-top:8px;}
+.pal-item{padding:5px 10px; border-radius:var(--radius); cursor:pointer;}
+.pal-item.sel{background:var(--accent-soft);}
+.pal-title{font-size:14px; color:var(--fg);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.pal-path{font-size:11.5px; color:var(--fg-faint); margin-top:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.pal-hint{font-size:12.5px; color:var(--fg-faint); padding:6px 10px 4px;}
+
+/* ---------- [[link]] autocomplete ---------- */
+#link-auto{
+  position:fixed; z-index:150; padding:4px;
+  min-width:240px; max-width:min(400px, calc(100vw - 24px));
+  max-height:min(260px, 45vh); overflow-y:auto;
+  background:var(--bg); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+}
+#link-auto .pal-item{padding:4px 9px;}
+#link-auto .pal-hint{padding:5px 9px; max-width:340px;}
+/* offscreen twin of a note textarea, used only to measure where its caret is */
+#link-auto-mirror{
+  position:fixed; top:0; left:0; z-index:-1;
+  visibility:hidden; pointer-events:none;
+  white-space:pre-wrap; overflow-wrap:break-word;
+}
+
+/* ============================================================
+   Guided tour — spotlight + callout card
+   The dim is painted by one enormous box-shadow around the "hole",
+   so the highlighted element keeps its own colours and the scrim
+   glides between steps with a single transition.
+   ============================================================ */
+#tour-veil{
+  position:fixed; inset:0; z-index:900;
+  opacity:0; transition:opacity calc(180ms * var(--motion)) ease;
+}
+#tour-hole{
+  position:fixed; z-index:901; pointer-events:none;
+  top:50%; left:50%; width:0; height:0;
+  border-radius:calc(var(--radius) * 1.5);
+  box-shadow:0 0 0 9999px var(--tour-dim);
+  opacity:0;
+  transition:
+    top calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    left calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    width calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    height calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    opacity calc(180ms * var(--motion)) ease;
+}
+/* the ring lives on a child so the pulse never fights the hole's transition */
+#tour-hole::after{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  box-shadow:0 0 0 2px var(--accent), 0 0 18px 2px var(--accent-soft);
+  opacity:0; transition:opacity calc(200ms * var(--motion)) ease;
+  animation:tour-pulse calc(2.6s * var(--motion)) ease-out infinite;
+}
+#tour.spot #tour-hole::after{opacity:1;}
+@keyframes tour-pulse{
+  0%,70%,100%{box-shadow:0 0 0 2px var(--accent), 0 0 18px 2px var(--accent-soft);}
+  35%{box-shadow:0 0 0 2px var(--accent), 0 0 24px 7px var(--accent-soft);}
+}
+#tour.in #tour-veil, #tour.in #tour-hole{opacity:1;}
+
+#tour-card{
+  position:fixed; z-index:902; left:0; top:0;
+  width:min(360px, calc(100vw - 28px));
+  padding:15px 17px 11px;
+  background:var(--bg); color:var(--fg);
+  border:1px solid var(--line); border-radius:calc(var(--radius) * 1.6);
+  box-shadow:var(--shadow), 0 2px 6px rgba(0,0,0,.12);
+  opacity:0; transform:translateY(4px);
+  transition:
+    left calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    top calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    opacity calc(200ms * var(--motion)) ease,
+    transform calc(200ms * var(--motion)) ease;
+}
+#tour.in #tour-card{opacity:1; transform:none;}
+#tour-arrow{
+  position:absolute; width:11px; height:11px;
+  background:var(--bg); border:1px solid var(--line);
+  border-right:none; border-bottom:none;
+}
+#tour-card[data-side="bottom"] #tour-arrow{top:-6px; transform:rotate(45deg);}
+#tour-card[data-side="top"] #tour-arrow{bottom:-6px; transform:rotate(225deg);}
+#tour-card[data-side="right"] #tour-arrow{left:-6px; transform:rotate(-45deg);}
+#tour-card[data-side="left"] #tour-arrow{right:-6px; transform:rotate(135deg);}
+#tour-card[data-side="center"] #tour-arrow, #tour-card[data-side="sheet"] #tour-arrow{display:none;}
+
+#tour-head{display:flex; align-items:center; gap:8px; margin-bottom:7px;}
+#tour-head svg{flex:0 0 auto; color:var(--fg-dim);}
+#tour-head h2{margin:0; font-size:15.5px; line-height:1.25; flex:1; min-width:0;}
+#tour-count{font-size:11.5px; color:var(--fg-faint); white-space:nowrap;}
+#tour-body{font-size:13.5px; line-height:1.55; color:var(--fg-dim);}
+#tour-body p{margin:0 0 8px;}
+#tour-body p:last-child{margin-bottom:0;}
+#tour-body strong{color:var(--fg); font-weight:600;}
+#tour-body kbd{white-space:nowrap;}
+/* content re-enters on every step so the card reads as "turning a page" */
+#tour-card.step-in #tour-head, #tour-card.step-in #tour-body{
+  animation:tour-step-in calc(220ms * var(--motion)) ease both;
+}
+@keyframes tour-step-in{from{opacity:0; transform:translateY(3px);} to{opacity:1; transform:none;}}
+
+#tour-foot{
+  display:flex; align-items:center; gap:12px;
+  margin-top:14px; padding-top:10px; border-top:1px solid var(--line);
+}
+#tour-dots{display:flex; align-items:center; gap:5px; flex:1;}
+#tour-dots i{
+  width:5px; height:5px; border-radius:999px; background:var(--fg-faint);
+  transition:width calc(200ms * var(--motion)) ease, background-color calc(200ms * var(--motion)) ease;
+}
+#tour-dots i.done{background:var(--fg-dim);}
+#tour-dots i.now{width:14px; background:var(--accent);}
+#tour-actions{display:flex; align-items:center; gap:7px;}
+#tour-actions button{
+  padding:5px 13px; border-radius:var(--radius);
+  border:1px solid transparent; font-size:13px; color:var(--fg-dim);
+}
+#tour-actions button:hover{background:var(--panel); color:var(--fg);}
+#tour-actions #tour-back{border-color:var(--line);}
+#tour-actions button.primary{
+  background:var(--accent); border-color:var(--accent);
+  color:var(--bg); font-weight:600; text-shadow:none;
+}
+#tour-actions button.primary:hover{background:var(--accent); filter:brightness(1.08); color:var(--bg);}
+#tour-actions button[hidden]{display:none;}
+
+@media (max-width:520px){
+  #tour-card{width:calc(100vw - 24px);}
+}
+
+/* focus visibility for buttons/links (keyboard a11y) */
+button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbox"]:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--radius);
+}
+
+</style>
+</head>
+<body>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="logo-mark" viewBox="0 0 1000 820.8">
+    <path fill="currentColor" fill-rule="evenodd" d="M801 1C785 3 769 8 755 14C742 21 729 28 718 38C705 49 693 62 684 76C675 90 661 121 661 121C661 121 215 117 164 121C154 122 152 121 147 123C142 125 137 128 132 132C127 138 120 147 118 155C115 163 115 171 117 178C118 185 121 192 126 198C131 204 138 209 145 212C150 214 153 214 161 215C187 217 319 216 319 216C319 216 215 322 196 347C190 355 188 359 186 366C184 372 183 378 184 384C184 391 186 399 190 405C194 412 203 421 209 425C214 428 217 428 224 429C237 431 264 428 280 432C293 435 305 441 313 447C319 451 323 456 327 461C330 467 333 472 335 478C337 484 339 489 339 495C340 502 340 511 339 518C338 524 336 531 333 536C330 542 328 547 323 553C315 562 303 574 291 581C277 589 260 594 245 598C230 601 214 601 199 599C185 598 172 595 159 589C146 583 131 573 122 564C114 557 109 550 104 541C99 529 99 510 93 499C89 491 84 484 78 479C73 475 66 472 59 471C52 470 41 470 34 472C29 473 26 475 22 477C17 480 12 484 9 489C6 492 4 496 3 501C1 507 -0 512 0 520C1 532 5 551 11 566C17 582 28 600 38 614C47 626 58 636 68 645C78 653 88 660 99 666C111 673 123 678 136 683C151 687 167 691 182 693C197 695 212 696 226 696C240 695 254 693 268 691C280 688 291 685 303 681C317 676 332 668 345 660C358 651 371 642 382 630C394 617 406 602 414 586C423 571 429 553 433 536C436 521 436 506 435 491C434 476 432 461 427 447C421 432 413 416 404 403C395 391 386 381 374 371C362 361 331 345 331 345L453 215L661 216L689 276C689 276 407 709 388 757C385 765 386 767 386 772C386 777 386 783 388 789C391 796 398 806 405 812C413 817 424 820 432 821C438 821 444 820 449 818C454 817 457 815 461 812C467 808 469 805 477 795C514 745 768 332 768 332C768 332 798 338 811 339C822 340 831 340 841 339C850 339 860 337 870 335C880 332 891 329 901 324C910 320 918 316 926 310C935 304 944 296 952 289C959 281 966 272 972 264C978 255 983 247 987 236C992 223 997 204 999 189C1001 175 1001 164 999 151C997 135 992 114 985 99C979 85 971 73 962 61C953 50 942 40 930 32C917 22 901 14 886 9C874 4 864 2 851 0C836 -1 817 -1 801 1ZM818 95C827 94 838 94 847 96C856 99 866 103 874 109C882 115 889 122 894 130C899 139 902 150 904 159C905 169 904 179 902 189C899 197 895 206 889 214C884 221 876 228 868 233C860 238 850 242 841 243C830 245 817 244 807 241C799 239 791 236 784 230C777 225 768 215 763 207C759 200 756 193 754 184C753 175 753 163 755 153C757 144 761 134 767 126C774 117 785 107 795 102C802 98 810 96 818 95Z"/>
+  </symbol>
+</svg>
+<header id="topbar">
+  <a id="logo" href="#" title="37nodes: back to the top level" aria-label="Home">
+    <svg width="26" height="21"><use href="#logo-mark"/></svg>
+  </a>
+  <nav id="breadcrumbs" aria-label="Breadcrumbs"></nav>
+  <div id="topbar-right">
+    <span id="save-indicator" aria-live="polite">Saved</span>
+    <input id="search" type="search" placeholder="Search  (Ctrl+F)" autocomplete="off" spellcheck="false" aria-label="Search outline">
+    <button id="menu-btn" aria-haspopup="true" aria-expanded="false" title="Menu">&#9776;</button>
+  </div>
+</header>
+
+<div id="banner" hidden>
+  <span id="banner-msg"></span>
+  <button id="banner-export">Export now</button>
+  <button id="banner-close" title="Dismiss">&#10005;</button>
+</div>
+
+<main id="page">
+  <div id="focus-head" hidden>
+    <h1 id="focus-title" class="title" contenteditable="true" spellcheck="false" data-ph="Untitled"></h1>
+    <div id="focus-note"></div>
+  </div>
+  <div id="tree" role="tree" aria-label="Outline"></div>
+  <div id="empty-hint" hidden></div>
+</main>
+
+<div id="menu-panel" hidden>
+  <label class="menu-row menu-field">Theme
+    <select id="theme-select">
+      <option value="auto">Auto (system)</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+      <option value="eink">E-ink</option>
+      <option value="parchment">Parchment</option>
+      <option value="nordic">Nordic</option>
+      <option value="evergreen">Evergreen</option>
+      <option value="crt">Green CRT</option>
+      <option value="ibm5151">IBM 5151 sepia</option>
+      <option value="wyse60">Wyse 60 terminal</option>
+    </select>
+  </label>
+  <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
+  <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
+  <hr>
+  <div class="menu-note" id="export-readout"></div>
+  <button class="menu-row" id="export-json">Export JSON (full backup)</button>
+  <button class="menu-row" id="export-md-view">Export Markdown (current view)</button>
+  <button class="menu-row" id="export-md-all">Export Markdown (everything)</button>
+  <button class="menu-row" id="import-json">Import JSON&hellip;</button>
+  <div class="menu-note" id="fsbackup-readout" hidden></div>
+  <button class="menu-row" id="fsbackup-setup" title="Continuously mirror your outline to a JSON file on disk. A live backup that survives cleared browser data." hidden>Mirror to a file on disk&hellip;</button>
+  <button class="menu-row" id="fsbackup-resume" hidden>Resume file mirroring</button>
+  <button class="menu-row" id="fsbackup-stop" hidden>Stop file mirroring</button>
+  <label class="menu-row menu-field" title="Remind me when the last JSON export is older than this. 0 turns the reminder off.">Backup reminder
+    <span class="days-field"><input type="number" id="export-warn-days" min="0" max="365"> days</span>
+  </label>
+  <hr>
+  <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
+  <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
+  <div class="menu-note" id="build-readout">Build 17 &middot; 2026-07-29</div>
+</div>
+
+<div id="link-auto" role="listbox" aria-label="Link suggestions" hidden></div>
+
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+
+<dialog id="import-dialog">
+  <h2>Import outline</h2>
+  <p id="import-summary"></p>
+  <p class="dialog-warn"><strong>Replace</strong> overwrites your current outline and cannot be undone, so consider exporting a backup first. <strong>Append</strong> adds the imported items at the end of your outline (undoable).</p>
+  <div class="dialog-actions">
+    <button id="import-append">Append</button>
+    <button id="import-replace" class="danger">Replace</button>
+    <button id="import-cancel">Cancel</button>
+  </div>
+</dialog>
+
+<dialog id="palette-dialog" aria-label="Jump to item">
+  <input id="palette-input" type="text" placeholder="Jump to&hellip;" autocomplete="off" spellcheck="false" aria-label="Jump to item by title">
+  <div id="palette-results" role="listbox" aria-label="Matching items"></div>
+</dialog>
+
+<dialog id="help-dialog">
+  <h2 class="help-brand"><svg width="28" height="23" aria-hidden="true"><use href="#logo-mark"/></svg>37nodes</h2>
+  <p class="dialog-tagline">Infinite depth. Zero chaos.</p>
+  <h3 class="help-subhead">Keyboard shortcuts</h3>
+  <div id="help-grid">
+    <span><kbd>Enter</kbd></span><span>New item (splits at cursor)</span>
+    <span><kbd>Shift</kbd>+<kbd>Enter</kbd></span><span>Add / edit the item's note</span>
+    <span><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></span><span>Indent / outdent</span>
+    <span><kbd>Alt</kbd>+<kbd>&uarr;</kbd> / <kbd>Alt</kbd>+<kbd>&darr;</kbd></span><span>Move item up / down</span>
+    <span><kbd>Ctrl</kbd>+<kbd>&uarr;</kbd> / <kbd>Ctrl</kbd>+<kbd>&darr;</kbd></span><span>Collapse / expand</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span><span>Complete / un-complete</span>
+    <span><kbd>Alt</kbd>+<kbd>&rarr;</kbd> / <kbd>Alt</kbd>+<kbd>&larr;</kbd></span><span>Zoom in / zoom out</span>
+    <span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd></span><span>Zoom all the way out to the top</span>
+    <span><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>Move between items</span>
+    <span><kbd>Backspace</kbd> <em>on empty item</em></span><span>Delete item (children are kept)</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd></span><span>Delete item and everything under it</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span>Undo / redo</span>
+    <span><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>Search</span>
+    <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
+    <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
+    <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
+    <span><kbd>?</kbd></span><span>This help</span>
+  </div>
+  <p class="help-note">On macOS, use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>.</p>
+  <p class="help-note">Your outline lives in this browser's local storage. Browsers can evict local storage under disk pressure or when clearing site data. <strong>Export JSON</strong> from the menu is your real backup.</p>
+  <div class="dialog-actions"><button id="help-tour">Take the tour</button><button id="help-close">Close</button></div>
+</dialog>
+
+<div id="tour" hidden>
+  <div id="tour-veil"></div>
+  <div id="tour-hole"></div>
+  <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-body">
+    <div id="tour-arrow" aria-hidden="true"></div>
+    <div id="tour-head">
+      <svg width="22" height="18" aria-hidden="true"><use href="#logo-mark"/></svg>
+      <h2 id="tour-title"></h2>
+      <span id="tour-count" aria-hidden="true"></span>
+    </div>
+    <div id="tour-body"></div>
+    <div id="tour-foot">
+      <div id="tour-dots" aria-hidden="true"></div>
+      <div id="tour-actions">
+        <button id="tour-skip">Skip</button>
+        <button id="tour-back">Back</button>
+        <button id="tour-next" class="primary">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+/* ===== 01 util ===== */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const uid = () => (crypto.randomUUID
+  ? crypto.randomUUID()
+  : 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+const nowISO = () => new Date().toISOString();
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const truncate = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s);
+
+function debounce(fn, ms) {
+  let t = null;
+  const wrap = (...a) => {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => { t = null; fn(...a); }, ms);
+  };
+  wrap.flush = () => { if (t) { clearTimeout(t); t = null; fn(); } };
+  return wrap;
+}
+
+function formatAgo(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!isFinite(ms) || ms < 60000) return 'just now';
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return 'yesterday';
+  return `${d} days ago`;
+}
+
+/* --- caret helpers for single-line contenteditable titles --- */
+function caretOffset(el) {
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return 0;
+  const r = sel.getRangeAt(0);
+  if (!el.contains(r.startContainer)) return 0;
+  const pre = r.cloneRange();
+  pre.selectNodeContents(el);
+  pre.setEnd(r.startContainer, r.startOffset);
+  return pre.toString().length;
+}
+function selectionCollapsedIn(el) {
+  const sel = window.getSelection();
+  return sel.rangeCount > 0 && sel.isCollapsed && el.contains(sel.getRangeAt(0).startContainer);
+}
+function setCaret(el, offset) {
+  const sel = window.getSelection();
+  const r = document.createRange();
+  let remaining = clamp(offset, 0, el.textContent.length);
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  if (!node) {
+    r.selectNodeContents(el);
+    r.collapse(false);
+  } else {
+    for (;;) {
+      if (remaining <= node.length) { r.setStart(node, remaining); break; }
+      remaining -= node.length;
+      const next = walker.nextNode();
+      if (!next) { r.setStart(node, node.length); break; }
+      node = next;
+    }
+    r.collapse(true);
+  }
+  sel.removeAllRanges();
+  sel.addRange(r);
+}
+
+/* parse pasted plain text (possibly indented / bulleted) into item trees */
+function parseOutlineText(text) {
+  const lines = text.replace(/\r/g, '').split('\n')
+    .map(l => l.replace(/\s+$/, ''))
+    .filter(l => l.trim());
+  const items = lines.map(l => {
+    const m = l.match(/^(\s*)(?:[-*+]\s+|\d+\.\s+)?(.*)$/);
+    return { indent: m[1].replace(/\t/g, '  ').length, text: m[2] };
+  });
+  const rootItems = [];
+  const stack = [{ indent: -1, children: rootItems }];
+  for (const it of items) {
+    while (stack.length > 1 && it.indent <= stack[stack.length - 1].indent) stack.pop();
+    const node = { text: it.text, children: [], indent: it.indent };
+    stack[stack.length - 1].children.push(node);
+    stack.push(node);
+  }
+  return rootItems;
+}
+
+/* ===== 02 markdown =====
+   Small markdown subset rendered by DOM construction only —
+   raw HTML in source is always displayed as literal text (XSS-safe).
+   Blocks: headings (#..###), fenced code, quotes, bulleted + numbered lists,
+   horizontal rules, paragraphs.
+   Inline: code spans, links, bold, italic.                                  */
+
+const SAFE_URL = /^(https?:|mailto:|#)/i;
+
+const INLINE_PATTERNS = [
+  { re: /`([^`]+)`/, make: m => {
+      const c = document.createElement('code');
+      c.textContent = m[1];
+      return c;
+    } },
+  // [[wikilink]] before [md](link): "[[x]]" must never parse as a bracket pair
+  { re: /\[\[([^\[\]]+)\]\]/, make: m => makeWikilink(m[1]) },
+  { re: /\[([^\]]+)\]\(([^)\s]+)\)/, make: m => {
+      const a = document.createElement('a');
+      if (SAFE_URL.test(m[2])) {
+        a.href = m[2];
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+      }
+      a.append(inlineFrag(m[1]));
+      return a;
+    } },
+  { re: /\*\*([^*]+)\*\*/, make: m => {
+      const b = document.createElement('strong');
+      b.append(inlineFrag(m[1]));
+      return b;
+    } },
+  { re: /\*([^*]+)\*/, make: m => {
+      const em = document.createElement('em');
+      em.append(inlineFrag(m[1]));
+      return em;
+    } },
+  { re: /\b_([^_]+)_\b/, make: m => {
+      const em = document.createElement('em');
+      em.append(inlineFrag(m[1]));
+      return em;
+    } },
+];
+
+function inlineFrag(text) {
+  const frag = document.createDocumentFragment();
+  let rest = text;
+  while (rest) {
+    let best = null, bestIdx = Infinity, bestPat = null;
+    for (const p of INLINE_PATTERNS) {
+      const m = rest.match(p.re);
+      if (m && m.index < bestIdx) { best = m; bestIdx = m.index; bestPat = p; }
+    }
+    if (!best) { frag.append(document.createTextNode(rest)); break; }
+    if (bestIdx > 0) frag.append(document.createTextNode(rest.slice(0, bestIdx)));
+    frag.append(bestPat.make(best));
+    rest = rest.slice(bestIdx + best[0].length);
+  }
+  return frag;
+}
+
+function mdBuildList(items) {
+  const base = items[0].indent;
+  const list = document.createElement(items[0].ordered ? 'ol' : 'ul');
+  let k = 0;
+  while (k < items.length) {
+    const it = items[k];
+    k++;
+    const li = document.createElement('li');
+    li.append(inlineFrag(it.text));
+    const sub = [];
+    while (k < items.length && items[k].indent > base) { sub.push(items[k]); k++; }
+    if (sub.length) li.append(mdBuildList(sub));
+    list.append(li);
+  }
+  return list;
+}
+
+function mdRender(src) {
+  const root = document.createElement('div');
+  root.className = 'md';
+  const lines = String(src).replace(/\r\n?/g, '\n').split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\s*$/.test(line)) { i++; continue; }
+    let m;
+    if (/^```/.test(line)) {
+      const buf = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) { buf.push(lines[i]); i++; }
+      i++; // closing fence (or EOF)
+      const pre = document.createElement('pre');
+      const code = document.createElement('code');
+      code.textContent = buf.join('\n');
+      pre.append(code);
+      root.append(pre);
+      continue;
+    }
+    if ((m = line.match(/^(#{1,3})\s+(.*)$/))) {
+      const h = document.createElement('h' + m[1].length);
+      h.append(inlineFrag(m[2]));
+      root.append(h);
+      i++;
+      continue;
+    }
+    if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      root.append(document.createElement('hr'));
+      i++;
+      continue;
+    }
+    if (/^>/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^>/.test(lines[i])) { buf.push(lines[i].replace(/^>\s?/, '')); i++; }
+      const bq = document.createElement('blockquote');
+      bq.append(mdRender(buf.join('\n')));
+      root.append(bq);
+      continue;
+    }
+    if (/^\s*(?:[-*+]|\d+\.)\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*(?:[-*+]|\d+\.)\s+/.test(lines[i])) {
+        const lm = lines[i].match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
+        items.push({ indent: lm[1].replace(/\t/g, '  ').length, ordered: /\d/.test(lm[2]), text: lm[3] });
+        i++;
+      }
+      root.append(mdBuildList(items));
+      continue;
+    }
+    // paragraph: gather until blank line or a block opener
+    const buf = [line];
+    i++;
+    while (i < lines.length && !/^\s*$/.test(lines[i])
+        && !/^(```|#{1,3}\s|>|\s*(?:[-*+]|\d+\.)\s)/.test(lines[i])) {
+      buf.push(lines[i]);
+      i++;
+    }
+    const p = document.createElement('p');
+    buf.forEach((l, j) => {
+      if (j) p.append(document.createElement('br'));
+      p.append(inlineFrag(l));
+    });
+    root.append(p);
+  }
+  return root;
+}
+
+/* ===== 03 store =====
+   Document state, ops-based undo/redo, persistence.
+   All mutations flow through recorded ops so undo is exact and cheap.
+   Collapse state is deliberately NOT undoable (it's view state, but persisted). */
+
+const ROOT_ID = 'root';
+const SCHEMA_VERSION = 1;
+const DOC_KEY = '37nodes:doc';
+const PREFS_KEY = '37nodes:prefs';
+const UNDO_LIMIT = 200;
+
+let doc = null;
+let loadWarning = null;
+let seeded = false; // true when this session started from the seed (a genuine first run)
+const nodeIndex = new Map(); // id -> {node, parent}
+const listeners = [];
+const undoStack = [];
+const redoStack = [];
+let groupRec = null;  // open op group (one undo step)
+let typingRec = null; // last record if it was a coalescible typing burst
+
+function subscribe(fn) { listeners.push(fn); }
+function emit(ev) { for (const fn of listeners) fn(ev); }
+
+function newNode(props = {}) {
+  const t = nowISO();
+  return Object.assign({
+    id: uid(), title: '', note: '', children: [],
+    collapsed: false, completed: false, createdAt: t, updatedAt: t,
+  }, props);
+}
+
+function getNode(id) { const e = nodeIndex.get(id); return e ? e.node : null; }
+function getParent(id) { const e = nodeIndex.get(id); return e ? e.parent : null; }
+function ancestorsOf(id) { // [root, ..., parent]
+  const out = [];
+  let p = getParent(id);
+  while (p) { out.unshift(p); p = getParent(p.id); }
+  return out;
+}
+function isDescendant(id, ancestorId) {
+  let p = getParent(id);
+  while (p) { if (p.id === ancestorId) return true; p = getParent(p.id); }
+  return false;
+}
+function countNodes(n) { return 1 + n.children.reduce((s, c) => s + countNodes(c), 0); }
+
+function indexSubtree(n, parent) {
+  nodeIndex.set(n.id, { node: n, parent });
+  for (const c of n.children) indexSubtree(c, n);
+}
+function unindexSubtree(n) {
+  nodeIndex.delete(n.id);
+  for (const c of n.children) unindexSubtree(c);
+}
+
+/* --- op primitives ------------------------------------------------ */
+function rawInsert(parentId, index, node) {
+  const p = getNode(parentId);
+  if (!p) return;
+  p.children.splice(clamp(index, 0, p.children.length), 0, node);
+  indexSubtree(node, p);
+}
+function rawRemove(id) {
+  const e = nodeIndex.get(id);
+  if (!e || !e.parent) return;
+  const arr = e.parent.children;
+  const i = arr.indexOf(e.node);
+  if (i >= 0) arr.splice(i, 1);
+  unindexSubtree(e.node);
+}
+function rawMove(id, parentId, index) {
+  const e = nodeIndex.get(id);
+  const p = getNode(parentId);
+  if (!e || !e.parent || !p) return;
+  const fi = e.parent.children.indexOf(e.node);
+  e.parent.children.splice(fi, 1);
+  p.children.splice(clamp(index, 0, p.children.length), 0, e.node);
+  nodeIndex.set(id, { node: e.node, parent: p });
+  e.node.updatedAt = nowISO();
+}
+function applyOp(op, dir) { // dir: 1 = forward, -1 = inverse
+  switch (op.t) {
+    case 'text': {
+      const n = getNode(op.id);
+      if (n) { n[op.field] = dir > 0 ? op.b : op.a; n.updatedAt = nowISO(); }
+      break;
+    }
+    case 'flag': {
+      const n = getNode(op.id);
+      if (n) n[op.key] = dir > 0 ? op.b : op.a;
+      break;
+    }
+    case 'ins':
+      if (dir > 0) rawInsert(op.parentId, op.index, op.node);
+      else rawRemove(op.node.id);
+      break;
+    case 'del':
+      if (dir > 0) rawRemove(op.node.id);
+      else rawInsert(op.parentId, op.index, op.node);
+      break;
+    case 'mv':
+      if (dir > 0) rawMove(op.id, op.tp, op.ti);
+      else rawMove(op.id, op.fp, op.fi);
+      break;
+  }
+}
+
+/* --- recording ---------------------------------------------------- */
+function pushRecord(rec) {
+  undoStack.push(rec);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  if (!rec.typing) typingRec = null;
+}
+function record(op) {
+  applyOp(op, 1);
+  if (groupRec) groupRec.ops.push(op);
+  else pushRecord({ ops: [op] });
+}
+function group(fn) {
+  const isOuter = !groupRec;
+  if (isOuter) groupRec = { ops: [] };
+  try { fn(); }
+  finally {
+    if (isOuter) {
+      const rec = groupRec;
+      groupRec = null;
+      typingRec = null;
+      if (rec.ops.length) pushRecord(rec);
+    }
+  }
+}
+function breakTyping() { typingRec = null; }
+
+/* --- text (typing, coalesced per burst) ---------------------------- */
+function setText(id, field, value) {
+  const n = getNode(id);
+  if (!n || n[field] === value) return;
+  const op = { t: 'text', id, field, a: n[field], b: value };
+  if (groupRec) {
+    groupRec.ops.push(op);
+  } else if (typingRec && typingRec.id === id && typingRec.field === field) {
+    typingRec.ops[0].b = value;
+  } else {
+    const rec = { ops: [op], typing: true, id, field };
+    pushRecord(rec);
+    typingRec = rec;
+  }
+  n[field] = value;
+  n.updatedAt = nowISO();
+  scheduleSave();
+  emit({ type: 'node', id, typing: true });
+}
+const setTitle = (id, v) => setText(id, 'title', v);
+const setNote = (id, v) => setText(id, 'note', v);
+
+function setTitleImmediate(id, value) {
+  const n = getNode(id);
+  if (!n || n.title === value) return;
+  group(() => record({ t: 'text', id, field: 'title', a: n.title, b: value }));
+  scheduleSave();
+  emit({ type: 'node', id });
+}
+
+/* --- structural actions -------------------------------------------- */
+function create(parentId, index, props = {}) {
+  const node = newNode(props);
+  group(() => record({ t: 'ins', parentId, index, node }));
+  scheduleSave();
+  emit({ type: 'children', id: parentId });
+  return node;
+}
+
+function createTree(parentId, index, spec) {
+  const build = s => {
+    const n = newNode({ title: s.text || '' });
+    n.children = (s.children || []).map(build);
+    return n;
+  };
+  const node = build(spec);
+  group(() => record({ t: 'ins', parentId, index, node }));
+  scheduleSave();
+  emit({ type: 'children', id: parentId });
+  return node;
+}
+
+function deletePromote(id) {
+  const n = getNode(id), p = getParent(id);
+  if (!n || !p) return;
+  const idx = p.children.indexOf(n);
+  const kids = [...n.children];
+  group(() => {
+    kids.forEach((c, k) => record({ t: 'mv', id: c.id, fp: n.id, fi: 0, tp: p.id, ti: idx + k }));
+    record({ t: 'del', parentId: p.id, index: idx + kids.length, node: n });
+  });
+  scheduleSave();
+  emit({ type: 'children', id: p.id });
+}
+
+function deleteSubtree(id) {
+  const n = getNode(id), p = getParent(id);
+  if (!n || !p) return;
+  const idx = p.children.indexOf(n);
+  group(() => record({ t: 'del', parentId: p.id, index: idx, node: n }));
+  scheduleSave();
+  emit({ type: 'children', id: p.id });
+}
+
+function move(id, toParentId, toIndex) {
+  const n = getNode(id), p = getParent(id), tp = getNode(toParentId);
+  if (!n || !p || !tp) return false;
+  if (id === toParentId || isDescendant(toParentId, id)) return false;
+  const fi = p.children.indexOf(n);
+  let ti = toIndex;
+  if (tp === p && fi < toIndex) ti = toIndex - 1; // index after removal
+  if (tp === p && ti === fi) return false;
+  group(() => record({ t: 'mv', id, fp: p.id, fi, tp: toParentId, ti }));
+  scheduleSave();
+  emit({ type: 'children', id: p.id });
+  if (toParentId !== p.id) emit({ type: 'children', id: toParentId });
+  return true;
+}
+
+function indent(id) {
+  const p = getParent(id);
+  if (!p) return false;
+  const i = p.children.indexOf(getNode(id));
+  if (i <= 0) return false;
+  const prev = p.children[i - 1];
+  if (prev.collapsed) { prev.collapsed = false; } // view state, not undoable
+  group(() => record({ t: 'mv', id, fp: p.id, fi: i, tp: prev.id, ti: prev.children.length }));
+  scheduleSave();
+  emit({ type: 'children', id: p.id });
+  emit({ type: 'children', id: prev.id });
+  return true;
+}
+
+function outdent(id, boundaryId) {
+  const p = getParent(id);
+  if (!p || p.id === boundaryId) return false;
+  const g = getParent(p.id);
+  if (!g) return false;
+  const gi = g.children.indexOf(p);
+  const i = p.children.indexOf(getNode(id));
+  group(() => record({ t: 'mv', id, fp: p.id, fi: i, tp: g.id, ti: gi + 1 }));
+  scheduleSave();
+  emit({ type: 'children', id: g.id });
+  emit({ type: 'children', id: p.id });
+  return true;
+}
+
+function moveSibling(id, dir) {
+  const p = getParent(id);
+  if (!p) return false;
+  const i = p.children.indexOf(getNode(id));
+  const j = i + dir;
+  if (j < 0 || j >= p.children.length) return false;
+  group(() => record({ t: 'mv', id, fp: p.id, fi: i, tp: p.id, ti: j }));
+  scheduleSave();
+  emit({ type: 'children', id: p.id });
+  return true;
+}
+
+function setCollapsed(id, val) { // not undoable: collapse is view state
+  const n = getNode(id);
+  if (!n || n.collapsed === val) return;
+  n.collapsed = val;
+  scheduleSave();
+  emit({ type: 'collapse', id });
+}
+
+function toggleCompleted(id) {
+  const n = getNode(id);
+  if (!n) return;
+  group(() => record({ t: 'flag', id, key: 'completed', a: n.completed, b: !n.completed }));
+  scheduleSave();
+  emit({ type: 'node', id });
+}
+
+/* --- undo / redo ---------------------------------------------------- */
+function focusHintFor(rec) {
+  for (const op of rec.ops) {
+    const id = (op.t === 'ins' || op.t === 'del') ? op.node.id : op.id;
+    if (getNode(id)) return id;
+  }
+  for (const op of rec.ops) {
+    const pid = op.parentId || op.fp || op.tp;
+    if (pid && getNode(pid)) return pid;
+  }
+  return null;
+}
+function undo() {
+  breakTyping();
+  const rec = undoStack.pop();
+  if (!rec) return null;
+  for (let k = rec.ops.length - 1; k >= 0; k--) applyOp(rec.ops[k], -1);
+  redoStack.push(rec);
+  scheduleSave();
+  emit({ type: 'doc' });
+  return focusHintFor(rec);
+}
+function redo() {
+  breakTyping();
+  const rec = redoStack.pop();
+  if (!rec) return null;
+  for (const op of rec.ops) applyOp(op, 1);
+  undoStack.push(rec);
+  scheduleSave();
+  emit({ type: 'doc' });
+  return focusHintFor(rec);
+}
+
+/* --- persistence ----------------------------------------------------- */
+let saveErrored = false;
+function saveNow() {
+  if (!doc) return;
+  try {
+    localStorage.setItem(DOC_KEY, JSON.stringify({
+      schemaVersion: SCHEMA_VERSION,
+      savedAt: nowISO(),
+      focusId: doc.focusId,
+      root: doc.root,
+    }));
+    emit({ type: 'save', state: 'saved', recovered: saveErrored });
+    saveErrored = false;
+  } catch (err) {
+    saveErrored = true;
+    emit({ type: 'save', state: 'error', error: err });
+  }
+}
+const saveDebounced = debounce(saveNow, 300);
+function scheduleSave() {
+  emit({ type: 'save', state: 'saving' });
+  saveDebounced();
+}
+
+function normalizeNode(n) {
+  const t = nowISO();
+  n = (n && typeof n === 'object') ? n : {};
+  return {
+    id: (typeof n.id === 'string' && n.id) ? n.id : uid(),
+    title: typeof n.title === 'string' ? n.title : '',
+    note: typeof n.note === 'string' ? n.note : '',
+    collapsed: !!n.collapsed,
+    completed: !!n.completed,
+    createdAt: typeof n.createdAt === 'string' ? n.createdAt : t,
+    updatedAt: typeof n.updatedAt === 'string' ? n.updatedAt : t,
+    children: Array.isArray(n.children) ? n.children.map(normalizeNode) : [],
+  };
+}
+function regenIds(n) {
+  n.id = uid();
+  n.children.forEach(regenIds);
+  return n;
+}
+
+function load() {
+  let raw = null;
+  try { raw = localStorage.getItem(DOC_KEY); }
+  catch (e) { loadWarning = 'Local storage is not available in this browser context, so nothing will be saved.'; }
+  if (raw) {
+    try {
+      const data = JSON.parse(raw);
+      if (data && data.root) {
+        if ((data.schemaVersion || 1) > SCHEMA_VERSION) {
+          loadWarning = 'This outline was saved by a newer version of 37nodes. It has been loaded as-is; some data may not round-trip.';
+        }
+        doc = {
+          schemaVersion: SCHEMA_VERSION,
+          savedAt: data.savedAt || nowISO(),
+          focusId: typeof data.focusId === 'string' ? data.focusId : ROOT_ID,
+          root: normalizeNode(data.root),
+        };
+      }
+    } catch (e) {
+      loadWarning = 'Saved data could not be read (corrupted JSON). Starting fresh. The broken payload was left in place.';
+    }
+  }
+  if (!doc) {
+    doc = { schemaVersion: SCHEMA_VERSION, savedAt: nowISO(), focusId: ROOT_ID, root: seedRoot() };
+    seeded = true;
+  }
+  doc.root.id = ROOT_ID;
+  nodeIndex.clear();
+  indexSubtree(doc.root, null);
+  return doc;
+}
+function setSavedFocus(id) {
+  if (doc && doc.focusId !== id) { doc.focusId = id; scheduleSave(); }
+}
+
+function importReplace(rootNode) {
+  doc.root = normalizeNode(rootNode);
+  doc.root.id = ROOT_ID;
+  nodeIndex.clear();
+  indexSubtree(doc.root, null);
+  undoStack.length = 0;
+  redoStack.length = 0;
+  typingRec = null;
+  saveNow();
+  emit({ type: 'doc' });
+}
+function importAppend(children) {
+  group(() => {
+    for (const c of children) {
+      const norm = regenIds(normalizeNode(c));
+      record({ t: 'ins', parentId: ROOT_ID, index: doc.root.children.length, node: norm });
+    }
+  });
+  scheduleSave();
+  emit({ type: 'children', id: ROOT_ID });
+}
+
+/* --- seed document ---------------------------------------------------- */
+function seedRoot() {
+  const mk = (title, note = '', children = [], extra = {}) =>
+    Object.assign(newNode({ title, note }), { children }, extra);
+  return mk('', '', [
+    mk('Welcome to 37nodes 👋',
+      '**Infinite depth. Zero chaos.**\n\n37nodes is an outliner: every line is an item, and every item can hold a whole world inside it.\n\nThis starter outline is a mini-tutorial. Edit or delete anything.'),
+    mk('Outlining basics', '', [
+      mk('Press Enter to make a new item, right below this one'),
+      mk('Press Tab to indent an item, Shift+Tab to outdent'),
+      mk('Move items with Alt+↑ / Alt+↓, or drag them by the bullet'),
+      mk('Check things off with Ctrl+Enter', '', [], { completed: true }),
+      mk('Click a bullet (or press Alt+→) to zoom in: try it here', '', [
+        mk('You zoomed! The breadcrumbs at the top lead back out.'),
+        mk('Zooming works at any depth. Alt+← zooms back out.'),
+      ]),
+      mk('This item is collapsed: click its ▸ arrow or press Ctrl+↓ on it', '', [
+        mk('Hidden treasure.'),
+        mk('The ring around a bullet means something is inside.'),
+      ], { collapsed: true }),
+    ]),
+    mk('Notes & markdown',
+      'Any item can carry a note like this one. Notes speak **markdown**:\n\n- *emphasis* and **strong**\n- `inline code`\n- [links](https://en.wikipedia.org/wiki/Holarchy)\n\n> Blockquotes too.\n\nPress Shift+Enter on any item to add or edit its note; click away and it renders.',
+      [mk('Press Shift+Enter here and write yourself a note')]),
+    mk('Make it yours', '', [
+      mk('Open the ☰ menu to pick a theme, try E-ink or Green CRT'),
+      mk('Search everything with Ctrl+F'),
+      mk('Jump straight to any item with Ctrl+K'),
+      mk('Add #tags to any item, then click a tag to filter by it #demo'),
+      mk('Link between items with [[Outlining basics]], click it to jump'),
+      mk('Type [[ anywhere to pick the item you mean from a list'),
+      mk('Press ? for the full keyboard reference'),
+    ]),
+    mk('About your data',
+      'Everything lives in *this browser\'s* local storage, so nothing ever leaves your machine. Browsers can evict local storage when clearing site data, so use **Export JSON** in the ☰ menu for real backups.'),
+  ]);
+}
+
+const store = {
+  ROOT_ID, DOC_KEY, PREFS_KEY,
+  subscribe, getNode, getParent, ancestorsOf, isDescendant, countNodes,
+  group, breakTyping,
+  setTitle, setNote, setTitleImmediate,
+  create, createTree, deletePromote, deleteSubtree,
+  move, indent, outdent, moveSibling,
+  setCollapsed, toggleCompleted,
+  undo, redo,
+  load, saveNow, scheduleSave, setSavedFocus,
+  importReplace, importAppend,
+  get doc() { return doc; },
+  get loadWarning() { return loadWarning; },
+  get wasSeeded() { return seeded; },
+};
+
+/* ===== 04 view =====
+   Incremental DOM rendering. Each node maps to one .node element keyed by
+   data-id; structural changes rebuild only the affected children container.
+   Collapsed subtrees are rendered lazily on first expand.                  */
+
+const treeEl = $('#tree');
+const crumbsEl = $('#breadcrumbs');
+const focusHeadEl = $('#focus-head');
+const focusTitleEl = $('#focus-title');
+const focusNoteEl = $('#focus-note');
+const emptyHintEl = $('#empty-hint');
+const searchEl = $('#search');
+const saveIndicatorEl = $('#save-indicator');
+
+const BRAND_TAGLINE = 'Infinite depth. Zero chaos.';
+
+const view = {
+  focusId: ROOT_ID,
+  query: '',
+  filter: null, // { matched:Set, anc:Set, under:Set, q } while searching
+};
+
+/* id → element map: nodeEl() must be O(1), not a DOM scan — it runs on
+   every keystroke and every reconcile step. Entries are validated on read
+   (an element may have been detached by a bulk rebuild). */
+const elMap = new Map();
+function nodeEl(id) {
+  const el = elMap.get(id);
+  if (el && el.isConnected) return el;
+  if (el) elMap.delete(id);
+  return null;
+}
+function idOfTitle(titleEl) {
+  if (titleEl === focusTitleEl) return view.focusId;
+  const el = titleEl.closest('.node');
+  return el ? el.dataset.id : null;
+}
+
+/* --- search filter ---------------------------------------------------- */
+function computeFilter() {
+  const q = view.query.trim().toLowerCase();
+  if (!q) { view.filter = null; return; }
+  // a pure #tag query matches the exact tag only (#todo must not hit #todos)
+  const tagRe = /^#[\w-]+$/.test(q) ? new RegExp('(^|\\s)' + q + '(?![\\w-])', 'i') : null;
+  const test = tagRe
+    ? s => tagRe.test(s || '')
+    : s => (s || '').toLowerCase().includes(q);
+  const matched = new Set(), anc = new Set(), under = new Set();
+  const focus = store.getNode(view.focusId);
+  (function walk(n, ancIds, underMatch) {
+    const isFocus = n === focus;
+    const hit = !isFocus && (test(n.title) || test(n.note));
+    if (hit) {
+      matched.add(n.id);
+      for (const a of ancIds) anc.add(a);
+    }
+    const nowUnder = underMatch || hit;
+    if (nowUnder && !isFocus) under.add(n.id);
+    const nextAnc = isFocus ? ancIds : ancIds.concat(n.id);
+    for (const c of n.children) walk(c, nextAnc, nowUnder);
+  })(focus, [], false);
+  view.filter = { matched, anc, under, q, tagQuery: !!tagRe };
+}
+function nodeVisibleInFilter(n) {
+  if (!view.filter) return true;
+  return view.filter.under.has(n.id) || view.filter.anc.has(n.id);
+}
+
+/* --- node rendering ---------------------------------------------------- */
+function highlightFrag(text, q) {
+  const frag = document.createDocumentFragment();
+  const lower = text.toLowerCase();
+  let i = 0;
+  for (;;) {
+    const j = lower.indexOf(q, i);
+    if (j < 0) { frag.append(document.createTextNode(text.slice(i))); break; }
+    if (j > i) frag.append(document.createTextNode(text.slice(i, j)));
+    const m = document.createElement('mark');
+    m.textContent = text.slice(j, j + q.length);
+    frag.append(m);
+    i = j + q.length;
+  }
+  return frag;
+}
+/* --- [[wikilinks]]: resolved by title, case-insensitive, at render time.
+   The text stays exactly what the user typed (raw and rendered lengths match,
+   so caret math survives the edit-mode flatten); a rename simply breaks the
+   link visibly instead of silently rewriting anyone's text. */
+let linkIndexDirty = true;
+let linkIndex = null; // lowercased title -> id (first in document order)
+store.subscribe(ev => {
+  if (ev.type === 'node' || ev.type === 'children' || ev.type === 'doc') linkIndexDirty = true;
+});
+function resolveTitleLink(text) {
+  if (linkIndexDirty || !linkIndex) {
+    linkIndex = new Map();
+    (function walk(n) {
+      for (const c of n.children) {
+        const k = (c.title || '').trim().toLowerCase();
+        if (k && !linkIndex.has(k)) linkIndex.set(k, c.id);
+        walk(c);
+      }
+    })(store.doc.root);
+    linkIndexDirty = false;
+  }
+  return linkIndex.get(String(text).trim().toLowerCase()) || null;
+}
+function makeWikilink(inner) {
+  const id = resolveTitleLink(inner);
+  if (id) {
+    const a = document.createElement('a');
+    a.className = 'wikilink';
+    a.href = '#' + id;
+    a.textContent = '[[' + inner + ']]';
+    a.title = 'Zoom to "' + inner.trim() + '"';
+    return a;
+  }
+  const s = document.createElement('span');
+  s.className = 'wikilink broken';
+  s.textContent = '[[' + inner + ']]';
+  s.title = 'No item titled "' + inner.trim() + '"';
+  return s;
+}
+
+/* title decorations: #tag chips (start-of-title or whitespace before the #,
+   so URLs like example.com/#anchor stay plain) and [[wikilinks]] */
+const DECOR_RE = /(^|\s)(#[\w-]+)|\[\[([^\[\]]+)\]\]/g;
+function decorFrag(text, activeTag) {
+  const frag = document.createDocumentFragment();
+  let last = 0;
+  DECOR_RE.lastIndex = 0;
+  for (let m; (m = DECOR_RE.exec(text)); ) {
+    if (m[2]) { // #tag
+      const start = m.index + m[1].length;
+      if (start > last) frag.append(document.createTextNode(text.slice(last, start)));
+      const s = document.createElement('span');
+      s.className = 'tag' + (activeTag && m[2].toLowerCase() === activeTag ? ' active' : '');
+      s.textContent = m[2];
+      s.title = 'Filter by ' + m[2];
+      frag.append(s);
+      last = start + m[2].length;
+    } else { // [[wikilink]]
+      if (m.index > last) frag.append(document.createTextNode(text.slice(last, m.index)));
+      frag.append(makeWikilink(m[3]));
+      last = m.index + m[0].length;
+    }
+  }
+  if (text.length > last) frag.append(document.createTextNode(text.slice(last)));
+  return frag; // empty text → empty frag, so the :empty placeholder still shows
+}
+function setTitleContent(el, n) {
+  el.textContent = '';
+  const f = view.filter;
+  if (f && !f.tagQuery && f.matched.has(n.id) && (n.title || '').toLowerCase().includes(f.q)) {
+    el.append(highlightFrag(n.title, f.q)); // text search: marks win over chips
+  } else {
+    el.append(decorFrag(n.title || '', f && f.tagQuery ? f.q : null));
+  }
+}
+function applyNodeState(el, n) {
+  const hasKids = n.children.length > 0;
+  const expanded = view.filter ? true : !n.collapsed;
+  el.classList.toggle('completed', n.completed);
+  el.classList.toggle('has-children', hasKids);
+  el.classList.toggle('collapsed', hasKids && !expanded);
+  el.classList.toggle('expanded', hasKids && expanded);
+  if (hasKids) el.setAttribute('aria-expanded', String(expanded));
+  else el.removeAttribute('aria-expanded');
+  const f = view.filter;
+  el.classList.toggle('dim', !!(f && f.anc.has(n.id) && !f.under.has(n.id)));
+  // checklist progress: shown once any direct child is checked off
+  const done = n.children.reduce((s, c) => s + (c.completed ? 1 : 0), 0);
+  let badge = el.querySelector(':scope > .row > .progress');
+  if (done > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'progress';
+      el.querySelector(':scope > .row').append(badge);
+    }
+    badge.textContent = `${done}/${n.children.length}`;
+  } else if (badge) {
+    badge.remove();
+  }
+}
+function buildNoteContent(n) {
+  const wrap = document.createElement('div');
+  wrap.className = 'note';
+  wrap.append(mdRender(n.note));
+  return wrap;
+}
+function renderNode(n, level) {
+  if (!nodeVisibleInFilter(n)) return null;
+  const el = document.createElement('div');
+  el.className = 'node';
+  el.dataset.id = n.id;
+  elMap.set(n.id, el);
+  el.setAttribute('role', 'treeitem');
+  el.setAttribute('aria-level', level);
+
+  const row = document.createElement('div');
+  row.className = 'row';
+  const tg = document.createElement('button');
+  tg.className = 'toggle';
+  tg.tabIndex = -1;
+  tg.textContent = '▸';
+  tg.title = 'Collapse / expand';
+  const bullet = document.createElement('a');
+  bullet.className = 'bullet';
+  bullet.href = '#' + n.id;
+  bullet.tabIndex = -1;
+  bullet.draggable = true;
+  bullet.title = 'Click to zoom in · drag to move';
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  bullet.append(dot);
+  const title = document.createElement('div');
+  title.className = 'title';
+  // NOT contenteditable at rest: with 20k editable roots, focusing one costs
+  // ~100ms in Chrome. Editing is enabled per-title on mousedown/keyboard-nav
+  // (activateTitle) and disabled again on focusout.
+  title.spellcheck = false;
+  setTitleContent(title, n);
+  row.append(tg, bullet, title);
+  el.append(row);
+
+  if (n.note) el.append(buildNoteContent(n));
+
+  const kids = document.createElement('div');
+  kids.className = 'children';
+  kids.setAttribute('role', 'group');
+  el.append(kids);
+
+  applyNodeState(el, n);
+  const expand = view.filter ? true : !n.collapsed;
+  if (expand && n.children.length) fillChildren(kids, n, level);
+  return el;
+}
+function fillChildren(kidsEl, n, level) {
+  kidsEl.dataset.filled = '1';
+  for (const c of n.children) {
+    const ce = renderNode(c, level + 1);
+    if (ce) kidsEl.append(ce);
+  }
+}
+
+/* --- region renderers --------------------------------------------------- */
+function renderTree() {
+  elMap.clear();
+  treeEl.textContent = '';
+  const focus = store.getNode(view.focusId);
+  const frag = document.createDocumentFragment();
+  for (const c of focus.children) {
+    const el = renderNode(c, 1);
+    if (el) frag.append(el);
+  }
+  treeEl.append(frag);
+  updateEmptyHint();
+}
+function renderCrumbs() {
+  crumbsEl.textContent = '';
+  if (view.focusId === ROOT_ID) {
+    const s = document.createElement('span');
+    s.className = 'crumb current app-name';
+    s.textContent = '37nodes';
+    const tag = document.createElement('span');
+    tag.className = 'tagline';
+    tag.textContent = BRAND_TAGLINE;
+    crumbsEl.append(s, tag);
+    // the rotating tagline (module 13) owns this text once it has booted;
+    // a re-render mid-reveal hands it the frame it was on
+    taglineAdopt(tag);
+    return;
+  }
+  const home = document.createElement('a');
+  home.className = 'crumb';
+  home.href = '#';
+  home.textContent = 'Home';
+  crumbsEl.append(home);
+  const chain = [...store.ancestorsOf(view.focusId).slice(1), store.getNode(view.focusId)];
+  chain.forEach((n, i) => {
+    const last = i === chain.length - 1;
+    const a = document.createElement(last ? 'span' : 'a');
+    a.className = 'crumb' + (last ? ' current' : '');
+    if (!last) a.href = '#' + n.id;
+    a.textContent = truncate(n.title, 40) || 'Untitled';
+    crumbsEl.append(a);
+  });
+}
+function renderFocusHead() {
+  if (view.focusId === ROOT_ID) { focusHeadEl.hidden = true; return; }
+  focusHeadEl.hidden = false;
+  const n = store.getNode(view.focusId);
+  if (document.activeElement !== focusTitleEl) focusTitleEl.textContent = n.title;
+  if (!focusNoteEl.querySelector('.note-edit:focus')) {
+    focusNoteEl.textContent = '';
+    if (n.note) focusNoteEl.append(mdRender(n.note));
+  }
+}
+function updateEmptyHint() {
+  const focus = store.getNode(view.focusId);
+  const empty = focus.children.length === 0;
+  emptyHintEl.hidden = !(empty && !view.filter);
+  if (!emptyHintEl.hidden) {
+    emptyHintEl.textContent = view.focusId === ROOT_ID
+      ? 'Empty outline. Click here or press Enter to start.'
+      : 'Nothing inside yet. Click here to add an item.';
+  }
+  if (view.filter && treeEl.children.length === 0) {
+    emptyHintEl.hidden = false;
+    emptyHintEl.textContent = 'No matches.';
+  }
+}
+function renderAll() {
+  if (!store.getNode(view.focusId)) view.focusId = ROOT_ID;
+  computeFilter();
+  renderCrumbs();
+  renderFocusHead();
+  renderTree();
+}
+
+function fixLevels(el, level) {
+  el.setAttribute('aria-level', level);
+  const kids = el.querySelector(':scope > .children');
+  for (const c of kids.children) fixLevels(c, level + 1);
+}
+/* Keyed reconciliation: reuse existing rows by id, move/insert/remove only
+   what changed. This is what keeps Enter O(1)-ish in a 20k-node outline. */
+function reconcileChildren(container, parentNode, level) {
+  let expected = container.firstElementChild;
+  for (const c of parentNode.children) {
+    let el = (expected && expected.dataset.id === c.id) ? expected : nodeEl(c.id);
+    if (el && el === expected) {
+      expected = expected.nextElementSibling;
+    } else if (el) {
+      container.insertBefore(el, expected); // reuse (subtree comes along intact)
+    } else {
+      el = renderNode(c, level + 1);
+      container.insertBefore(el, expected);
+    }
+    if (el.getAttribute('aria-level') !== String(level + 1)) fixLevels(el, level + 1);
+  }
+  const valid = new Set(parentNode.children.map(c => c.id));
+  for (const el of [...container.children]) {
+    const cid = el.dataset.id;
+    if (valid.has(cid)) continue;
+    const n = store.getNode(cid);
+    const sp = n && store.getParent(cid);
+    // if the node still exists under another parent, that parent's own
+    // 'children' event (emitted in the same action) will re-home this element
+    if (n && sp && sp.id !== parentNode.id) continue;
+    el.remove();
+  }
+}
+function renderChildrenOf(id) {
+  computeFilter(); // structure may have changed what matches show
+  if (view.filter) { renderTree(); return; } // search view: rebuild filtered tree
+  const parentNode = store.getNode(id);
+  if (!parentNode) { renderAll(); return; }
+  if (id === view.focusId) {
+    reconcileChildren(treeEl, parentNode, 0);
+    updateEmptyHint();
+    return;
+  }
+  const el = nodeEl(id);
+  if (!el) return; // inside a collapsed region; will render lazily on expand
+  const kids = el.querySelector(':scope > .children');
+  const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+  applyNodeState(el, parentNode);
+  if (parentNode.collapsed || !parentNode.children.length) {
+    kids.textContent = '';
+    delete kids.dataset.filled;
+    updateEmptyHint();
+    return;
+  }
+  kids.dataset.filled = '1';
+  reconcileChildren(kids, parentNode, level);
+  updateEmptyHint();
+}
+
+function updateRow(id, isTypingEcho) {
+  if (id === view.focusId) { renderFocusHead(); renderCrumbs(); return; }
+  const el = nodeEl(id);
+  const n = store.getNode(id);
+  if (!el || !n) return;
+  const title = el.querySelector(':scope > .row > .title');
+  // during typing the DOM is the source of truth — don't clobber the caret;
+  // for programmatic edits (split, undo) the store wins even while focused
+  if (!(isTypingEcho && title === document.activeElement)) setTitleContent(title, n);
+  // note: rebuild rendered note unless its editor is focused
+  let noteWrap = el.querySelector(':scope > .note');
+  const editing = noteWrap && noteWrap.querySelector('.note-edit:focus');
+  if (!editing) {
+    if (noteWrap) noteWrap.remove();
+    if (n.note) el.querySelector(':scope > .row').after(buildNoteContent(n));
+  }
+  applyNodeState(el, n);
+  // completion toggles change the parent's progress badge too
+  const p = store.getParent(id);
+  if (p && p.id !== ROOT_ID) {
+    const pe = nodeEl(p.id);
+    if (pe) applyNodeState(pe, p);
+  }
+}
+
+/* --- note editor -------------------------------------------------------- */
+function autoGrow(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+}
+function noteContainerFor(id) {
+  if (id === view.focusId) return focusNoteEl;
+  const el = nodeEl(id);
+  if (!el) return null;
+  let wrap = el.querySelector(':scope > .note');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = 'note';
+    el.querySelector(':scope > .row').after(wrap);
+  }
+  return wrap;
+}
+function openNoteEditor(id) {
+  const n = store.getNode(id);
+  const container = noteContainerFor(id);
+  if (!n || !container) return;
+  if (container.querySelector('.note-edit')) {
+    container.querySelector('.note-edit').focus();
+    return;
+  }
+  container.textContent = '';
+  const ta = document.createElement('textarea');
+  ta.className = 'note-edit';
+  ta.value = n.note || '';
+  ta.rows = 1;
+  ta.spellcheck = false;
+  ta.placeholder = 'Add a note… (markdown)';
+  container.append(ta);
+  autoGrow(ta);
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+function closeNoteEditor(ta) {
+  const container = ta.parentElement;
+  if (!container) return;
+  const isFocusNote = container === focusNoteEl;
+  const id = isFocusNote ? view.focusId : (container.closest('.node') || {}).dataset?.id;
+  if (!id) { container.remove(); return; }
+  const n = store.getNode(id);
+  const noteText = n ? n.note : '';
+  container.textContent = '';
+  if (noteText) container.append(mdRender(noteText));
+  else if (!isFocusNote) container.remove();
+}
+
+/* --- focus helpers -------------------------------------------------------- */
+function revealNode(id) {
+  for (const a of store.ancestorsOf(id)) {
+    if (a.id !== ROOT_ID && a.collapsed) store.setCollapsed(a.id, false);
+  }
+}
+function activateTitle(t, off = 0) {
+  if (t.contentEditable !== 'true') t.contentEditable = 'true';
+  t.focus();
+  setCaret(t, off === 'end' ? t.textContent.length : clamp(off, 0, t.textContent.length));
+  t.scrollIntoView({ block: 'nearest' });
+}
+function focusNodeTitle(id, off = 0) {
+  if (!store.getNode(id)) return;
+  if (id === view.focusId) {
+    focusTitleEl.focus();
+    setCaret(focusTitleEl, off === 'end' ? focusTitleEl.textContent.length : off);
+    return;
+  }
+  let el = nodeEl(id);
+  if (!el) { revealNode(id); el = nodeEl(id); }
+  if (!el) return;
+  activateTitle(el.querySelector(':scope > .row > .title'), off);
+}
+/* nearest visible title before/after el in document order — O(distance),
+   unlike visibleTitles() which scans the whole tree */
+function siblingTitle(el, dir) {
+  const walker = document.createTreeWalker($('#page'), NodeFilter.SHOW_ELEMENT, {
+    acceptNode: n => (n.classList.contains('title') && n.offsetParent !== null)
+      ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP,
+  });
+  walker.currentNode = el;
+  return dir > 0 ? walker.nextNode() : walker.previousNode();
+}
+function visibleTitles() {
+  const list = [];
+  if (!focusHeadEl.hidden) list.push(focusTitleEl);
+  for (const t of treeEl.querySelectorAll('.title')) {
+    if (t.offsetParent !== null) list.push(t);
+  }
+  return list;
+}
+
+/* --- banner & save indicator --------------------------------------------- */
+const bannerEl = $('#banner');
+const bannerMsgEl = $('#banner-msg');
+const bannerActionEl = $('#banner-export');
+let bannerKind = null; // 'storage' | 'notice' | 'fsbackup' | null (generic)
+let bannerActionFn = null; // custom action; null = default (export JSON)
+const bannerMutedKinds = new Set(); // kinds the user dismissed this session
+function showBanner(msg, { kind = null, action = null } = {}) {
+  if (kind && bannerMutedKinds.has(kind)) return;
+  bannerMsgEl.textContent = msg;
+  bannerKind = kind;
+  bannerActionFn = action ? action.onClick : null;
+  bannerActionEl.textContent = action ? action.label : 'Export now';
+  bannerEl.classList.toggle('notice', kind === 'notice');
+  bannerEl.hidden = false;
+}
+function hideBanner({ mute = false } = {}) {
+  if (mute && bannerKind) bannerMutedKinds.add(bannerKind);
+  bannerEl.hidden = true;
+  bannerKind = null;
+  bannerActionFn = null;
+}
+function updateSaveIndicator(state) {
+  saveIndicatorEl.classList.toggle('error', state === 'error');
+  saveIndicatorEl.textContent =
+    state === 'saving' ? 'Saving…' : state === 'error' ? '⚠ Not saved' : 'Saved';
+  saveIndicatorEl.title = state === 'error'
+    ? 'Saving failed. Click to retry and see details' : '';
+}
+
+/* --- store event wiring ----------------------------------------------------- */
+store.subscribe(ev => {
+  switch (ev.type) {
+    case 'node':
+      updateRow(ev.id, !!ev.typing);
+      break;
+    case 'children':
+      if (!store.getNode(view.focusId)) {
+        location.hash = ''; // focus node was deleted; hashchange re-renders at root
+      } else {
+        renderChildrenOf(ev.id);
+      }
+      break;
+    case 'collapse': {
+      const el = nodeEl(ev.id);
+      const n = store.getNode(ev.id);
+      if (!el || !n) break;
+      const kids = el.querySelector(':scope > .children');
+      if (!n.collapsed && !kids.dataset.filled && n.children.length) {
+        const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+        fillChildren(kids, n, level);
+      }
+      if (!n.collapsed) {
+        kids.classList.add('just-expanded');
+        setTimeout(() => kids.classList.remove('just-expanded'), 250);
+      }
+      applyNodeState(el, n);
+      break;
+    }
+    case 'doc':
+      renderAll();
+      break;
+    case 'save':
+      updateSaveIndicator(ev.state);
+      if (ev.state === 'error') {
+        showBanner('Saving failed (storage may be full or blocked). Your outline is safe in this tab, and you can export a backup from the ☰ menu.', { kind: 'storage' });
+      } else if (ev.state === 'saved' && ev.recovered) {
+        bannerMutedKinds.delete('storage'); // saves work again; a future failure may warn once more
+        if (bannerKind === 'storage') hideBanner();
+      }
+      break;
+  }
+});
+
+/* ===== 05 search ===== */
+
+const applySearch = debounce(() => {
+  const q = searchEl.value;
+  if (q === view.query) return;
+  view.query = q;
+  renderAll();
+}, 150);
+
+function setSearch(q) {
+  searchEl.value = q;
+  applySearch();
+  applySearch.flush();
+}
+function toggleTagFilter(tag) {
+  if (view.query.trim().toLowerCase() === tag.toLowerCase()) clearSearch();
+  else setSearch(tag);
+}
+/* tag chips: clicking one filters by that tag; clicking it again clears */
+document.addEventListener('click', e => {
+  const tag = e.target.closest?.('.title .tag');
+  if (!tag) return;
+  e.preventDefault();
+  toggleTagFilter(tag.textContent);
+});
+
+function clearSearch(refocusOutline = true) {
+  searchEl.value = '';
+  if (view.query) {
+    view.query = '';
+    renderAll();
+  }
+  if (refocusOutline) {
+    const first = visibleTitles()[0];
+    if (first) activateTitle(first, 'end');
+  }
+}
+
+searchEl.addEventListener('input', applySearch);
+searchEl.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    clearSearch();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    applySearch.flush();
+    const f = view.filter;
+    if (!f) return;
+    const first = visibleTitles().find(t => {
+      const id = idOfTitle(t);
+      return id && f.matched.has(id);
+    });
+    if (first) activateTitle(first, 0);
+  }
+});
+
+/* ===== 06 keyboard & editing events =====
+   All title/note events are delegated at the document level so the
+   focus-header title and tree titles share one code path.            */
+
+function onTitleInput(el) {
+  const id = idOfTitle(el);
+  if (!id) return;
+  // contenteditable can sneak in <br>/newlines via some IME paths; flatten
+  const v = el.textContent.replace(/\n/g, ' ');
+  store.setTitle(id, v);
+}
+
+function navRelative(el, dir, off) {
+  const t = siblingTitle(el, dir);
+  if (!t) return false;
+  activateTitle(t, off);
+  return true;
+}
+
+function handleEnter(el, id) {
+  const n = store.getNode(id);
+  const off = caretOffset(el);
+  const text = el.textContent;
+  if (el === focusTitleEl) {
+    const nn = store.create(id, 0, {});
+    focusNodeTitle(nn.id, 0);
+    return;
+  }
+  const parent = store.getParent(id);
+  const idx = parent.children.indexOf(n);
+  let focusAfter = null, focusOff = 0;
+  store.group(() => {
+    if (off >= text.length) {
+      // at end: into expanded children, else sibling after
+      if (n.children.length && !n.collapsed && !view.filter) {
+        focusAfter = store.create(id, 0).id;
+      } else {
+        focusAfter = store.create(parent.id, idx + 1).id;
+      }
+    } else if (off === 0 && text.length) {
+      // at start: empty item above, caret stays on current text
+      store.create(parent.id, idx, {});
+      focusAfter = id;
+    } else {
+      // split at caret
+      store.setTitleImmediate(id, text.slice(0, off));
+      focusAfter = store.create(parent.id, idx + 1, { title: text.slice(off) }).id;
+    }
+  });
+  focusNodeTitle(focusAfter, focusOff);
+}
+
+function handleBackspace(e, el, id) {
+  if (el === focusTitleEl) return; // focus header: never delete via backspace
+  if (caretOffset(el) !== 0 || !selectionCollapsedIn(el)) return;
+  if (el.textContent.length > 0) return; // only empty items die by backspace
+  e.preventDefault();
+  const prevT = siblingTitle(el, -1);
+  const nextT = siblingTitle(el, 1);
+  const prevId = prevT && idOfTitle(prevT);
+  const nextId = nextT && idOfTitle(nextT);
+  store.deletePromote(id);
+  const target = (prevId && store.getNode(prevId)) ? prevId
+    : (nextId && store.getNode(nextId)) ? nextId : null;
+  if (target) focusNodeTitle(target, target === prevId ? 'end' : 0);
+}
+
+function handleDeleteSubtree(e, el, id) {
+  if (el === focusTitleEl) return;
+  e.preventDefault();
+  const prevT = siblingTitle(el, -1);
+  const prevId = prevT && idOfTitle(prevT);
+  store.deleteSubtree(id);
+  if (prevId && store.getNode(prevId)) focusNodeTitle(prevId, 'end');
+  else {
+    const first = visibleTitles()[0];
+    if (first) activateTitle(first, 0);
+  }
+}
+
+function onTitleKeydown(e, el) {
+  const id = idOfTitle(el);
+  if (!id) return;
+  const n = store.getNode(id);
+  if (!n) return;
+  const mod = e.ctrlKey || e.metaKey;
+  const key = e.key;
+
+  // --- undo/redo ---
+  if (mod && !e.altKey && (key === 'z' || key === 'Z')) {
+    e.preventDefault();
+    const fid = e.shiftKey ? store.redo() : store.undo();
+    if (fid) focusNodeTitle(fid, 'end');
+    return;
+  }
+  if (mod && !e.shiftKey && (key === 'y' || key === 'Y')) {
+    e.preventDefault();
+    const fid = store.redo();
+    if (fid) focusNodeTitle(fid, 'end');
+    return;
+  }
+  // --- copy subtree as markdown ---
+  if (mod && e.shiftKey && (key === 'c' || key === 'C')) {
+    e.preventDefault();
+    copySubtreeMarkdown(id);
+    return;
+  }
+
+  switch (key) {
+    case 'Enter':
+      if (e.shiftKey) { e.preventDefault(); openNoteEditor(id); return; }
+      if (mod) {
+        e.preventDefault();
+        if (el === focusTitleEl) return;
+        store.toggleCompleted(id);
+        // if hide-completed just swallowed the row, land somewhere sensible
+        if (el.offsetParent === null) {
+          const t = siblingTitle(el, 1) || siblingTitle(el, -1);
+          if (t) activateTitle(t, 0);
+        }
+        return;
+      }
+      e.preventDefault();
+      handleEnter(el, id);
+      return;
+
+    case 'Tab': {
+      e.preventDefault();
+      if (el === focusTitleEl) return;
+      const off = caretOffset(el);
+      const ok = e.shiftKey ? store.outdent(id, view.focusId) : store.indent(id);
+      if (ok) focusNodeTitle(id, off);
+      return;
+    }
+
+    case 'Backspace':
+      if (mod && e.shiftKey) { handleDeleteSubtree(e, el, id); return; }
+      handleBackspace(e, el, id);
+      return;
+
+    case 'ArrowUp':
+    case 'ArrowDown': {
+      const dir = key === 'ArrowDown' ? 1 : -1;
+      if (e.altKey && !mod) {
+        e.preventDefault();
+        if (el === focusTitleEl) return;
+        const off = caretOffset(el);
+        if (store.moveSibling(id, dir)) focusNodeTitle(id, off);
+        return;
+      }
+      if (mod && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        if (el !== focusTitleEl && n.children.length) {
+          store.setCollapsed(id, key === 'ArrowUp');
+        }
+        return;
+      }
+      if (!mod && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        navRelative(el, dir, caretOffset(el));
+      }
+      return;
+    }
+
+    case 'ArrowLeft':
+      if (e.altKey && !mod) {
+        e.preventDefault();
+        if (e.shiftKey) zoomRoot(); else zoomOut();
+        return;
+      }
+      if (!mod && !e.shiftKey && caretOffset(el) === 0 && selectionCollapsedIn(el)) {
+        e.preventDefault();
+        navRelative(el, -1, 'end');
+      }
+      return;
+
+    case 'ArrowRight':
+      if (e.altKey && !mod) {
+        e.preventDefault();
+        if (el !== focusTitleEl) location.hash = '#' + id;
+        return;
+      }
+      if (!mod && !e.shiftKey && selectionCollapsedIn(el)
+          && caretOffset(el) >= el.textContent.length) {
+        e.preventDefault();
+        navRelative(el, 1, 0);
+      }
+      return;
+
+    case 'Escape':
+      if (view.query) { e.preventDefault(); clearSearch(); }
+      return;
+  }
+}
+
+function zoomOut() {
+  if (view.focusId === ROOT_ID) return;
+  const parent = store.getParent(view.focusId);
+  location.hash = (!parent || parent.id === ROOT_ID) ? '' : '#' + parent.id;
+}
+
+/* all the way out: the master node, caret on the first item, scrolled to the top */
+function zoomRoot() {
+  const wasRoot = view.focusId === ROOT_ID;
+  if (!wasRoot) location.hash = '';
+  const land = () => {
+    const first = visibleTitles()[0];
+    if (first) activateTitle(first, 0);
+    window.scrollTo(0, 0);
+  };
+  // hashchange → applyFocusFromHash → renderAll runs after this task
+  if (wasRoot) land(); else setTimeout(land, 0);
+}
+
+/* --- multi-line paste → structure --- */
+function insertPlainText(text) {
+  document.execCommand('insertText', false, text);
+}
+function onTitlePaste(e, el) {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain') || '';
+  if (!/\n/.test(text.trim())) {
+    insertPlainText(text.replace(/\s*\n\s*/g, ' '));
+    return;
+  }
+  const trees = parseOutlineText(text);
+  if (!trees.length) return;
+  const id = idOfTitle(el);
+  let last = null;
+  store.group(() => {
+    if (el === focusTitleEl) {
+      trees.forEach((t, k) => { last = store.createTree(view.focusId, k, t); });
+    } else {
+      const p = store.getParent(id);
+      const idx = p.children.indexOf(store.getNode(id));
+      trees.forEach((t, k) => { last = store.createTree(p.id, idx + 1 + k, t); });
+    }
+  });
+  if (last) focusNodeTitle(last.id, 'end');
+}
+
+/* --- note editor keys --- */
+function onNoteKeydown(e, ta) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    const container = ta.parentElement;
+    const id = container === focusNoteEl
+      ? view.focusId
+      : (ta.closest('.node') || {}).dataset?.id;
+    ta.blur();
+    if (id) focusNodeTitle(id, 'end');
+  } else if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault();
+    ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+}
+
+/* --- delegated wiring ------------------------------------------------ */
+document.addEventListener('keydown', e => {
+  const title = e.target.closest?.('.title');
+  if (title) { onTitleKeydown(e, title); return; }
+  const ta = e.target.closest?.('.note-edit');
+  if (ta) { onNoteKeydown(e, ta); return; }
+
+  // global shortcuts (outside editors)
+  const mod = e.ctrlKey || e.metaKey;
+  if (e.altKey && e.shiftKey && !mod && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    zoomRoot();
+    return;
+  }
+  if (mod && (e.key === 'f' || e.key === 'F') && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    searchEl.focus();
+    searchEl.select();
+    return;
+  }
+  const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+  if (!inField) {
+    if (e.key === '?' && !mod) { e.preventDefault(); $('#help-dialog').showModal(); return; }
+    if (mod && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      const fid = e.shiftKey ? store.redo() : store.undo();
+      if (fid) focusNodeTitle(fid, 'end');
+    }
+  }
+});
+// Ctrl+F must win even while typing in a title/note
+document.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && (e.key === 'f' || e.key === 'F') && !e.shiftKey && !e.altKey && !e.defaultPrevented) {
+    e.preventDefault();
+    searchEl.focus();
+    searchEl.select();
+  }
+}, true);
+
+document.addEventListener('input', e => {
+  const title = e.target.closest?.('.title');
+  if (title) { onTitleInput(title); return; }
+  const ta = e.target.closest?.('.note-edit');
+  if (ta) {
+    autoGrow(ta);
+    const id = ta.parentElement === focusNoteEl
+      ? view.focusId
+      : (ta.closest('.node') || {}).dataset?.id;
+    if (id) store.setNote(id, ta.value);
+  }
+});
+
+document.addEventListener('paste', e => {
+  const title = e.target.closest?.('.title');
+  if (title) onTitlePaste(e, title);
+});
+
+// enable editing just-in-time, before the browser's focus/caret placement
+document.addEventListener('mousedown', e => {
+  // tag chips and wikilinks are controls, not text: don't start editing,
+  // don't move focus (focusin would flatten them away before their click)
+  if (e.target.closest?.('.title .tag, .title .wikilink')) { e.preventDefault(); return; }
+  const t = e.target.closest?.('.title');
+  if (t && t.contentEditable !== 'true') t.contentEditable = 'true';
+}, true);
+
+document.addEventListener('focusin', e => {
+  const title = e.target.closest?.('.title');
+  if (title && title.querySelector('mark, .tag, .wikilink')) {
+    // editing a decorated title (search marks / tag chips): swap to plain text
+    const off = caretOffset(title);
+    const id = idOfTitle(title);
+    const n = id && store.getNode(id);
+    if (n) { title.textContent = n.title; setCaret(title, off); }
+  }
+});
+document.addEventListener('focusout', e => {
+  const title = e.target.closest?.('.title');
+  if (title) {
+    store.breakTyping();
+    if (title !== focusTitleEl) {
+      title.contentEditable = 'false';
+      // restore decorations (tag chips, search marks) the flatten removed
+      const id = idOfTitle(title);
+      const n = id && store.getNode(id);
+      if (n) setTitleContent(title, n);
+    }
+  }
+  const ta = e.target.closest?.('.note-edit');
+  if (ta) { store.breakTyping(); closeNoteEditor(ta); }
+});
+
+/* --- mouse wiring ------------------------------------------------ */
+treeEl.addEventListener('click', e => {
+  const tg = e.target.closest('.toggle');
+  if (tg) {
+    const el = tg.closest('.node');
+    const n = store.getNode(el.dataset.id);
+    if (n) store.setCollapsed(n.id, !n.collapsed);
+    return;
+  }
+  const noteWrap = e.target.closest('.note');
+  if (noteWrap && !e.target.closest('a') && !e.target.closest('.note-edit')) {
+    const el = noteWrap.closest('.node');
+    if (el) openNoteEditor(el.dataset.id);
+  }
+});
+focusNoteEl.addEventListener('click', e => {
+  if (!e.target.closest('a') && !e.target.closest('.note-edit')) openNoteEditor(view.focusId);
+});
+emptyHintEl.addEventListener('click', () => {
+  if (view.filter) return;
+  const nn = store.create(view.focusId, 0, {});
+  focusNodeTitle(nn.id, 0);
+});
+
+/* ===== 07 drag & drop ===== */
+
+let dragId = null;
+let dropRow = null;
+
+function clearDropMarks() {
+  if (dropRow) {
+    dropRow.classList.remove('drop-before', 'drop-after', 'drop-into');
+    dropRow = null;
+  }
+}
+
+treeEl.addEventListener('dragstart', e => {
+  const bullet = e.target.closest('.bullet');
+  if (!bullet) { e.preventDefault(); return; }
+  const el = bullet.closest('.node');
+  dragId = el.dataset.id;
+  el.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  const n = store.getNode(dragId);
+  if (n) e.dataTransfer.setData('text/plain', nodeToMarkdownText(n));
+});
+
+treeEl.addEventListener('dragend', () => {
+  clearDropMarks();
+  const el = dragId && nodeEl(dragId);
+  if (el) el.classList.remove('dragging');
+  dragId = null;
+});
+
+treeEl.addEventListener('dragover', e => {
+  if (!dragId) return;
+  const row = e.target.closest('.row');
+  if (!row) { clearDropMarks(); return; }
+  const el = row.closest('.node');
+  const tid = el.dataset.id;
+  if (tid === dragId || store.isDescendant(tid, dragId)) { clearDropMarks(); return; }
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const r = row.getBoundingClientRect();
+  const y = (e.clientY - r.top) / r.height;
+  const mode = y < 0.3 ? 'drop-before' : y > 0.7 ? 'drop-after' : 'drop-into';
+  if (dropRow !== row || !row.classList.contains(mode)) {
+    clearDropMarks();
+    row.classList.add(mode);
+    dropRow = row;
+  }
+});
+
+treeEl.addEventListener('drop', e => {
+  if (!dragId || !dropRow) return;
+  e.preventDefault();
+  const mode = ['drop-before', 'drop-after', 'drop-into'].find(m => dropRow.classList.contains(m));
+  const targetEl = dropRow.closest('.node');
+  const tid = targetEl.dataset.id;
+  const movedId = dragId;
+  clearDropMarks();
+  const target = store.getNode(tid);
+  if (!target) return;
+  if (mode === 'drop-into') {
+    store.setCollapsed(tid, false);
+    store.move(movedId, tid, 0);
+  } else {
+    const parent = store.getParent(tid);
+    if (!parent) return;
+    const idx = parent.children.indexOf(target);
+    store.move(movedId, parent.id, mode === 'drop-before' ? idx : idx + 1);
+  }
+  focusNodeTitle(movedId, 'end');
+});
+
+/* ===== 08 import / export / clipboard ===== */
+
+function dateStamp() {
+  const d = new Date();
+  const p = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
+function downloadFile(name, text, type) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function docPayload() {
+  return JSON.stringify({
+    schemaVersion: SCHEMA_VERSION,
+    savedAt: nowISO(),
+    focusId: store.doc.focusId,
+    root: store.doc.root,
+  }, null, 2);
+}
+function exportJSON() {
+  store.saveNow(); // flush pending edits into doc timestamps
+  downloadFile(`37nodes-backup-${dateStamp()}.json`, docPayload(), 'application/json');
+  // JSON is the lossless backup, so it (alone) resets the reminder clock
+  prefs.lastExportAt = nowISO();
+  savePrefs();
+  updateExportReadout();
+  if (bannerKind === 'notice') hideBanner();
+}
+
+function childrenToMarkdown(n, depth, out) {
+  for (const c of n.children) {
+    out.push(`${'  '.repeat(depth)}- ${c.title || ''}`);
+    if (c.note) {
+      for (const l of c.note.split('\n')) out.push(`${'  '.repeat(depth + 1)}${l}`);
+    }
+    childrenToMarkdown(c, depth + 1, out);
+  }
+}
+function nodeToMarkdownText(n) {
+  const out = [`- ${n.title || ''}`];
+  if (n.note) for (const l of n.note.split('\n')) out.push(`  ${l}`);
+  childrenToMarkdown(n, 1, out);
+  return out.join('\n');
+}
+function exportMarkdown(scopeId) {
+  const n = store.getNode(scopeId);
+  if (!n) return;
+  const out = [];
+  if (scopeId === ROOT_ID) {
+    childrenToMarkdown(n, 0, out);
+  } else {
+    out.push(`# ${n.title || 'Untitled'}`);
+    if (n.note) { out.push(''); out.push(n.note); }
+    out.push('');
+    childrenToMarkdown(n, 0, out);
+  }
+  downloadFile(`37nodes-${dateStamp()}.md`, out.join('\n') + '\n', 'text/markdown');
+}
+
+function copySubtreeMarkdown(id) {
+  const n = store.getNode(id);
+  if (!n) return;
+  const text = nodeToMarkdownText(n);
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text);
+  else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.append(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+}
+
+/* --- import flow --- */
+const importFileEl = $('#import-file');
+const importDialogEl = $('#import-dialog');
+let pendingImport = null;
+
+$('#import-json').addEventListener('click', () => { importFileEl.value = ''; importFileEl.click(); });
+importFileEl.addEventListener('change', async () => {
+  const file = importFileEl.files[0];
+  if (!file) return;
+  let data = null;
+  try { data = JSON.parse(await file.text()); }
+  catch (e) {
+    showBanner(`"${file.name}" is not valid JSON, so nothing was imported.`);
+    return;
+  }
+  if (!data || typeof data !== 'object' || !data.root || !Array.isArray(data.root.children)) {
+    showBanner(`"${file.name}" doesn't look like a 37nodes backup (missing root.children), so nothing was imported.`);
+    return;
+  }
+  pendingImport = data;
+  const count = store.countNodes(data.root) - 1;
+  const when = data.savedAt ? ` saved ${String(data.savedAt).slice(0, 10)}` : '';
+  $('#import-summary').textContent = `“${file.name}” contains ${count.toLocaleString()} item${count === 1 ? '' : 's'}${when}.`;
+  importDialogEl.showModal();
+});
+$('#import-cancel').addEventListener('click', () => { pendingImport = null; importDialogEl.close(); });
+$('#import-append').addEventListener('click', () => {
+  if (pendingImport) store.importAppend(pendingImport.root.children);
+  pendingImport = null;
+  importDialogEl.close();
+});
+$('#import-replace').addEventListener('click', () => {
+  if (pendingImport) {
+    store.importReplace(pendingImport.root);
+    location.hash = '';
+    renderAll();
+  }
+  pendingImport = null;
+  importDialogEl.close();
+});
+
+/* --- file mirror (File System Access API) ------------------------------
+   Keeps a real .json file on disk continuously up to date, so localStorage
+   eviction stops being a data-loss risk. Chromium-only; the handle persists
+   in IndexedDB (handles are structured-cloneable; localStorage can't hold
+   them). After a reload the browser may demand a fresh user gesture before
+   we can write again — that's the 'paused' state and the Resume flow. */
+
+const fsSupported = typeof window.showSaveFilePicker === 'function';
+let fsHandle = null;
+let fsState = 'off'; // 'off' | 'active' | 'paused' (needs permission) | 'error'
+let fsLastWriteAt = null;
+let fsWriting = false, fsDirty = false;
+
+function idbKV(fn) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('37nodes', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('kv');
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction('kv', 'readwrite');
+      const r = fn(tx.objectStore('kv'));
+      tx.oncomplete = () => { db.close(); resolve(r && r.result); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    };
+  });
+}
+const idbGet = k => idbKV(os => os.get(k));
+const idbSet = (k, v) => idbKV(os => os.put(v, k));
+const idbDel = k => idbKV(os => os.delete(k));
+
+const fsReadoutEl = $('#fsbackup-readout');
+const fsSetupEl = $('#fsbackup-setup');
+const fsResumeEl = $('#fsbackup-resume');
+const fsStopEl = $('#fsbackup-stop');
+
+function updateFsUI() {
+  if (!fsSupported) {
+    fsReadoutEl.hidden = fsSetupEl.hidden = fsResumeEl.hidden = fsStopEl.hidden = true;
+    return;
+  }
+  fsSetupEl.hidden = !!fsHandle;
+  fsStopEl.hidden = !fsHandle;
+  fsResumeEl.hidden = !(fsHandle && fsState !== 'active');
+  fsReadoutEl.hidden = !fsHandle;
+  if (fsHandle) {
+    fsReadoutEl.textContent =
+      fsState === 'active' ? `Mirroring to ${fsHandle.name}` + (fsLastWriteAt ? ` · written ${formatAgo(fsLastWriteAt)}` : '')
+      : fsState === 'error' ? `Mirror write failed: ${fsHandle.name}`
+      : `Mirror paused: ${fsHandle.name} needs permission`;
+  }
+}
+
+async function fsWrite() {
+  if (fsState !== 'active' || !fsHandle) return;
+  if (fsWriting) { fsDirty = true; return; }
+  fsWriting = true;
+  try {
+    const w = await fsHandle.createWritable();
+    await w.write(docPayload());
+    await w.close();
+    fsLastWriteAt = nowISO();
+  } catch (err) {
+    fsState = 'error';
+    showBanner(`Couldn't write the backup file "${fsHandle.name}", so mirroring is paused. Your outline is still saved in this browser.`,
+      { kind: 'fsbackup', action: { label: 'Retry', onClick: fsResume } });
+  } finally {
+    fsWriting = false;
+    updateFsUI();
+    if (fsDirty) { fsDirty = false; fsWrite(); }
+  }
+}
+const fsWriteDebounced = debounce(fsWrite, 1200);
+function fsFlush() { fsWriteDebounced.flush(); }
+
+async function fsSetup() { // must run from a user gesture
+  try {
+    const h = await showSaveFilePicker({
+      suggestedName: '37nodes-backup.json',
+      types: [{ description: 'JSON backup', accept: { 'application/json': ['.json'] } }],
+    });
+    fsHandle = h;
+    fsState = 'active';
+    try { await idbSet('backupHandle', h); } catch (e) { /* session-only mirror */ }
+    await fsWrite();
+  } catch (err) { /* picker cancelled */ }
+  updateFsUI();
+}
+async function fsResume() { // must run from a user gesture
+  if (!fsHandle) return;
+  if (fsState === 'error') { fsState = 'active'; }
+  else {
+    try {
+      if (await fsHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') { updateFsUI(); return; }
+      fsState = 'active';
+    } catch (e) { updateFsUI(); return; }
+  }
+  if (bannerKind === 'fsbackup') hideBanner();
+  await fsWrite();
+  updateFsUI();
+}
+async function fsStop() {
+  fsHandle = null;
+  fsState = 'off';
+  fsLastWriteAt = null;
+  try { await idbDel('backupHandle'); } catch (e) {}
+  if (bannerKind === 'fsbackup') hideBanner();
+  updateFsUI();
+}
+async function initFileBackup() {
+  updateFsUI();
+  if (!fsSupported) return;
+  try { fsHandle = (await idbGet('backupHandle')) || null; } catch (e) { fsHandle = null; }
+  if (!fsHandle) return;
+  let p = 'prompt';
+  try { p = fsHandle.queryPermission ? await fsHandle.queryPermission({ mode: 'readwrite' }) : 'prompt'; } catch (e) {}
+  if (p === 'granted') {
+    fsState = 'active';
+    fsWrite();
+    checkExportReminder(); // boot may have raised the export nag before we got here
+  } else {
+    fsState = 'paused';
+    showBanner(`File mirroring is paused: the browser needs permission to keep writing "${fsHandle.name}".`,
+      { kind: 'fsbackup', action: { label: 'Resume', onClick: fsResume } });
+  }
+  updateFsUI();
+}
+
+fsSetupEl.addEventListener('click', () => { closeMenu(); fsSetup(); });
+fsResumeEl.addEventListener('click', () => { closeMenu(); fsResume(); });
+fsStopEl.addEventListener('click', () => { fsStop(); });
+
+// every successful localStorage save also refreshes the mirror (debounced)
+store.subscribe(ev => {
+  if (ev.type === 'save' && ev.state === 'saved') fsWriteDebounced();
+});
+
+/* ===== 09 main: prefs, theme, zoom/hash, menu, boot ===== */
+
+/* --- one-time storage migration from the app's earlier names (Holon, Holarchy) --- */
+try {
+  for (const [oldKey, newKey] of [
+    ['holon:doc', DOC_KEY], ['holon:prefs', PREFS_KEY],
+    ['holarchy:doc', DOC_KEY], ['holarchy:prefs', PREFS_KEY],
+  ]) {
+    const legacy = localStorage.getItem(oldKey);
+    if (legacy !== null) {
+      if (localStorage.getItem(newKey) === null) localStorage.setItem(newKey, legacy);
+      localStorage.removeItem(oldKey);
+    }
+  }
+} catch (e) { /* storage unavailable; load() surfaces that on its own */ }
+
+/* --- prefs & theming --- */
+let prefs = {};
+try { prefs = JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch (e) { prefs = {}; }
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) { /* non-fatal */ }
+}
+/* --- favicon: built from the logo symbol, so the mark exists once in the file
+       and the tab icon can never drift from the one in the top bar. Held at a
+       neutral grey rather than the theme colour, which has to stay legible
+       against whatever chrome the browser puts behind it. --- */
+(function setFavicon() {
+  const d = $('#logo-mark path').getAttribute('d');
+  // square canvas, mark centred: browsers letterbox a non-square favicon
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -90 1000 1000">'
+    + '<path fill="#818181" fill-rule="evenodd" d="' + d + '"/></svg>';
+  $('#favicon').href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+})();
+
+const DEFAULT_THEME = 'nordic'; // also hard-coded on <html> so first paint matches
+const darkMQ = window.matchMedia('(prefers-color-scheme: dark)');
+function applyTheme() {
+  const t = prefs.theme || DEFAULT_THEME;
+  document.documentElement.dataset.theme = t === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : t;
+}
+darkMQ.addEventListener('change', applyTheme);
+const themeSelectEl = $('#theme-select');
+themeSelectEl.addEventListener('change', () => {
+  prefs.theme = themeSelectEl.value;
+  savePrefs();
+  applyTheme();
+});
+const hideCompletedEl = $('#hide-completed');
+hideCompletedEl.addEventListener('change', () => {
+  prefs.hideCompleted = hideCompletedEl.checked;
+  savePrefs();
+  document.body.classList.toggle('hide-completed', prefs.hideCompleted);
+});
+const wideLayoutEl = $('#wide-layout');
+wideLayoutEl.addEventListener('change', () => {
+  prefs.wideLayout = wideLayoutEl.checked;
+  savePrefs();
+  document.body.classList.toggle('wide', prefs.wideLayout);
+});
+
+/* --- zoom via URL hash --- */
+function parseHash() {
+  const h = decodeURIComponent(location.hash.replace(/^#/, ''));
+  return h && store.getNode(h) ? h : null;
+}
+function applyFocusFromHash() {
+  const id = parseHash() || ROOT_ID;
+  if (id !== view.focusId) {
+    view.focusId = id;
+    store.setSavedFocus(id);
+    renderAll();
+  }
+}
+window.addEventListener('hashchange', applyFocusFromHash);
+
+/* --- menu panel --- */
+const menuPanelEl = $('#menu-panel');
+const menuBtnEl = $('#menu-btn');
+function closeMenu() { menuPanelEl.hidden = true; menuBtnEl.setAttribute('aria-expanded', 'false'); }
+menuBtnEl.addEventListener('click', e => {
+  e.stopPropagation();
+  menuPanelEl.hidden = !menuPanelEl.hidden;
+  menuBtnEl.setAttribute('aria-expanded', String(!menuPanelEl.hidden));
+  if (!menuPanelEl.hidden) { updateExportReadout(); updateFsUI(); }
+});
+document.addEventListener('click', e => {
+  if (!menuPanelEl.hidden && !e.target.closest('#menu-panel') && !e.target.closest('#menu-btn')) closeMenu();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !menuPanelEl.hidden) closeMenu();
+});
+$('#export-json').addEventListener('click', () => { exportJSON(); closeMenu(); });
+$('#export-md-view').addEventListener('click', () => { exportMarkdown(view.focusId); closeMenu(); });
+$('#export-md-all').addEventListener('click', () => { exportMarkdown(ROOT_ID); closeMenu(); });
+$('#show-help').addEventListener('click', () => { closeMenu(); $('#help-dialog').showModal(); });
+$('#help-close').addEventListener('click', () => $('#help-dialog').close());
+$('#menu-panel').addEventListener('click', e => e.stopPropagation());
+
+/* --- banner buttons --- */
+$('#banner-export').addEventListener('click', () => (bannerActionFn ? bannerActionFn() : exportJSON()));
+$('#banner-close').addEventListener('click', () => hideBanner({ mute: true }));
+// the quiet persistent signal: clicking "⚠ Not saved" retries and re-shows details
+saveIndicatorEl.addEventListener('click', () => {
+  if (saveIndicatorEl.classList.contains('error')) {
+    bannerMutedKinds.delete('storage');
+    store.saveNow();
+  }
+});
+
+/* --- backup reminder: readout + configurable overdue warning --- */
+const exportReadoutEl = $('#export-readout');
+const exportWarnDaysEl = $('#export-warn-days');
+function updateExportReadout() {
+  exportReadoutEl.textContent = 'Last JSON export: ' +
+    (prefs.lastExportAt ? formatAgo(prefs.lastExportAt) : 'never');
+}
+function checkExportReminder() {
+  const days = prefs.exportWarnDays;
+  if (!days) { if (bannerKind === 'notice') hideBanner(); return; }
+  // an active file mirror keeps a current on-disk backup — nothing to nag about
+  if (fsState === 'active') { if (bannerKind === 'notice') hideBanner(); return; }
+  const ref = prefs.lastExportAt || prefs.firstUseAt;
+  if (!ref) return;
+  const elapsed = (Date.now() - new Date(ref).getTime()) / 86400000;
+  if (elapsed >= days) {
+    const d = Math.floor(elapsed);
+    const what = prefs.lastExportAt
+      ? `Your last backup was ${d} day${d === 1 ? '' : 's'} ago`
+      : 'You haven’t exported a backup yet';
+    showBanner(`${what}, and your outline lives only in this browser. (Reminder set to ${days} day${days === 1 ? '' : 's'}; adjust in the ☰ menu.)`, { kind: 'notice' });
+  } else if (bannerKind === 'notice') {
+    hideBanner();
+  }
+}
+exportWarnDaysEl.addEventListener('change', () => {
+  let v = parseInt(exportWarnDaysEl.value, 10);
+  if (!isFinite(v) || v < 0) v = 0;
+  v = Math.min(v, 365);
+  exportWarnDaysEl.value = v;
+  prefs.exportWarnDays = v;
+  savePrefs();
+  checkExportReminder();
+});
+// long-lived tabs: re-check hourly and whenever the tab wakes up
+setInterval(checkExportReminder, 60 * 60 * 1000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkExportReminder();
+});
+
+/* --- flush saves when leaving --- */
+window.addEventListener('beforeunload', () => { store.saveNow(); fsFlush(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { store.saveNow(); fsFlush(); }
+});
+
+/* --- Enter on an empty view starts an item (no focused editor needed) --- */
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.defaultPrevented) return;
+  const inField = /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName) || e.target.isContentEditable;
+  if (inField || document.querySelector('dialog[open]')) return;
+  const focus = store.getNode(view.focusId);
+  if (focus && focus.children.length === 0 && !view.filter) {
+    e.preventDefault();
+    const nn = store.create(view.focusId, 0, {});
+    focusNodeTitle(nn.id, 0);
+  }
+});
+
+/* --- focus-header title behaves like a title (input handled by delegation);
+       keep it single-line against stray DOM (already enforced in keydown) --- */
+
+/* --- boot --- */
+(function boot() {
+  const loaded = store.load();
+  applyTheme();
+  themeSelectEl.value = prefs.theme || DEFAULT_THEME;
+  document.body.classList.toggle('hide-completed', !!prefs.hideCompleted);
+  hideCompletedEl.checked = !!prefs.hideCompleted;
+  document.body.classList.toggle('wide', !!prefs.wideLayout);
+  wideLayoutEl.checked = !!prefs.wideLayout;
+  // backup-reminder defaults: 14 days; never-exported counts from first use
+  if (typeof prefs.exportWarnDays !== 'number') prefs.exportWarnDays = 14;
+  if (!prefs.firstUseAt) prefs.firstUseAt = nowISO();
+  savePrefs();
+  exportWarnDaysEl.value = prefs.exportWarnDays;
+  updateExportReadout();
+
+  // initial zoom: URL hash wins, else last saved focus
+  const initial = parseHash() || (store.getNode(loaded.focusId) ? loaded.focusId : ROOT_ID);
+  view.focusId = initial;
+  if (initial !== ROOT_ID && !location.hash) {
+    history.replaceState(null, '', '#' + initial);
+  }
+  renderAll();
+  store.saveNow(); // persist a fresh seed's ids right away
+  initFileBackup(); // async: restores the file mirror if one was configured
+  if (store.loadWarning) showBanner(store.loadWarning);
+  else checkExportReminder(); // don't stack on top of a load warning
+
+  // land the caret on the first visible item
+  const first = visibleTitles()[0];
+  if (first) activateTitle(first, 'end');
+})();
+
+/* ===== 10 palette =====
+   Ctrl+K fuzzy jump: type a few characters of any title, Enter to zoom there.
+   The candidate index is snapshotted on open — the dialog is modal, so the
+   document cannot change underneath it. */
+
+const palDialogEl = $('#palette-dialog');
+const palInputEl = $('#palette-input');
+const palResultsEl = $('#palette-results');
+let palItems = [];  // [{id, title, path}] — every node except the root
+let palShown = [];  // scored results currently rendered
+let palSel = 0;
+
+function paletteIndex() {
+  const items = [];
+  (function walk(n, path) {
+    for (const c of n.children) {
+      items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      const label = truncate(c.title, 30) || 'Untitled';
+      walk(c, path ? `${path} › ${label}` : label);
+    }
+  })(store.doc.root, '');
+  return items;
+}
+
+/* substring beats subsequence; word starts and tight runs beat scatter */
+function fuzzyMatch(q, title) {
+  const t = title.toLowerCase();
+  const at = t.indexOf(q);
+  if (at >= 0) {
+    let score = 200 - Math.min(at, 50);
+    if (at === 0 || /[^\w]/.test(t[at - 1])) score += 40;
+    return { score: score - Math.min(title.length, 100) / 5, spans: [[at, q.length]] };
+  }
+  let ti = 0, score = 0;
+  const spans = [];
+  for (const ch of q) {
+    const j = t.indexOf(ch, ti);
+    if (j < 0) return null;
+    if (spans.length && j === ti) { spans[spans.length - 1][1]++; score += 8; }
+    else {
+      spans.push([j, 1]);
+      score += (j === 0 || /[^\w]/.test(t[j - 1])) ? 12 : 2;
+      score -= Math.min(j - ti, 20) / 2;
+    }
+    ti = j + 1;
+  }
+  return { score: score - Math.min(title.length, 100) / 5, spans };
+}
+
+/* title text with the matched characters wrapped in <mark> (shared with the
+   [[link]] autocomplete, which scores with the same fuzzyMatch) */
+function matchFrag(title, spans) {
+  const frag = document.createDocumentFragment();
+  let pos = 0;
+  for (const [s, len] of spans) {
+    if (s > pos) frag.append(document.createTextNode(title.slice(pos, s)));
+    const m = document.createElement('mark');
+    m.textContent = title.slice(s, s + len);
+    frag.append(m);
+    pos = s + len;
+  }
+  frag.append(document.createTextNode(title.slice(pos)));
+  return frag;
+}
+
+function palHint(text) {
+  const el = document.createElement('div');
+  el.className = 'pal-hint';
+  el.textContent = text;
+  palResultsEl.append(el);
+}
+function renderPalette() {
+  const q = palInputEl.value.trim().toLowerCase();
+  palResultsEl.textContent = '';
+  palShown = [];
+  palSel = 0;
+  if (!q) {
+    // empty query: the 12 most recently edited items, ready to jump to
+    palShown = palItems.filter(it => it.title)
+      .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+      .slice(0, 12)
+      .map(it => ({ id: it.id, title: it.title, path: it.path, spans: [] }));
+    palHint(palShown.length ? 'Recently edited' : 'Type to jump to any item by title.');
+  } else {
+    const scored = [];
+    for (let i = 0; i < palItems.length; i++) {
+      const m = fuzzyMatch(q, palItems[i].title);
+      if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
+    }
+    scored.sort((a, b) => b.score - a.score || a.title.length - b.title.length || a.ord - b.ord);
+    palShown = scored.slice(0, 50);
+    if (!palShown.length) { palHint('No matching items.'); return; }
+  }
+  palShown.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'pal-item' + (i === palSel ? ' sel' : '');
+    row.dataset.idx = i;
+    row.setAttribute('role', 'option');
+    row.setAttribute('aria-selected', String(i === palSel));
+    const tEl = document.createElement('div');
+    tEl.className = 'pal-title';
+    tEl.append(matchFrag(r.title, r.spans));
+    row.append(tEl);
+    if (r.path) {
+      const p = document.createElement('div');
+      p.className = 'pal-path';
+      p.textContent = r.path;
+      row.append(p);
+    }
+    palResultsEl.append(row);
+  });
+}
+
+function palSetSel(i) {
+  if (!palShown.length) return;
+  palSel = clamp(i, 0, palShown.length - 1);
+  $$('.pal-item', palResultsEl).forEach((el, k) => {
+    el.classList.toggle('sel', k === palSel);
+    el.setAttribute('aria-selected', String(k === palSel));
+  });
+  const sel = palResultsEl.querySelector('.pal-item.sel');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function paletteGo(i) {
+  const r = palShown[i];
+  palDialogEl.close();
+  if (!r || !store.getNode(r.id)) return;
+  clearSearch(false);
+  if (view.focusId !== r.id) {
+    location.hash = '#' + r.id;
+    applyFocusFromHash(); // sync render; the later hashchange event no-ops
+  }
+  focusNodeTitle(r.id, 'end');
+}
+
+function openPalette() {
+  if (palDialogEl.open) { palInputEl.focus(); palInputEl.select(); return; }
+  palItems = paletteIndex();
+  palInputEl.value = '';
+  renderPalette();
+  palDialogEl.showModal();
+  palInputEl.focus();
+}
+
+palInputEl.addEventListener('input', renderPalette);
+palInputEl.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); palSetSel(palSel + 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); palSetSel(palSel - 1); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (palShown.length) paletteGo(palSel); }
+});
+palResultsEl.addEventListener('click', e => {
+  const row = e.target.closest('.pal-item');
+  if (row) paletteGo(parseInt(row.dataset.idx, 10));
+});
+palResultsEl.addEventListener('mousemove', e => {
+  const row = e.target.closest('.pal-item');
+  if (row && parseInt(row.dataset.idx, 10) !== palSel) palSetSel(parseInt(row.dataset.idx, 10));
+});
+palDialogEl.addEventListener('mousedown', e => {
+  if (e.target === palDialogEl) palDialogEl.close(); // backdrop click
+});
+// Ctrl+K must win even while typing in a title/note (same pattern as Ctrl+F)
+document.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && (e.key === 'k' || e.key === 'K') && !e.shiftKey && !e.altKey && !e.defaultPrevented) {
+    e.preventDefault();
+    openPalette();
+  }
+}, true);
+
+/* ===== 11 [[link]] autocomplete =====
+   Obsidian-style suggester. Typing the second '[' closes the pair and opens a
+   list of item titles filtered as you type; Enter/Tab completes it. Links
+   resolve by title (F44), so completing one is a pure text insertion — there is
+   no id to keep in sync afterwards. Works in titles (contenteditable) and in
+   note editors (textarea).                                                   */
+
+const AC_MAX = 8;
+const acPopEl = $('#link-auto');
+let acEl = null;    // element being edited while the popup is open
+let acStart = -1;   // text index just after the opening '[['
+let acItems = [];   // candidate snapshot, taken when a link region is entered
+let acShown = [];   // rows currently rendered
+let acSel = 0;
+
+/* --- the two editor kinds behind one interface --- */
+const acIsTextarea = el => el.tagName === 'TEXTAREA';
+const acText = el => (acIsTextarea(el) ? el.value : el.textContent);
+const acCaret = el => (acIsTextarea(el) ? el.selectionStart : caretOffset(el));
+const acCollapsed = el => (acIsTextarea(el)
+  ? el.selectionStart === el.selectionEnd
+  : selectionCollapsedIn(el));
+function acEditable(node) {
+  if (!node || !node.classList) return null;
+  return (node.classList.contains('title') || node.classList.contains('note-edit')) ? node : null;
+}
+function acOwnerId(el) {
+  if (!acIsTextarea(el)) return idOfTitle(el);
+  return el.parentElement === focusNoteEl
+    ? view.focusId
+    : (el.closest('.node') || {}).dataset?.id || null;
+}
+/* write text back to both the DOM (source of truth while focused) and the store */
+function acWrite(el, text, caret, atomic) {
+  const id = acOwnerId(el);
+  if (acIsTextarea(el)) {
+    el.value = text;
+    el.setSelectionRange(caret, caret);
+    autoGrow(el);
+  } else {
+    el.textContent = text;
+    setCaret(el, caret);
+  }
+  if (!id) return;
+  const put = () => (acIsTextarea(el) ? store.setNote(id, text) : store.setTitle(id, text));
+  if (atomic) store.group(put); else put(); // atomic: completion is one undo step
+}
+
+/* --- the link region under the caret --- */
+function acProbe(el) {
+  if (!acCollapsed(el)) return null;
+  const caret = acCaret(el);
+  const before = acText(el).slice(0, caret);
+  const open = before.lastIndexOf('[[');
+  if (open < 0) return null;
+  const query = before.slice(open + 2);
+  // brackets or a line break between '[[' and the caret: no longer a link
+  if (/[[\]\n]/.test(query) || query.length > 80) return null;
+  return { start: open + 2, query };
+}
+
+/* Candidates, deduped the way resolveTitleLink resolves: first in document
+   order wins, so offering the later twins would be a lie. Titles containing
+   brackets can't sit inside [[ ]] at all, so they are never offered. */
+function acIndex(selfId) {
+  const byKey = new Map();
+  (function walk(n, path) {
+    for (const c of n.children) {
+      const title = (c.title || '').trim();
+      const key = title.toLowerCase();
+      if (key && !/[[\]]/.test(title)) {
+        const hit = byKey.get(key);
+        if (hit) hit.dupes++;
+        else byKey.set(key, { id: c.id, title, path, dupes: 1, updatedAt: c.updatedAt });
+      }
+      const label = truncate(c.title, 30) || 'Untitled';
+      walk(c, path ? `${path} › ${label}` : label);
+    }
+  })(store.doc.root, '');
+  // the node being edited would resolve to itself — not a link worth making
+  return [...byKey.values()].filter(it => it.id !== selfId);
+}
+
+function acHint(text) {
+  const el = document.createElement('div');
+  el.className = 'pal-hint';
+  el.textContent = text;
+  acPopEl.append(el);
+}
+function acRender(query) {
+  acPopEl.textContent = '';
+  acShown = [];
+  acSel = 0;
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    acShown = acItems.slice()
+      .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+      .slice(0, AC_MAX)
+      .map(it => ({ ...it, spans: [] }));
+  } else {
+    const scored = [];
+    for (let i = 0; i < acItems.length; i++) {
+      const m = fuzzyMatch(q, acItems[i].title);
+      if (m) scored.push({ ...acItems[i], score: m.score, spans: m.spans, ord: i });
+    }
+    scored.sort((a, b) => b.score - a.score || a.title.length - b.title.length || a.ord - b.ord);
+    acShown = scored.slice(0, AC_MAX);
+  }
+  if (!acShown.length) {
+    acHint(q ? 'No item with that title, so this link will show as broken.'
+             : 'No other items to link to yet.');
+    return;
+  }
+  acShown.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'pal-item' + (i === acSel ? ' sel' : '');
+    row.dataset.idx = i;
+    row.setAttribute('role', 'option');
+    row.setAttribute('aria-selected', String(i === acSel));
+    const tEl = document.createElement('div');
+    tEl.className = 'pal-title';
+    tEl.append(matchFrag(r.title, r.spans));
+    row.append(tEl);
+    const note = r.dupes > 1
+      ? (r.path ? `${r.path} · ` : '') + `${r.dupes} items share this title, links reach this one`
+      : r.path;
+    if (note) {
+      const p = document.createElement('div');
+      p.className = 'pal-path';
+      p.textContent = note;
+      row.append(p);
+    }
+    acPopEl.append(row);
+  });
+}
+function acSetSel(i) {
+  if (!acShown.length) return;
+  acSel = clamp(i, 0, acShown.length - 1);
+  $$('.pal-item', acPopEl).forEach((el, k) => {
+    el.classList.toggle('sel', k === acSel);
+    el.setAttribute('aria-selected', String(k === acSel));
+  });
+  const sel = acPopEl.querySelector('.pal-item.sel');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+/* --- placing the popup at the caret --- */
+const AC_MIRROR_PROPS = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing',
+  'lineHeight', 'textTransform', 'boxSizing', 'paddingTop', 'paddingRight', 'paddingBottom',
+  'paddingLeft', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth'];
+let acMirrorEl = null;
+/* a textarea has no caret geometry of its own: lay the same text out in a
+   hidden div with identical metrics and measure a marker at the caret */
+function acTextareaCaretRect(ta) {
+  if (!acMirrorEl) {
+    acMirrorEl = document.createElement('div');
+    acMirrorEl.id = 'link-auto-mirror';
+    acMirrorEl.setAttribute('aria-hidden', 'true');
+    document.body.append(acMirrorEl);
+  }
+  const cs = getComputedStyle(ta);
+  for (const p of AC_MIRROR_PROPS) acMirrorEl.style[p] = cs[p];
+  const box = ta.getBoundingClientRect();
+  acMirrorEl.style.width = box.width + 'px';
+  acMirrorEl.style.left = box.left + 'px';
+  acMirrorEl.style.top = (box.top - ta.scrollTop) + 'px';
+  acMirrorEl.textContent = ta.value.slice(0, ta.selectionStart);
+  const dot = document.createElement('span');
+  dot.textContent = '\u200b'; // a marker with no width of its own
+  acMirrorEl.append(dot);
+  const rect = dot.getBoundingClientRect();
+  acMirrorEl.textContent = '';
+  return rect.height ? rect : box;
+}
+function acCaretRect(el) {
+  if (acIsTextarea(el)) return acTextareaCaretRect(el);
+  const sel = window.getSelection();
+  if (sel.rangeCount) {
+    const r = sel.getRangeAt(0).cloneRange();
+    let rect = r.getBoundingClientRect();
+    // a collapsed range can measure empty; borrow the character before it
+    if (!rect.height && r.startOffset > 0) {
+      r.setStart(r.startContainer, r.startOffset - 1);
+      rect = r.getBoundingClientRect();
+    }
+    if (rect.height) return rect;
+  }
+  return el.getBoundingClientRect();
+}
+function acPlace(el) {
+  const rect = acCaretRect(el);
+  const pad = 8;
+  acPopEl.style.visibility = 'hidden';
+  acPopEl.hidden = false;
+  acPopEl.style.left = '0px';
+  acPopEl.style.top = '0px';
+  const w = acPopEl.offsetWidth, h = acPopEl.offsetHeight;
+  const left = clamp(rect.left, pad, Math.max(pad, window.innerWidth - w - pad));
+  let top = rect.bottom + 4;
+  if (top + h > window.innerHeight - pad) {
+    const above = rect.top - 4 - h;
+    top = above >= pad ? above : Math.max(pad, window.innerHeight - h - pad);
+  }
+  acPopEl.style.left = left + 'px';
+  acPopEl.style.top = top + 'px';
+  acPopEl.style.visibility = '';
+}
+
+/* --- open / refresh / close --- */
+function acClose() {
+  if (acPopEl.hidden) return;
+  acPopEl.hidden = true;
+  acPopEl.textContent = '';
+  acEl = null;
+  acStart = -1;
+  acShown = [];
+  acItems = [];
+}
+function acUpdate() {
+  const el = acEditable(document.activeElement);
+  if (!el) { acClose(); return; }
+  const probe = acProbe(el);
+  if (!probe) { acClose(); return; }
+  // entering a different link region: take a fresh candidate snapshot
+  if (el !== acEl || probe.start !== acStart) acItems = acIndex(acOwnerId(el));
+  acEl = el;
+  acStart = probe.start;
+  acRender(probe.query);
+  acPlace(el);
+}
+function acAccept(i) {
+  const r = acShown[i];
+  if (!r || !acEl) return;
+  const el = acEl, start = acStart;
+  const text = acText(el);
+  const caret = acCaret(el);
+  const closed = text.slice(caret, caret + 2) === ']]';
+  const next = text.slice(0, start) + r.title + (closed ? '' : ']]') + text.slice(caret);
+  acClose();
+  el.focus();
+  acWrite(el, next, start + r.title.length + 2, true);
+}
+
+/* --- wiring ---------------------------------------------------------- */
+
+/* Auto-pair the closing brackets, then refresh. This runs after the editing
+   handlers in 06 have already pushed the keystroke into the store, so writing
+   the paired text here simply coalesces into the same typing burst. */
+document.addEventListener('input', e => {
+  const el = acEditable(e.target);
+  if (!el) return;
+  // e.data is null for deletions; it can carry more than one character when the
+  // insertion came from a paste or an IME, so test its tail rather than equality
+  if (e.data && e.data.endsWith('[')) {
+    const caret = acCaret(el), text = acText(el);
+    if (text.slice(caret - 2, caret) === '[[' && text.slice(caret, caret + 2) !== ']]') {
+      acWrite(el, text.slice(0, caret) + ']]' + text.slice(caret), caret, false);
+    }
+  }
+  acUpdate();
+});
+
+/* Capture phase: while the popup is open these keys belong to it, not to the
+   outline (Enter would split the item, Tab would indent it, Esc close the note). */
+document.addEventListener('keydown', e => {
+  const el = acEl;
+  if (acPopEl.hidden || e.target !== el) return;
+  const plain = !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey;
+  const take = () => { e.preventDefault(); e.stopPropagation(); };
+  switch (e.key) {
+    case 'ArrowDown': if (!plain || !acShown.length) return; take(); acSetSel(acSel + 1); return;
+    case 'ArrowUp':   if (!plain || !acShown.length) return; take(); acSetSel(acSel - 1); return;
+    case 'Enter':
+    case 'Tab':
+      if (!plain || !acShown.length) return; // nothing to insert: let it through
+      take();
+      acAccept(acSel);
+      return;
+    case 'Escape':
+      e.preventDefault();
+      e.stopPropagation();
+      acClose();
+      return;
+    case 'Backspace': {
+      // backspacing the opening pair takes the auto-inserted closing pair with
+      // it, so changing your mind never leaves a stray ']]' behind
+      const text = acText(el), caret = acCaret(el);
+      if (!plain || !acCollapsed(el)) return;
+      if (text.slice(caret - 2, caret) !== '[[' || text.slice(caret, caret + 2) !== ']]') return;
+      take();
+      acClose();
+      el.focus();
+      acWrite(el, text.slice(0, caret - 2) + text.slice(caret + 2), caret - 2, false);
+      return;
+    }
+  }
+}, true);
+
+// caret moves that keydown didn't already handle
+const AC_CARET_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
+document.addEventListener('keyup', e => {
+  if (!acPopEl.hidden && AC_CARET_KEYS.has(e.key)) acUpdate();
+});
+document.addEventListener('mouseup', e => {
+  if (!acPopEl.hidden && !acPopEl.contains(e.target)) acUpdate();
+});
+document.addEventListener('focusout', e => {
+  if (e.target === acEl) acClose();
+});
+acPopEl.addEventListener('mousedown', e => e.preventDefault()); // keep the caret put
+acPopEl.addEventListener('click', e => {
+  const row = e.target.closest('.pal-item');
+  if (row) acAccept(parseInt(row.dataset.idx, 10));
+});
+acPopEl.addEventListener('mousemove', e => {
+  const row = e.target.closest('.pal-item');
+  if (row) acSetSel(parseInt(row.dataset.idx, 10));
+});
+// the popup is viewport-positioned: follow the caret rather than drift from it
+window.addEventListener('scroll', () => { if (acEl) acPlace(acEl); }, true);
+window.addEventListener('resize', () => { if (acEl) acPlace(acEl); });
+
+/* ===== 12 tour =====
+   A guided walkthrough of the real UI: one enormous box-shadow paints the
+   scrim around a "hole" positioned over the element being described, so the
+   highlighted control keeps its own colours and the spotlight glides from
+   step to step. Runs itself once on a genuine first run (seeded document);
+   re-launchable from the ☰ menu and the help dialog.
+
+   Steps are declarative: each names its target, where the card should sit,
+   and the app state it wants (zoomed / menu open). tourApplyState() puts the
+   app into that state on entry, which makes stepping backwards work without
+   a single undo hook. */
+
+const tourEl = $('#tour');
+const tourVeilEl = $('#tour-veil');
+const tourHoleEl = $('#tour-hole');
+const tourCardEl = $('#tour-card');
+const tourArrowEl = $('#tour-arrow');
+const tourTitleEl = $('#tour-title');
+const tourCountEl = $('#tour-count');
+const tourBodyEl = $('#tour-body');
+const tourDotsEl = $('#tour-dots');
+const tourBackEl = $('#tour-back');
+const tourNextEl = $('#tour-next');
+const tourSkipEl = $('#tour-skip');
+
+let tourSteps = [];
+let tourAt = -1;
+let tourActive = false;
+let tourHoleRect = null; // current spotlight rect (viewport px), or null when centred
+let tourReturn = null;   // app state to restore when the tour ends
+
+/* --- copy: `code` → kbd, **bold** → strong, *text* → em, blank line → ¶ --- */
+function tourRich(text) {
+  const frag = document.createDocumentFragment();
+  for (const para of text.split('\n\n')) {
+    const p = document.createElement('p');
+    const re = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+    let last = 0, m;
+    while ((m = re.exec(para))) {
+      if (m.index > last) p.append(para.slice(last, m.index));
+      const el = document.createElement(m[1] ? 'kbd' : m[2] ? 'strong' : 'em');
+      el.textContent = m[1] || m[2] || m[3];
+      p.append(el);
+      last = re.lastIndex;
+    }
+    if (last < para.length) p.append(para.slice(last));
+    frag.append(p);
+  }
+  return frag;
+}
+
+/* --- step list ------------------------------------------------------- */
+/* rect-based, not offsetParent: #menu-panel is position:fixed and would
+   always look "hidden" by that test */
+function tourVisible(el) {
+  if (!el || !el.isConnected) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+/* a tight cluster of sibling rows reads as "structure" far better than the
+   first n rows of the outline, which straddle notes and top-level items */
+function tourRows(n) {
+  const nested = $$('#tree .children > .node > .row').filter(tourVisible);
+  if (nested.length >= 2) {
+    const home = nested[0].closest('.children'); // siblings only: one tidy block
+    return nested.filter(r => r.closest('.children') === home).slice(0, n);
+  }
+  return $$('#tree .row').filter(tourVisible).slice(0, n);
+}
+function tourBranch() {
+  // an item with children, under whatever the user is currently looking at:
+  // the zoom demo needs somewhere to zoom to
+  const focus = store.getNode(tourReturn ? tourReturn.focusId : ROOT_ID) || store.doc.root;
+  return focus.children.find(c => c.children.length && nodeEl(c.id)) || null;
+}
+
+function tourBuild(auto) {
+  const branch = tourBranch();
+  const steps = [
+    {
+      title: auto ? 'Welcome to 37nodes' : 'The 37nodes tour',
+      body: 'An outliner where every line is an item, and every item can hold a whole world inside it.\n\nThis takes about a minute. Leave any time with `Esc`.',
+      place: 'center', nextLabel: auto ? 'Show me around' : 'Start', noBack: true,
+    },
+    {
+      title: 'One line, one item',
+      body: '`Enter` starts a new item. `Tab` tucks it under the item above, `Shift`+`Tab` pulls it back out: simple, elegant, endless.\n\n`Alt`+`↑` / `Alt`+`↓` move an item and everything under it. Every bulleted node also doubles as a todo item, just use `Ctrl`+`Enter` to check it off.',
+      target: () => tourRows(3), place: 'bottom', pad: 4,
+    },
+    {
+      title: 'Notes carry the detail',
+      body: 'Any item can hold a note. Press `Shift`+`Enter` to write one; click away and it renders as **markdown**: lists, links, quotes, code.\n\nNotes are searchable, so the real detail can live there instead of in a bloated title.',
+      target: () => $('#tree .note'), place: 'bottom', pad: 6,
+    },
+    {
+      title: 'Zoom into anything',
+      body: 'Click a bullet to **zoom in**: that item becomes the page, and its children become the outline.\n\nIt is how a 20,000-item file stays calm: you only ever look at one branch. `Alt`+`→` does the same from the keyboard.',
+      target: () => (branch && nodeEl(branch.id) ? nodeEl(branch.id).querySelector('.bullet') : $('#tree .bullet')),
+      place: 'right', pad: 8,
+    },
+  ];
+  if (branch) {
+    steps.push({
+      title: 'Breadcrumbs lead back',
+      body: 'You are zoomed in now. The trail up here walks back out: click any ancestor, or press `Alt`+`←`. `Alt`+`Shift`+`←` goes straight back to the top from any depth.\n\nZoom lives in the URL, so the browser Back button retraces where you have been.',
+      target: () => $('#breadcrumbs'), place: 'bottom', pad: 6,
+      zoomTo: () => branch.id,
+    });
+  }
+  steps.push(
+    {
+      title: 'Find it in a keystroke',
+      body: '`Ctrl`+`F` filters the outline as you type, keeping every match in context under its parents. `Esc` clears it.\n\n`Ctrl`+`K` opens the jump palette: a few letters of any title and you are there. It opens onto what you edited most recently.',
+      target: () => $('#search'), place: 'bottom', pad: 5,
+    },
+    {
+      title: 'Tags and links',
+      body: 'A `#tag` in a title becomes a chip: click it to filter by that tag, click again to clear.\n\nType `[[` to link to another item: a list of titles appears right at the cursor, and `Enter` inserts the one you mean.',
+      target: () => $('#tree .title .tag') || $('#tree .wikilink'), place: 'bottom', pad: 5,
+    },
+    {
+      title: 'Make it yours',
+      body: 'The rest lives in this menu: **themes**, including a few retro terminal tributes with the glow and scanlines to match, plus hide-completed, import and export.\n\nAnd this tour, whenever you want it again.',
+      target: () => $('#menu-panel'), place: 'left', pad: 6, menu: true,
+    },
+    {
+      title: 'Your data, your machine',
+      body: 'The outline lives in this browser\'s local storage. Nothing is ever sent anywhere, so the data is yours outright: no account, no server, no third party to trust or be breached by.\n\nThat also means nothing is backed up for you. **Export JSON** is the real backup. On Chromium browsers, *Mirror to a file on disk* keeps a copy on disk current with every save; without a mirror running, the app nudges you every so often to export one.',
+      target: () => $('#export-json'), place: 'left', pad: 4, menu: true,
+    },
+    {
+      title: 'That\'s the tour',
+      body: (auto
+        ? 'Press `?` any time for the full keyboard reference.\n\nThe starter outline below is yours: edit it, or type straight over it.'
+        : 'Press `?` any time for the full keyboard reference.\n\nThe tour is always in the ☰ menu if you want it again.'),
+      place: 'center', nextLabel: 'Start outlining', noSkip: true,
+    }
+  );
+  return steps;
+}
+
+/* --- app state a step wants (zoom, menu) ----------------------------- */
+function tourZoomTo(id) {
+  if (view.focusId === id) return;
+  location.hash = id === ROOT_ID ? '' : '#' + id;
+  applyFocusFromHash();
+}
+function tourApplyState(step) {
+  const want = step.zoomTo ? step.zoomTo() : tourReturn.focusId;
+  tourZoomTo(store.getNode(want) ? want : ROOT_ID);
+  const wantMenu = !!step.menu;
+  if (menuPanelEl.hidden === wantMenu) {
+    menuPanelEl.hidden = !wantMenu;
+    menuBtnEl.setAttribute('aria-expanded', String(wantMenu));
+    if (wantMenu) { updateExportReadout(); updateFsUI(); }
+  }
+}
+
+/* --- geometry -------------------------------------------------------- */
+function tourTargets(step) {
+  const t = step.target ? step.target() : null;
+  return (Array.isArray(t) ? t : [t]).filter(tourVisible);
+}
+function tourUnion(els) {
+  let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+  for (const el of els) {
+    const c = el.getBoundingClientRect();
+    l = Math.min(l, c.left); t = Math.min(t, c.top);
+    r = Math.max(r, c.right); b = Math.max(b, c.bottom);
+  }
+  return { left: l, top: t, width: r - l, height: b - t };
+}
+function tourScrollTo(step) {
+  const els = tourTargets(step);
+  if (!els.length) return;
+  const u = tourUnion(els);
+  // instant, not smooth: the measurements below have to be final, and the
+  // spotlight's own transition already supplies the motion
+  if (u.top < 64 || u.top + u.height > innerHeight - 48) {
+    els[0].scrollIntoView({ block: 'center' });
+  }
+}
+
+function tourPlaceCard(rect, step) {
+  const vw = innerWidth, vh = innerHeight, gap = 14, edge = 12;
+  const cw = tourCardEl.offsetWidth, ch = tourCardEl.offsetHeight;
+  let side, left, top;
+  if (!rect) {
+    side = 'center';
+    left = (vw - cw) / 2;
+    top = clamp((vh - ch) / 2, edge, Math.max(edge, vh - ch - edge));
+  } else if (vw < 520) {
+    // narrow: park the card at whichever end of the screen the target is not
+    side = 'sheet';
+    left = (vw - cw) / 2;
+    top = (rect.t + rect.h / 2 > vh / 2) ? edge : Math.max(edge, vh - ch - edge);
+  } else {
+    const room = {
+      bottom: vh - (rect.t + rect.h) - gap - edge,
+      top: rect.t - gap - edge,
+      right: vw - (rect.l + rect.w) - gap - edge,
+      left: rect.l - gap - edge,
+    };
+    const order = (step.place && step.place !== 'auto' ? [step.place] : [])
+      .concat(['bottom', 'top', 'right', 'left']);
+    side = order.find(s => room[s] >= (s === 'bottom' || s === 'top' ? ch : cw)) || 'bottom';
+    if (side === 'bottom' || side === 'top') {
+      left = rect.l + rect.w / 2 - cw / 2;
+      top = side === 'bottom' ? rect.t + rect.h + gap : rect.t - gap - ch;
+    } else {
+      top = rect.t + rect.h / 2 - ch / 2;
+      left = side === 'right' ? rect.l + rect.w + gap : rect.l - gap - cw;
+    }
+    left = clamp(left, edge, Math.max(edge, vw - cw - edge));
+    top = clamp(top, edge, Math.max(edge, vh - ch - edge));
+  }
+  tourCardEl.dataset.side = side;
+  tourCardEl.style.left = Math.round(left) + 'px';
+  tourCardEl.style.top = Math.round(top) + 'px';
+  if (rect && (side === 'bottom' || side === 'top')) {
+    tourArrowEl.style.left = Math.round(clamp(rect.l + rect.w / 2 - left - 5.5, 14, cw - 25)) + 'px';
+    tourArrowEl.style.top = '';
+  } else if (rect && (side === 'left' || side === 'right')) {
+    tourArrowEl.style.top = Math.round(clamp(rect.t + rect.h / 2 - top - 5.5, 14, ch - 25)) + 'px';
+    tourArrowEl.style.left = '';
+  }
+}
+
+function tourLayout({ instant = false } = {}) {
+  if (!tourActive) return;
+  const step = tourSteps[tourAt];
+  const els = tourTargets(step);
+  const vw = innerWidth, vh = innerHeight;
+  let rect = null;
+  if (els.length) {
+    const u = tourUnion(els);
+    const pad = step.pad == null ? 6 : step.pad;
+    rect = { l: u.left - pad, t: u.top - pad, w: u.width + pad * 2, h: u.height + pad * 2 };
+    if (step.maxH && rect.h > step.maxH) rect.h = step.maxH;
+    rect.w = Math.min(rect.w, vw - 8);
+    rect.h = Math.min(rect.h, vh - 8);
+    rect.l = clamp(rect.l, 4, Math.max(4, vw - rect.w - 4));
+    rect.t = clamp(rect.t, 4, Math.max(4, vh - rect.h - 4));
+    if (rect.w <= 0 || rect.h <= 0) rect = null;
+  }
+  tourHoleRect = rect;
+  tourEl.classList.toggle('spot', !!rect);
+  if (instant) { tourHoleEl.style.transition = 'none'; tourCardEl.style.transition = 'none'; }
+  tourHoleEl.style.left = (rect ? rect.l : vw / 2) + 'px';
+  tourHoleEl.style.top = (rect ? rect.t : vh / 2) + 'px';
+  tourHoleEl.style.width = (rect ? rect.w : 0) + 'px';
+  tourHoleEl.style.height = (rect ? rect.h : 0) + 'px';
+  tourPlaceCard(rect, step);
+  if (instant) {
+    void tourEl.offsetWidth; // flush, so the reset below doesn't animate the jump
+    tourHoleEl.style.transition = '';
+    tourCardEl.style.transition = '';
+  }
+}
+
+/* --- stepping -------------------------------------------------------- */
+function tourRenderDots() {
+  tourDotsEl.textContent = '';
+  tourSteps.forEach((s, i) => {
+    const d = document.createElement('i');
+    if (i === tourAt) d.className = 'now';
+    else if (i < tourAt) d.className = 'done';
+    tourDotsEl.append(d);
+  });
+}
+function tourGo(i, { instant = false } = {}) {
+  const step = tourSteps[i];
+  if (!step) { tourEnd(); return; }
+  tourAt = i;
+  tourApplyState(step);
+
+  tourTitleEl.textContent = step.title;
+  tourBodyEl.textContent = '';
+  tourBodyEl.append(tourRich(step.body));
+  tourCountEl.textContent = `${i + 1} / ${tourSteps.length}`;
+  tourRenderDots();
+  tourBackEl.hidden = !!step.noBack || i === 0;
+  tourSkipEl.hidden = !!step.noSkip;
+  tourNextEl.textContent = step.nextLabel || 'Next';
+
+  tourCardEl.classList.remove('step-in');
+  void tourCardEl.offsetWidth;
+  tourCardEl.classList.add('step-in');
+
+  tourScrollTo(step);
+  tourLayout({ instant });
+  tourNextEl.focus({ preventScroll: true });
+}
+function tourNext() { if (tourAt >= tourSteps.length - 1) tourEnd(); else tourGo(tourAt + 1); }
+function tourPrev() { if (tourAt > 0) tourGo(tourAt - 1); }
+
+function tourStart({ auto = false } = {}) {
+  if (tourActive) return;
+  closeMenu();
+  for (const d of $$('dialog[open]')) d.close();
+  clearSearch(false);
+  tourReturn = { focusId: view.focusId };
+  tourSteps = tourBuild(auto);
+  tourActive = true;
+  tourAt = -1;
+  tourEl.hidden = false;
+  tourGo(0, { instant: true });
+  requestAnimationFrame(() => { if (tourActive) tourEl.classList.add('in'); });
+}
+
+function tourEnd() {
+  if (!tourActive) return;
+  tourActive = false;
+  tourEl.classList.remove('in', 'spot');
+  setTimeout(() => { if (!tourActive) tourEl.hidden = true; }, 220);
+
+  menuPanelEl.hidden = true;
+  menuBtnEl.setAttribute('aria-expanded', 'false');
+  tourZoomTo(store.getNode(tourReturn.focusId) ? tourReturn.focusId : ROOT_ID);
+  prefs.tourDoneAt = nowISO();
+  savePrefs();
+
+  // hand the outline back with a live caret, ready to type
+  const first = visibleTitles()[0];
+  if (first) activateTitle(first, 'end');
+}
+
+/* --- input ----------------------------------------------------------- */
+tourNextEl.addEventListener('click', tourNext);
+tourBackEl.addEventListener('click', tourPrev);
+tourSkipEl.addEventListener('click', () => tourEnd());
+// the card sits outside the veil: keep its clicks from reaching the document
+// handler that closes the ☰ menu behind us
+tourCardEl.addEventListener('mousedown', e => e.stopPropagation());
+tourCardEl.addEventListener('click', e => e.stopPropagation());
+tourVeilEl.addEventListener('mousedown', e => e.stopPropagation());
+tourVeilEl.addEventListener('click', e => {
+  e.stopPropagation();
+  const r = tourHoleRect; // clicking the spotlit thing itself moves on
+  if (r && e.clientX >= r.l && e.clientX <= r.l + r.w && e.clientY >= r.t && e.clientY <= r.t + r.h) tourNext();
+});
+
+/* Keys are captured on window — ahead of every document-level handler in the
+   app — so nothing types into the outline behind the scrim. */
+window.addEventListener('keydown', e => {
+  if (!tourActive) return;
+  const k = e.key;
+  const onButton = e.target.tagName === 'BUTTON' && tourCardEl.contains(e.target);
+  if (k === 'Tab') { // simple focus trap across the card's buttons
+    const btns = $$('button:not([hidden])', tourCardEl);
+    if (!btns.length) return;
+    const i = btns.indexOf(e.target);
+    if (i < 0) { e.preventDefault(); btns[0].focus(); return; }
+    if (e.shiftKey && i === 0) { e.preventDefault(); btns[btns.length - 1].focus(); }
+    else if (!e.shiftKey && i === btns.length - 1) { e.preventDefault(); btns[0].focus(); }
+    return;
+  }
+  e.stopPropagation();
+  if (onButton && (k === 'Enter' || k === ' ')) return; // let the focused button act
+  if (k === 'Escape') { e.preventDefault(); tourEnd(); }
+  else if (k === 'ArrowRight' || k === 'PageDown' || k === 'Enter' || k === ' ') { e.preventDefault(); tourNext(); }
+  else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); tourPrev(); }
+  else if (k.length === 1 || k === 'Backspace') { e.preventDefault(); }
+}, true);
+
+/* the spotlight tracks its target through scrolls and resizes — without the
+   step transition, which would smear a frame behind the page */
+let tourRaf = 0;
+function tourReflow() {
+  if (!tourActive || tourRaf) return;
+  tourRaf = requestAnimationFrame(() => { tourRaf = 0; tourLayout({ instant: true }); });
+}
+window.addEventListener('resize', tourReflow);
+window.addEventListener('scroll', tourReflow, true);
+
+/* --- entry points ---------------------------------------------------- */
+$('#show-tour').addEventListener('click', () => { closeMenu(); tourStart(); });
+$('#help-tour').addEventListener('click', () => { $('#help-dialog').close(); tourStart(); });
+
+/* First run only: a seeded document means there was nothing saved to load.
+   A load warning means something is wrong with the user's data — that
+   deserves the screen more than a tour does. */
+if (!prefs.tourDoneAt && store.wasSeeded && !store.loadWarning) {
+  requestAnimationFrame(() => tourStart({ auto: true }));
+}
+
+/* ===== 13 tagline =====
+   The top-bar tagline changes once a minute. Each new line arrives as a
+   cipher decode: every letter scrambles at 45 ms, then the flips slow down as
+   each character nears its moment and lock in, with two or three holdouts
+   dragging out to the end.
+
+   The tagline element is rebuilt by renderCrumbs() on every render (and only
+   exists at the root), so nothing here holds a reference to it: each frame
+   re-reads the current node, and renderCrumbs hands new ones the frame in
+   progress via taglineAdopt(). */
+
+/* var, not let: renderCrumbs runs once during boot, before this module has
+   executed. The hoisted `undefined` makes taglineAdopt() a no-op until then,
+   so the brand line in the markup is what greets a fresh load. */
+var taglineReady = false;
+
+const TAGLINES = [
+  BRAND_TAGLINE, // 'Infinite depth. Zero chaos.'
+  'Every node is a whole and a part.',
+  'A thought indented is a thought understood.',
+  'Nest it now, find it later.',
+  'One line at a time, all the way down.',
+  'Zoom in until the work is small enough to do.',
+  'Depth is not clutter when it collapses.',
+  'Capture first. Arrange after.',
+  'Indent to conquer.',
+  'What is collapsed is not forgotten.',
+  'Every item can hold a world.',
+  'Structure is what survives the week.',
+  'Big things are small things, arranged.',
+  'The outline holds what the hour cannot.',
+  'Nothing here ever leaves your machine.',
+  'The keyboard is the whole instrument.',
+  'A parent is only a child that grew.',
+  'Sort the branch, not the forest.',
+  'Collapse the world to the next single step.',
+  'Ideas nest. Chaos does not.',
+  'Write the branch before you climb it.',
+  'Depth without dread.',
+];
+
+const CIPHER_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*!?<>/\\|{}[]~^';
+const CIPHER_KEEP = ' .,;:\'"!?-()'; // punctuation holds still: the sentence keeps its shape
+const CIPHER_TICK = 45;
+const TAGLINE_ROTATE_MS = 60000;
+
+let taglineText = BRAND_TAGLINE;  // the line we are settling on
+let taglineShown = BRAND_TAGLINE; // what is on screen this frame (may be mid-decode)
+let taglineIdx = TAGLINES.indexOf(BRAND_TAGLINE);
+let cipherTimer = null;
+
+const randCipherChar = () => CIPHER_CHARS[(Math.random() * CIPHER_CHARS.length) | 0];
+
+function taglineNode() { return $('.tagline', crumbsEl); }
+function taglinePaint() {
+  const el = taglineNode();
+  if (el) el.textContent = taglineShown;
+}
+function taglineAdopt(el) {
+  if (taglineReady) el.textContent = taglineShown;
+}
+function taglinePick() {
+  let i;
+  do { i = (Math.random() * TAGLINES.length) | 0; } while (i === taglineIdx && TAGLINES.length > 1);
+  taglineIdx = i;
+  return TAGLINES[i];
+}
+function cipherStop() {
+  if (cipherTimer) { clearInterval(cipherTimer); cipherTimer = null; }
+}
+
+function cipherDecode(target) {
+  cipherStop();
+  taglineText = target;
+  const chars = [...target];
+  const len = chars.length;
+  const settled = new Array(len);
+  const lockMs = new Array(len);  // when each character stops scrambling
+  const flipAt = new Array(len).fill(0);
+  const show = new Array(len);
+  const loose = [];
+  for (let i = 0; i < len; i++) {
+    if (CIPHER_KEEP.includes(chars[i])) {
+      settled[i] = true; show[i] = chars[i]; lockMs[i] = 0;
+    } else {
+      settled[i] = false;
+      show[i] = randCipherChar();
+      // exponential: most characters land inside the first second, with a tail
+      lockMs[i] = Math.min(0.35 - Math.log(1 - Math.random() * 0.98) * 0.75, 3.2) * 1000;
+      loose.push(i);
+    }
+  }
+  // two or three holdouts drag out past everything else, so the line lands
+  // one straggler at a time instead of all at once
+  loose.sort(() => Math.random() - 0.5);
+  const holdouts = Math.min(2 + ((Math.random() * 2) | 0), loose.length);
+  for (let k = 0; k < holdouts; k++) lockMs[loose[k]] = (3.4 + Math.random() * 0.9) * 1000;
+
+  taglineShown = show.join('');
+  taglinePaint();
+
+  /* Elapsed wall-clock, not a tick count: a background or throttled tab slows
+     the frame rate, and the reveal should still finish in its four seconds
+     rather than stretching to a minute. */
+  const start = performance.now();
+  cipherTimer = setInterval(() => {
+    const t = performance.now() - start;
+    let left = false;
+    for (let i = 0; i < len; i++) {
+      if (settled[i]) continue;
+      if (t >= lockMs[i]) { settled[i] = true; show[i] = chars[i]; continue; }
+      left = true;
+      // flips slow as a character approaches its moment: every 45 ms at the
+      // start, every ~225 ms by the end — the "settling" half of the effect
+      if (t >= flipAt[i]) {
+        show[i] = randCipherChar();
+        flipAt[i] = t + CIPHER_TICK * (1 + 4 * (t / lockMs[i]));
+      }
+    }
+    taglineShown = show.join('');
+    taglinePaint();
+    if (!left) { cipherStop(); taglineShown = taglineText; taglinePaint(); }
+  }, CIPHER_TICK);
+}
+
+/* Decode only when there is something to watch: at the root, on screen, in a
+   visible tab, with motion allowed (e-ink and prefers-reduced-motion set
+   --motion to 0), and not behind the tour's scrim. Otherwise swap silently so
+   the next look at the top bar is already a new line. */
+function taglineRotate() {
+  const next = taglinePick();
+  const el = taglineNode();
+  const motion = getComputedStyle(document.documentElement).getPropertyValue('--motion').trim() !== '0';
+  if (!el || el.offsetParent === null || document.hidden || !motion || !tourEl.hidden) {
+    cipherStop();
+    taglineText = taglineShown = next;
+    taglinePaint();
+    return;
+  }
+  cipherDecode(next);
+}
+
+setInterval(taglineRotate, TAGLINE_ROTATE_MS);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && cipherTimer) { // don't scramble into a background tab
+    cipherStop();
+    taglineShown = taglineText;
+    taglinePaint();
+  }
+});
+taglineReady = true;
+
+})();
+</script>
+</body>
+</html>

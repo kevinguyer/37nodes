@@ -1,0 +1,5 @@
+# The working tree is LF today; keep it that way on every machine so a clone
+# never produces a whole-file diff just from line endings.
+* text=auto eol=lf
+
+*.png binary

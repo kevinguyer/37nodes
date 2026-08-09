@@ -1,0 +1,161 @@
+<!doctype html>
+<!-- data-theme seeds the default (Nordic) so the first paint is already themed;
+     boot replaces it with the saved preference, if there is one -->
+<html lang="en" data-theme="nordic">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>37nodes &middot; Infinite depth. Zero chaos.</title>
+<link id="favicon" rel="icon">
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="logo-mark" viewBox="0 0 1000 820.8">
+    <path fill="currentColor" fill-rule="evenodd" d="M801 1C785 3 769 8 755 14C742 21 729 28 718 38C705 49 693 62 684 76C675 90 661 121 661 121C661 121 215 117 164 121C154 122 152 121 147 123C142 125 137 128 132 132C127 138 120 147 118 155C115 163 115 171 117 178C118 185 121 192 126 198C131 204 138 209 145 212C150 214 153 214 161 215C187 217 319 216 319 216C319 216 215 322 196 347C190 355 188 359 186 366C184 372 183 378 184 384C184 391 186 399 190 405C194 412 203 421 209 425C214 428 217 428 224 429C237 431 264 428 280 432C293 435 305 441 313 447C319 451 323 456 327 461C330 467 333 472 335 478C337 484 339 489 339 495C340 502 340 511 339 518C338 524 336 531 333 536C330 542 328 547 323 553C315 562 303 574 291 581C277 589 260 594 245 598C230 601 214 601 199 599C185 598 172 595 159 589C146 583 131 573 122 564C114 557 109 550 104 541C99 529 99 510 93 499C89 491 84 484 78 479C73 475 66 472 59 471C52 470 41 470 34 472C29 473 26 475 22 477C17 480 12 484 9 489C6 492 4 496 3 501C1 507 -0 512 0 520C1 532 5 551 11 566C17 582 28 600 38 614C47 626 58 636 68 645C78 653 88 660 99 666C111 673 123 678 136 683C151 687 167 691 182 693C197 695 212 696 226 696C240 695 254 693 268 691C280 688 291 685 303 681C317 676 332 668 345 660C358 651 371 642 382 630C394 617 406 602 414 586C423 571 429 553 433 536C436 521 436 506 435 491C434 476 432 461 427 447C421 432 413 416 404 403C395 391 386 381 374 371C362 361 331 345 331 345L453 215L661 216L689 276C689 276 407 709 388 757C385 765 386 767 386 772C386 777 386 783 388 789C391 796 398 806 405 812C413 817 424 820 432 821C438 821 444 820 449 818C454 817 457 815 461 812C467 808 469 805 477 795C514 745 768 332 768 332C768 332 798 338 811 339C822 340 831 340 841 339C850 339 860 337 870 335C880 332 891 329 901 324C910 320 918 316 926 310C935 304 944 296 952 289C959 281 966 272 972 264C978 255 983 247 987 236C992 223 997 204 999 189C1001 175 1001 164 999 151C997 135 992 114 985 99C979 85 971 73 962 61C953 50 942 40 930 32C917 22 901 14 886 9C874 4 864 2 851 0C836 -1 817 -1 801 1ZM818 95C827 94 838 94 847 96C856 99 866 103 874 109C882 115 889 122 894 130C899 139 902 150 904 159C905 169 904 179 902 189C899 197 895 206 889 214C884 221 876 228 868 233C860 238 850 242 841 243C830 245 817 244 807 241C799 239 791 236 784 230C777 225 768 215 763 207C759 200 756 193 754 184C753 175 753 163 755 153C757 144 761 134 767 126C774 117 785 107 795 102C802 98 810 96 818 95Z"/>
+  </symbol>
+</svg>
+<header id="topbar">
+  <a id="logo" href="#" title="37nodes: back to the top level" aria-label="Home">
+    <svg width="26" height="21"><use href="#logo-mark"/></svg>
+  </a>
+  <nav id="breadcrumbs" aria-label="Breadcrumbs"></nav>
+  <div id="topbar-right">
+    <span id="save-indicator" aria-live="polite">Saved</span>
+    <input id="search" type="search" placeholder="Search  (Ctrl+F)" autocomplete="off" spellcheck="false" aria-label="Search outline">
+    <button id="menu-btn" aria-haspopup="true" aria-expanded="false" title="Menu">&#9776;</button>
+  </div>
+</header>
+
+<div id="banner" hidden>
+  <span id="banner-msg"></span>
+  <button id="banner-export">Export now</button>
+  <button id="banner-close" title="Dismiss">&#10005;</button>
+</div>
+
+<main id="page">
+  <div id="focus-head" hidden>
+    <h1 id="focus-title" class="title" contenteditable="true" spellcheck="false" data-ph="Untitled"></h1>
+    <div id="focus-note"></div>
+  </div>
+  <div id="tree" role="tree" aria-label="Outline"></div>
+  <div id="empty-hint" hidden></div>
+</main>
+
+<div id="menu-panel" hidden>
+  <label class="menu-row menu-field">Theme
+    <select id="theme-select">
+      <option value="auto">Auto (system)</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+      <option value="eink">E-ink</option>
+      <option value="parchment">Parchment</option>
+      <option value="nordic">Nordic</option>
+      <option value="evergreen">Evergreen</option>
+      <option value="crt">Green CRT</option>
+      <option value="ibm5151">IBM 5151 sepia</option>
+      <option value="wyse60">Wyse 60 terminal</option>
+    </select>
+  </label>
+  <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
+  <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
+  <hr>
+  <div class="menu-note" id="export-readout"></div>
+  <button class="menu-row" id="export-json">Export JSON (full backup)</button>
+  <button class="menu-row" id="export-md-view">Export Markdown (current view)</button>
+  <button class="menu-row" id="export-md-all">Export Markdown (everything)</button>
+  <button class="menu-row" id="import-json">Import JSON&hellip;</button>
+  <div class="menu-note" id="fsbackup-readout" hidden></div>
+  <button class="menu-row" id="fsbackup-setup" title="Continuously mirror your outline to a JSON file on disk. A live backup that survives cleared browser data." hidden>Mirror to a file on disk&hellip;</button>
+  <button class="menu-row" id="fsbackup-resume" hidden>Resume file mirroring</button>
+  <button class="menu-row" id="fsbackup-stop" hidden>Stop file mirroring</button>
+  <label class="menu-row menu-field" title="Remind me when the last JSON export is older than this. 0 turns the reminder off.">Backup reminder
+    <span class="days-field"><input type="number" id="export-warn-days" min="0" max="365"> days</span>
+  </label>
+  <hr>
+  <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
+  <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
+  <div class="menu-note" id="build-readout">Build __BUILD__ &middot; __BUILT__</div>
+</div>
+
+<div id="link-auto" role="listbox" aria-label="Link suggestions" hidden></div>
+
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+
+<dialog id="import-dialog">
+  <h2>Import outline</h2>
+  <p id="import-summary"></p>
+  <p class="dialog-warn"><strong>Replace</strong> overwrites your current outline and cannot be undone, so consider exporting a backup first. <strong>Append</strong> adds the imported items at the end of your outline (undoable).</p>
+  <div class="dialog-actions">
+    <button id="import-append">Append</button>
+    <button id="import-replace" class="danger">Replace</button>
+    <button id="import-cancel">Cancel</button>
+  </div>
+</dialog>
+
+<dialog id="palette-dialog" aria-label="Jump to item">
+  <input id="palette-input" type="text" placeholder="Jump to&hellip;" autocomplete="off" spellcheck="false" aria-label="Jump to item by title">
+  <div id="palette-results" role="listbox" aria-label="Matching items"></div>
+</dialog>
+
+<dialog id="help-dialog">
+  <h2 class="help-brand"><svg width="28" height="23" aria-hidden="true"><use href="#logo-mark"/></svg>37nodes</h2>
+  <p class="dialog-tagline">Infinite depth. Zero chaos.</p>
+  <h3 class="help-subhead">Keyboard shortcuts</h3>
+  <div id="help-grid">
+    <span><kbd>Enter</kbd></span><span>New item (splits at cursor)</span>
+    <span><kbd>Shift</kbd>+<kbd>Enter</kbd></span><span>Add / edit the item's note</span>
+    <span><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></span><span>Indent / outdent</span>
+    <span><kbd>Alt</kbd>+<kbd>&uarr;</kbd> / <kbd>Alt</kbd>+<kbd>&darr;</kbd></span><span>Move item up / down</span>
+    <span><kbd>Ctrl</kbd>+<kbd>&uarr;</kbd> / <kbd>Ctrl</kbd>+<kbd>&darr;</kbd></span><span>Collapse / expand</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span><span>Complete / un-complete</span>
+    <span><kbd>Alt</kbd>+<kbd>&rarr;</kbd> / <kbd>Alt</kbd>+<kbd>&larr;</kbd></span><span>Zoom in / zoom out</span>
+    <span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd></span><span>Zoom all the way out to the top</span>
+    <span><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>Move between items</span>
+    <span><kbd>Backspace</kbd> <em>on empty item</em></span><span>Delete item (children are kept)</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd></span><span>Delete item and everything under it</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span>Undo / redo</span>
+    <span><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>Search</span>
+    <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
+    <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
+    <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
+    <span><kbd>?</kbd></span><span>This help</span>
+  </div>
+  <p class="help-note">On macOS, use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>.</p>
+  <p class="help-note">Your outline lives in this browser's local storage. Browsers can evict local storage under disk pressure or when clearing site data. <strong>Export JSON</strong> from the menu is your real backup.</p>
+  <div class="dialog-actions"><button id="help-tour">Take the tour</button><button id="help-close">Close</button></div>
+</dialog>
+
+<div id="tour" hidden>
+  <div id="tour-veil"></div>
+  <div id="tour-hole"></div>
+  <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-body">
+    <div id="tour-arrow" aria-hidden="true"></div>
+    <div id="tour-head">
+      <svg width="22" height="18" aria-hidden="true"><use href="#logo-mark"/></svg>
+      <h2 id="tour-title"></h2>
+      <span id="tour-count" aria-hidden="true"></span>
+    </div>
+    <div id="tour-body"></div>
+    <div id="tour-foot">
+      <div id="tour-dots" aria-hidden="true"></div>
+      <div id="tour-actions">
+        <button id="tour-skip">Skip</button>
+        <button id="tour-back">Back</button>
+        <button id="tour-next" class="primary">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+/*__JS__*/
+})();
+</script>
+</body>
+</html>

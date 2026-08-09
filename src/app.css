@@ -1,0 +1,566 @@
+/* ============================================================
+   37nodes — tokens & themes
+   A theme is ONLY a block of custom-property overrides on html.
+   ============================================================ */
+:root{
+  --bg:#fdfdfc;
+  --panel:#f4f4f1;
+  --panel-2:#eaeae6;
+  --fg:#1f2023;
+  --fg-dim:#8b8b86;
+  --fg-faint:#c2c2bc;
+  --accent:#4a72d4;
+  --accent-soft:rgba(74,114,212,.12);
+  --bullet:#a9a9a4;
+  --bullet-ring:#e3e3de;
+  --line:#ebebe8;
+  --mark:#ffe9a8;
+  --danger:#c0392b;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --mono:ui-monospace,"Cascadia Code",Consolas,"SF Mono",Menlo,monospace;
+  --radius:6px;
+  --shadow:0 6px 28px rgba(0,0,0,.10);
+  --tour-dim:rgba(12,13,16,.58);
+  --page-max:700px;
+  --motion:1;
+  --glow:none;
+  color-scheme:light;
+}
+html[data-theme="dark"]{
+  --bg:#16181d; --panel:#1e2127; --panel-2:#262a31;
+  --fg:#d9dbdf; --fg-dim:#83878e; --fg-faint:#4b4f56;
+  --accent:#82a1f2; --accent-soft:rgba(130,161,242,.16);
+  --bullet:#5b6069; --bullet-ring:#31353c;
+  --line:#24272d; --mark:#7a611c; --danger:#e07060;
+  --shadow:0 6px 28px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+html[data-theme="eink"]{
+  --bg:#f7f6f1; --panel:#efeee8; --panel-2:#e5e4dd;
+  --fg:#141414; --fg-dim:#4a4a46; --fg-faint:#9a9a92;
+  --accent:#141414; --accent-soft:rgba(20,20,20,.08);
+  --bullet:#141414; --bullet-ring:#c9c8c0;
+  --line:#d4d3cb; --mark:#dcd9c8; --danger:#7a2018;
+  --font:Georgia,"Times New Roman",serif;
+  --radius:2px; --shadow:none; --motion:0;
+  --tour-dim:rgba(20,20,20,.5);
+  color-scheme:light;
+}
+html[data-theme="crt"]{
+  --bg:#051005; --panel:#0a1c0c; --panel-2:#0e2611;
+  --fg:#3dff77; --fg-dim:#22a04b; --fg-faint:#14602e;
+  --accent:#9dffbb; --accent-soft:rgba(61,255,119,.14);
+  --bullet:#22a04b; --bullet-ring:#123c1f;
+  --line:#0e2a14; --mark:rgba(61,255,119,.28); --danger:#ff7755;
+  --font:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --mono:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --radius:0px; --shadow:0 0 24px rgba(0,0,0,.6);
+  --glow:0 0 5px rgba(61,255,119,.45);
+  color-scheme:dark;
+}
+html[data-theme="ibm5151"]{ /* amber-on-sepia monochrome tube */
+  --bg:#191106; --panel:#221808; --panel-2:#2c1f0b;
+  --fg:#f2b13d; --fg-dim:#a87a20; --fg-faint:#664a12;
+  --accent:#ffd47e; --accent-soft:rgba(242,177,61,.14);
+  --bullet:#a87a20; --bullet-ring:#3d2c0e;
+  --line:#2e2110; --mark:rgba(242,177,61,.28); --danger:#ff8b5e;
+  --font:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --mono:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --radius:0px; --shadow:0 0 24px rgba(0,0,0,.6);
+  --glow:0 0 6px rgba(242,177,61,.4);
+  color-scheme:dark;
+}
+html[data-theme="wyse60"]{ /* pale white-phosphor terminal */
+  --bg:#0a0c0e; --panel:#12161a; --panel-2:#1a2026;
+  --fg:#e8eef2; --fg-dim:#93a0a9; --fg-faint:#4d565e;
+  --accent:#b5e3f5; --accent-soft:rgba(232,238,242,.12);
+  --bullet:#93a0a9; --bullet-ring:#28303a;
+  --line:#1d242b; --mark:rgba(232,238,242,.22); --danger:#ff8f7a;
+  --font:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --mono:"Cascadia Code",Consolas,ui-monospace,Menlo,monospace;
+  --radius:0px; --shadow:0 0 24px rgba(0,0,0,.65);
+  --glow:0 0 5px rgba(232,238,242,.35);
+  color-scheme:dark;
+}
+html[data-theme="nordic"]{ /* dark blue-slate, ice accent */
+  --bg:#1d2129; --panel:#242935; --panel-2:#2c3341;
+  --fg:#d5dce6; --fg-dim:#8b95a5; --fg-faint:#4d5666;
+  --accent:#7cb9cc; --accent-soft:rgba(124,185,204,.15);
+  --bullet:#5d6980; --bullet-ring:#333c4c;
+  --line:#2a303d; --mark:#6d5c22; --danger:#e08574;
+  --shadow:0 6px 28px rgba(0,0,0,.45);
+  color-scheme:dark;
+}
+html[data-theme="parchment"]{ /* warm manuscript cream, brown ink */
+  --bg:#f4ecd9; --panel:#ece2ca; --panel-2:#e3d7ba;
+  --fg:#3c2f1d; --fg-dim:#7c6b51; --fg-faint:#b5a88d;
+  --accent:#8a5a2b; --accent-soft:rgba(138,90,43,.12);
+  --bullet:#8a7a5e; --bullet-ring:#dcd0b2;
+  --line:#ded2b4; --mark:#e9d387; --danger:#96331f;
+  --font:Georgia,"Times New Roman",serif;
+  --radius:4px; --shadow:0 6px 22px rgba(92,72,40,.16);
+  --tour-dim:rgba(60,47,29,.5);
+  color-scheme:light;
+}
+html[data-theme="evergreen"]{ /* deep spruce, sage accent */
+  --bg:#141a15; --panel:#1b231c; --panel-2:#222d24;
+  --fg:#d2e0d4; --fg-dim:#81957f; --fg-faint:#465244;
+  --accent:#8cc29a; --accent-soft:rgba(140,194,154,.14);
+  --bullet:#5f7360; --bullet-ring:#28362a;
+  --line:#202a21; --mark:rgba(196,187,102,.3); --danger:#dd8168;
+  --shadow:0 6px 28px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+
+/* ============================================================
+   Reset & base
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:var(--font); font-size:15px; line-height:1.5;
+  text-shadow:var(--glow);
+  min-height:100vh;
+}
+html[data-theme="crt"] body::after,
+html[data-theme="ibm5151"] body::after,
+html[data-theme="wyse60"] body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:999;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 1px, transparent 1px 3px);
+  opacity:.3;
+}
+button,input,select,textarea{font:inherit;color:inherit;}
+button{cursor:pointer;background:none;border:none;padding:0;}
+a{color:var(--accent);}
+::selection{background:var(--accent-soft);}
+kbd{
+  font-family:var(--mono); font-size:.82em;
+  background:var(--panel-2); border:1px solid var(--line); border-bottom-width:2px;
+  border-radius:4px; padding:0 5px;
+}
+mark{background:var(--mark);color:inherit;border-radius:2px;padding:0 1px;}
+@media (prefers-reduced-motion: reduce){ :root{--motion:0;} }
+
+/* ============================================================
+   Top bar
+   ============================================================ */
+#topbar{
+  position:sticky; top:0; z-index:50;
+  display:flex; align-items:center; gap:12px;
+  padding:8px 16px;
+  background:var(--bg); border-bottom:1px solid var(--line);
+}
+#logo{
+  display:flex; align-items:center; flex:0 0 auto;
+  color:var(--fg); /* currentColor: the mark re-inks itself on every theme */
+  transition:color calc(120ms * var(--motion)) ease, transform calc(120ms * var(--motion)) ease;
+}
+#logo:hover{color:var(--accent); transform:scale(1.08);}
+#breadcrumbs{flex:1; min-width:0; display:flex; align-items:center; white-space:nowrap; overflow:hidden;}
+.crumb{
+  color:var(--fg-dim); text-decoration:none; font-size:13px;
+  overflow:hidden; text-overflow:ellipsis; max-width:180px; flex:0 1 auto;
+}
+a.crumb:hover{color:var(--accent);}
+.crumb:not(:last-child)::after{content:"\203A"; margin:0 7px; color:var(--fg-faint);}
+.crumb.current{color:var(--fg); font-weight:600;}
+.crumb.app-name{letter-spacing:.04em;}
+.tagline{
+  margin-left:12px; font-size:12px; font-style:italic;
+  color:var(--fg-faint); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+@media (max-width:560px){ .tagline{display:none;} }
+#topbar-right{display:flex; align-items:center; gap:10px;}
+#save-indicator{font-size:12px; color:var(--fg-faint); min-width:52px; text-align:right;}
+#save-indicator.error{color:var(--danger); font-weight:600;}
+#search{
+  width:180px; padding:4px 12px;
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  outline:none; font-size:13px; color:var(--fg);
+  transition:width calc(160ms * var(--motion)) ease, border-color calc(160ms * var(--motion)) ease;
+}
+#search:focus{width:260px; border-color:var(--accent);}
+#search::placeholder{color:var(--fg-faint);}
+#menu-btn{
+  font-size:16px; color:var(--fg-dim); padding:2px 8px; border-radius:var(--radius);
+}
+#menu-btn:hover{background:var(--panel); color:var(--fg);}
+
+/* ============================================================
+   Banner (storage warnings) — a quiet corner toast, not a headline
+   ============================================================ */
+/* display:flex would defeat the hidden attribute (UA display:none loses
+   to any author display) — restate it explicitly */
+#banner[hidden]{display:none;}
+#banner{
+  position:fixed; right:16px; bottom:16px; z-index:200;
+  display:flex; align-items:center; gap:10px;
+  max-width:380px; padding:10px 12px;
+  background:var(--panel); border:1px solid var(--line);
+  border-left:3px solid var(--danger);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+  font-size:12.5px; color:var(--fg-dim);
+}
+#banner.notice{border-left-color:var(--accent);}
+#banner-msg{flex:1;}
+#banner button{color:var(--accent); font-weight:600; white-space:nowrap;}
+#banner #banner-close{color:var(--fg-dim); font-weight:400;}
+#save-indicator.error{cursor:pointer;}
+
+/* ============================================================
+   Page & focus header
+   ============================================================ */
+#page{max-width:var(--page-max); margin:0 auto; padding:20px 24px 45vh;}
+/* wide layout: follow the window, but never spend the whole of it. 86vw keeps
+   a real margin on both sides; the 1400px cap stops a line of text from running
+   the full width of a 4K display, and the 700px floor means "wide" is never
+   narrower than the default column on a small window. */
+body.wide{--page-max:clamp(700px, 86vw, 1400px);}
+#focus-head{margin-bottom:14px;}
+#focus-title{
+  font-size:24px; font-weight:700; line-height:1.3;
+  outline:none; white-space:pre-wrap; word-break:break-word;
+  margin:0 0 2px;
+}
+#focus-note{font-size:13.5px; color:var(--fg-dim); min-height:0;}
+#focus-note .md{cursor:text;}
+#empty-hint{
+  color:var(--fg-faint); font-size:14px; padding:8px 0 8px 38px; cursor:text;
+}
+
+/* ============================================================
+   Outline rows
+   ============================================================ */
+#tree{outline:none;}
+.node{position:relative;}
+/* Off-screen subtrees skip layout & paint — this keeps focus()/layout
+   flushes cheap in 20k-node outlines. Scoped to the first two levels of
+   the current view: enough to prune almost everything off-screen, without
+   paying containment bookkeeping on every one of 20k rows. */
+#tree > .node,
+#tree > .node > .children > .node{
+  content-visibility:auto;
+  contain-intrinsic-size:auto 26px;
+}
+.row{
+  position:relative;
+  display:flex; align-items:flex-start;
+  padding:1px 0; border-radius:var(--radius);
+}
+.row:focus-within{background:var(--accent-soft);}
+.toggle{
+  flex:0 0 18px; height:24px; line-height:24px;
+  color:var(--fg-faint); font-size:10px; text-align:center;
+  visibility:hidden; opacity:0; user-select:none;
+  transition:opacity calc(120ms * var(--motion)) ease, transform calc(120ms * var(--motion)) ease;
+}
+.node.has-children > .row > .toggle{visibility:visible;}
+.row:hover > .toggle, .node.collapsed > .row > .toggle{opacity:1;}
+.node.expanded > .row > .toggle{transform:rotate(90deg);}
+.toggle:hover{color:var(--fg-dim);}
+.bullet{
+  flex:0 0 18px; height:24px;
+  display:flex; align-items:center; justify-content:center;
+  text-decoration:none; cursor:pointer; user-select:none;
+}
+.bullet .dot{
+  width:7px; height:7px; border-radius:50%;
+  background:var(--bullet);
+  transition:transform calc(120ms * var(--motion)) ease, box-shadow calc(120ms * var(--motion)) ease;
+}
+.bullet:hover .dot{transform:scale(1.35);}
+.node.collapsed > .row > .bullet .dot{box-shadow:0 0 0 3.5px var(--bullet-ring);}
+.title{
+  flex:1; min-width:0; min-height:24px;
+  padding:1px 4px 1px 2px; line-height:22px;
+  outline:none; white-space:pre-wrap; word-break:break-word;
+}
+.title:empty::before{content:attr(data-ph); color:var(--fg-faint); pointer-events:none;}
+.title .tag{
+  color:var(--accent); background:var(--accent-soft);
+  border-radius:999px; padding:0 6px; cursor:pointer;
+}
+.title .tag:hover{filter:brightness(1.15);}
+.title .tag.active{background:var(--accent); color:var(--bg);}
+.wikilink{color:var(--accent); text-decoration:none; cursor:pointer;}
+a.wikilink:hover{text-decoration:underline; text-underline-offset:2px;}
+.wikilink.broken{color:var(--fg-dim); text-decoration:underline dashed; text-underline-offset:2px; cursor:default;}
+.progress{
+  flex:0 0 auto; align-self:center; margin-left:6px; padding:0 7px;
+  font-size:11px; line-height:17px; color:var(--fg-dim);
+  background:var(--panel); border:1px solid var(--line); border-radius:999px;
+  user-select:none; white-space:nowrap;
+}
+.node.completed > .row > .title{text-decoration:line-through; color:var(--fg-dim);}
+body.hide-completed .node.completed{display:none;}
+.node.dim > .row > .title{color:var(--fg-faint);}
+.node.dim > .row > .bullet .dot{opacity:.45;}
+.children{
+  margin-left:19px; padding-left:9px;
+  border-left:1px solid var(--line);
+}
+.node.collapsed > .children{display:none;}
+@keyframes node-expand{from{opacity:0; transform:translateY(-3px);} to{opacity:1; transform:none;}}
+.children.just-expanded{animation:node-expand calc(140ms * var(--motion)) ease;}
+
+/* drag & drop */
+.node.dragging{opacity:.35;}
+.row.drop-before::before, .row.drop-after::after{
+  content:""; position:absolute; left:36px; right:0; height:2px;
+  background:var(--accent); border-radius:1px; z-index:5;
+}
+.row.drop-before::before{top:-1px;}
+.row.drop-after::after{bottom:-1px;}
+.row.drop-into{background:var(--accent-soft); box-shadow:inset 0 0 0 1.5px var(--accent);}
+
+/* ============================================================
+   Notes
+   ============================================================ */
+.note{margin:-2px 0 2px 40px;}
+.note-edit{
+  display:block; width:100%;
+  background:transparent; border:none; outline:none; resize:none;
+  font-family:var(--mono); font-size:12.5px; line-height:1.55;
+  color:var(--fg-dim); padding:0; overflow:hidden;
+}
+.note-edit::placeholder{color:var(--fg-faint);}
+#focus-note .note-edit{font-size:13px;}
+.note .md, #focus-note .md{cursor:text;}
+
+/* rendered markdown */
+.md{font-size:12.5px; line-height:1.55; color:var(--fg-dim); word-break:break-word;}
+#focus-note > .md{font-size:13.5px;}
+.md > :first-child{margin-top:0;}
+.md > :last-child{margin-bottom:0;}
+.md p{margin:0 0 6px;}
+.md h1,.md h2,.md h3{color:var(--fg); margin:8px 0 4px; line-height:1.3;}
+.md h1{font-size:15px;} .md h2{font-size:14px;} .md h3{font-size:13px;}
+.md ul,.md ol{margin:0 0 6px; padding-left:20px;}
+.md li{margin:1px 0;}
+.md code{
+  font-family:var(--mono); font-size:.92em;
+  background:var(--panel-2); border-radius:4px; padding:1px 5px;
+}
+.md pre{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:8px 10px; margin:4px 0 8px; overflow-x:auto;
+}
+.md pre code{background:none; padding:0; font-size:12px;}
+.md blockquote{
+  margin:4px 0 8px; padding:2px 12px;
+  border-left:3px solid var(--fg-faint); color:var(--fg-dim);
+}
+.md blockquote .md{font-size:inherit;}
+.md hr{border:none; border-top:1px solid var(--line); margin:10px 0;}
+.md a{color:var(--accent); text-decoration:underline; text-underline-offset:2px;}
+.md strong{color:var(--fg);}
+
+/* ============================================================
+   Menu panel
+   ============================================================ */
+#menu-panel{
+  position:fixed; top:46px; right:14px; z-index:100;
+  width:280px; padding:6px;
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+#menu-panel hr{border:none; border-top:1px solid var(--line); margin:6px 4px;}
+.menu-row{
+  display:flex; align-items:center; gap:8px;
+  width:100%; padding:7px 10px; text-align:left;
+  font-size:13.5px; border-radius:var(--radius);
+}
+.menu-row[hidden], .menu-note[hidden]{display:none;} /* display:flex would beat [hidden] */
+button.menu-row:hover{background:var(--panel);}
+.menu-field{justify-content:space-between; cursor:default;}
+.menu-field select{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  padding:3px 6px; font-size:13px; outline:none;
+}
+.menu-row kbd{margin-left:auto;}
+.menu-note{font-size:12px; color:var(--fg-faint); padding:2px 10px 4px;}
+.days-field{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--fg-dim);}
+.days-field input{
+  width:56px; padding:2px 6px; text-align:right;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  color:var(--fg); outline:none;
+}
+.days-field input:focus{border-color:var(--accent);}
+
+/* ============================================================
+   Dialogs
+   ============================================================ */
+dialog{
+  background:var(--bg); color:var(--fg);
+  border:1px solid var(--line); border-radius:calc(var(--radius) * 1.5);
+  box-shadow:var(--shadow); padding:20px 24px;
+  max-width:480px; width:calc(100vw - 48px);
+}
+dialog::backdrop{background:rgba(0,0,0,.35);}
+dialog h2{margin:0 0 10px; font-size:17px;}
+.dialog-tagline{margin:-6px 0 12px; font-size:12.5px; font-style:italic; color:var(--fg-faint);}
+.help-brand{display:flex; align-items:center; gap:9px;}
+.help-subhead{margin:12px 0 4px; font-size:14px;}
+.dialog-warn{font-size:13px; color:var(--fg-dim);}
+.dialog-actions{display:flex; gap:10px; justify-content:flex-end; margin-top:16px;}
+.dialog-actions button{
+  padding:6px 16px; border-radius:var(--radius);
+  background:var(--panel); border:1px solid var(--line); font-size:13.5px;
+}
+.dialog-actions button:hover{background:var(--panel-2);}
+.dialog-actions button.danger{color:var(--danger); border-color:var(--danger);}
+#help-grid{
+  display:grid; grid-template-columns:auto 1fr; gap:6px 18px;
+  font-size:13px; margin:12px 0;
+}
+#help-grid em{color:var(--fg-dim); font-style:italic; font-size:12px;}
+.help-note{font-size:12.5px; color:var(--fg-dim); margin:10px 0 0;}
+
+/* ---------- jump palette (Ctrl+K) ---------- */
+#palette-dialog{margin-top:10vh; max-width:560px; padding:10px;}
+#palette-input{
+  width:100%; box-sizing:border-box; padding:8px 12px; font-size:14.5px;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+  color:var(--fg); outline:none; font-family:inherit;
+}
+#palette-input:focus{border-color:var(--accent);}
+#palette-input::placeholder{color:var(--fg-faint);}
+#palette-results{max-height:52vh; overflow-y:auto; margin-top:8px;}
+.pal-item{padding:5px 10px; border-radius:var(--radius); cursor:pointer;}
+.pal-item.sel{background:var(--accent-soft);}
+.pal-title{font-size:14px; color:var(--fg);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.pal-path{font-size:11.5px; color:var(--fg-faint); margin-top:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.pal-hint{font-size:12.5px; color:var(--fg-faint); padding:6px 10px 4px;}
+
+/* ---------- [[link]] autocomplete ---------- */
+#link-auto{
+  position:fixed; z-index:150; padding:4px;
+  min-width:240px; max-width:min(400px, calc(100vw - 24px));
+  max-height:min(260px, 45vh); overflow-y:auto;
+  background:var(--bg); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+}
+#link-auto .pal-item{padding:4px 9px;}
+#link-auto .pal-hint{padding:5px 9px; max-width:340px;}
+/* offscreen twin of a note textarea, used only to measure where its caret is */
+#link-auto-mirror{
+  position:fixed; top:0; left:0; z-index:-1;
+  visibility:hidden; pointer-events:none;
+  white-space:pre-wrap; overflow-wrap:break-word;
+}
+
+/* ============================================================
+   Guided tour — spotlight + callout card
+   The dim is painted by one enormous box-shadow around the "hole",
+   so the highlighted element keeps its own colours and the scrim
+   glides between steps with a single transition.
+   ============================================================ */
+#tour-veil{
+  position:fixed; inset:0; z-index:900;
+  opacity:0; transition:opacity calc(180ms * var(--motion)) ease;
+}
+#tour-hole{
+  position:fixed; z-index:901; pointer-events:none;
+  top:50%; left:50%; width:0; height:0;
+  border-radius:calc(var(--radius) * 1.5);
+  box-shadow:0 0 0 9999px var(--tour-dim);
+  opacity:0;
+  transition:
+    top calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    left calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    width calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    height calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    opacity calc(180ms * var(--motion)) ease;
+}
+/* the ring lives on a child so the pulse never fights the hole's transition */
+#tour-hole::after{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  box-shadow:0 0 0 2px var(--accent), 0 0 18px 2px var(--accent-soft);
+  opacity:0; transition:opacity calc(200ms * var(--motion)) ease;
+  animation:tour-pulse calc(2.6s * var(--motion)) ease-out infinite;
+}
+#tour.spot #tour-hole::after{opacity:1;}
+@keyframes tour-pulse{
+  0%,70%,100%{box-shadow:0 0 0 2px var(--accent), 0 0 18px 2px var(--accent-soft);}
+  35%{box-shadow:0 0 0 2px var(--accent), 0 0 24px 7px var(--accent-soft);}
+}
+#tour.in #tour-veil, #tour.in #tour-hole{opacity:1;}
+
+#tour-card{
+  position:fixed; z-index:902; left:0; top:0;
+  width:min(360px, calc(100vw - 28px));
+  padding:15px 17px 11px;
+  background:var(--bg); color:var(--fg);
+  border:1px solid var(--line); border-radius:calc(var(--radius) * 1.6);
+  box-shadow:var(--shadow), 0 2px 6px rgba(0,0,0,.12);
+  opacity:0; transform:translateY(4px);
+  transition:
+    left calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    top calc(360ms * var(--motion)) cubic-bezier(.4,.02,.2,1),
+    opacity calc(200ms * var(--motion)) ease,
+    transform calc(200ms * var(--motion)) ease;
+}
+#tour.in #tour-card{opacity:1; transform:none;}
+#tour-arrow{
+  position:absolute; width:11px; height:11px;
+  background:var(--bg); border:1px solid var(--line);
+  border-right:none; border-bottom:none;
+}
+#tour-card[data-side="bottom"] #tour-arrow{top:-6px; transform:rotate(45deg);}
+#tour-card[data-side="top"] #tour-arrow{bottom:-6px; transform:rotate(225deg);}
+#tour-card[data-side="right"] #tour-arrow{left:-6px; transform:rotate(-45deg);}
+#tour-card[data-side="left"] #tour-arrow{right:-6px; transform:rotate(135deg);}
+#tour-card[data-side="center"] #tour-arrow, #tour-card[data-side="sheet"] #tour-arrow{display:none;}
+
+#tour-head{display:flex; align-items:center; gap:8px; margin-bottom:7px;}
+#tour-head svg{flex:0 0 auto; color:var(--fg-dim);}
+#tour-head h2{margin:0; font-size:15.5px; line-height:1.25; flex:1; min-width:0;}
+#tour-count{font-size:11.5px; color:var(--fg-faint); white-space:nowrap;}
+#tour-body{font-size:13.5px; line-height:1.55; color:var(--fg-dim);}
+#tour-body p{margin:0 0 8px;}
+#tour-body p:last-child{margin-bottom:0;}
+#tour-body strong{color:var(--fg); font-weight:600;}
+#tour-body kbd{white-space:nowrap;}
+/* content re-enters on every step so the card reads as "turning a page" */
+#tour-card.step-in #tour-head, #tour-card.step-in #tour-body{
+  animation:tour-step-in calc(220ms * var(--motion)) ease both;
+}
+@keyframes tour-step-in{from{opacity:0; transform:translateY(3px);} to{opacity:1; transform:none;}}
+
+#tour-foot{
+  display:flex; align-items:center; gap:12px;
+  margin-top:14px; padding-top:10px; border-top:1px solid var(--line);
+}
+#tour-dots{display:flex; align-items:center; gap:5px; flex:1;}
+#tour-dots i{
+  width:5px; height:5px; border-radius:999px; background:var(--fg-faint);
+  transition:width calc(200ms * var(--motion)) ease, background-color calc(200ms * var(--motion)) ease;
+}
+#tour-dots i.done{background:var(--fg-dim);}
+#tour-dots i.now{width:14px; background:var(--accent);}
+#tour-actions{display:flex; align-items:center; gap:7px;}
+#tour-actions button{
+  padding:5px 13px; border-radius:var(--radius);
+  border:1px solid transparent; font-size:13px; color:var(--fg-dim);
+}
+#tour-actions button:hover{background:var(--panel); color:var(--fg);}
+#tour-actions #tour-back{border-color:var(--line);}
+#tour-actions button.primary{
+  background:var(--accent); border-color:var(--accent);
+  color:var(--bg); font-weight:600; text-shadow:none;
+}
+#tour-actions button.primary:hover{background:var(--accent); filter:brightness(1.08); color:var(--bg);}
+#tour-actions button[hidden]{display:none;}
+
+@media (max-width:520px){
+  #tour-card{width:calc(100vw - 24px);}
+}
+
+/* focus visibility for buttons/links (keyboard a11y) */
+button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbox"]:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--radius);
+}
