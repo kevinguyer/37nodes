@@ -4,7 +4,7 @@
 
 A local-first, single-file outliner in the spirit of Workflowy. One HTML file,
 no dependencies, no server, no network — your outline lives in your browser's
-local storage and never leaves your machine.
+built-in database (IndexedDB) and never leaves your machine.
 
 **To use it:** open [37nodes.html](37nodes.html) in any modern browser
 (double-clicking the file works — it runs fine from `file://`).
@@ -12,7 +12,8 @@ local storage and never leaves your machine.
 See [PRD.md](PRD.md) for the full product requirements.
 
 > Data saved under the old `holon:*` and `holarchy:*` storage keys (this
-> app's earlier names) is migrated automatically on first load.
+> app's earlier names), or under the localStorage key earlier 37nodes builds
+> used, is migrated automatically on first load.
 
 ## Features
 
@@ -56,10 +57,19 @@ See [PRD.md](PRD.md) for the full product requirements.
 
 ## Data safety
 
-Everything is stored under the `37nodes:doc` key in `localStorage`. Browsers
-can evict local storage when clearing site data — use **☰ → Export JSON** for
-real backups. If a save ever fails (quota, private mode), a small toast appears
-with a one-click export.
+Everything is stored in IndexedDB (database `37nodes`, store `doc`, one
+record) — no practical size ceiling, unlike the ~5 MB localStorage quota of
+earlier builds. Saved and exported payloads carry a `schemaVersion`; when the
+data format changes, older payloads are migrated forward automatically on
+load and on import. The one-time move off localStorage leaves your last
+localStorage-era document frozen under the `37nodes:doc:pre-idb` key as an
+extra safety net. Where IndexedDB is unavailable (some private modes), the
+app falls back to localStorage transparently.
+
+Browsers can still evict site data — use **☰ → Export JSON** for real
+backups. If a save ever fails, a small toast appears with a one-click export.
+Opening the outline in two tabs at once raises a warning banner (last write
+wins between tabs, so it's best to use one).
 
 The ☰ menu shows how long it's been since your last JSON export, and a
 **backup reminder** (default: 14 days, configurable, 0 = off) raises a gentle
@@ -81,7 +91,8 @@ src/shell.html      page skeleton (CSS/JS injection markers)
 src/app.css         tokens, themes, components
 src/js/01-util.js   helpers, caret utilities, outline-text parsing
 src/js/02-markdown.js  safe markdown subset → DOM renderer (no innerHTML)
-src/js/03-store.js  document state, ops-based undo, persistence
+src/js/02b-idb.js   shared IndexedDB plumbing (doc + kv stores)
+src/js/03-store.js  document state, ops-based undo, persistence, schema migrations
 src/js/04-view.js   incremental keyed rendering, notes, search filter
 src/js/05-search.js search box wiring
 src/js/06-keyboard.js  keyboard model + editing events

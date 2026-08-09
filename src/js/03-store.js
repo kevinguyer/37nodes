@@ -6,6 +6,7 @@
 const ROOT_ID = 'root';
 const SCHEMA_VERSION = 1;
 const DOC_KEY = '37nodes:doc';
+const DOC_BACKUP_KEY = '37nodes:doc:pre-idb'; // frozen copy left behind by the one-time IndexedDB migration
 const PREFS_KEY = '37nodes:prefs';
 const UNDO_LIMIT = 200;
 
@@ -312,22 +313,70 @@ function redo() {
 }
 
 /* --- persistence ----------------------------------------------------- */
+/* The document lives in IndexedDB ('doc' store, one whole-doc record).
+   localStorage remains as a fallback backend for contexts where IndexedDB
+   is unavailable (some private modes); 'memory' means neither works and
+   nothing persists. The backend is chosen once, in load(). */
+let backend = 'memory'; // 'idb' | 'local' | 'memory'
 let saveErrored = false;
-function saveNow() {
+let saveChain = Promise.resolve();
+
+/* Cross-tab guard: each successful save is announced, so another tab
+   holding the same outline can warn before edits silently collide.
+   Warn-only — a tab never blocks its own saves. */
+const TAB_ID = uid();
+let bc = null;
+try { bc = new BroadcastChannel('37nodes'); } catch (e) { /* unsupported: degrade silently */ }
+if (bc) {
+  bc.onmessage = e => {
+    const m = e.data;
+    if (m && m.type === 'doc-saved' && m.tabId !== TAB_ID) {
+      emit({ type: 'remote-save', savedAt: m.savedAt, tabId: m.tabId });
+    }
+  };
+}
+function bcAnnounce(savedAt) {
+  if (!bc) return;
+  try { bc.postMessage({ type: 'doc-saved', tabId: TAB_ID, savedAt }); } catch (e) { /* non-fatal */ }
+}
+
+function buildPayload() {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    savedAt: nowISO(),
+    focusId: doc.focusId,
+    root: doc.root,
+  };
+}
+
+async function writeDoc() {
   if (!doc) return;
+  const payload = buildPayload();
   try {
-    localStorage.setItem(DOC_KEY, JSON.stringify({
-      schemaVersion: SCHEMA_VERSION,
-      savedAt: nowISO(),
-      focusId: doc.focusId,
-      root: doc.root,
-    }));
+    if (backend === 'idb') {
+      // put() structured-clones synchronously, so the record is a consistent
+      // snapshot of the live tree even though the commit is async.
+      await idbDocPut(DOC_RECORD_KEY, payload);
+    } else if (backend === 'local') {
+      localStorage.setItem(DOC_KEY, JSON.stringify(payload));
+    } else {
+      throw new Error('no storage backend available');
+    }
     emit({ type: 'save', state: 'saved', recovered: saveErrored });
     saveErrored = false;
+    bcAnnounce(payload.savedAt);
   } catch (err) {
     saveErrored = true;
     emit({ type: 'save', state: 'error', error: err });
   }
+}
+function saveNow() {
+  // Serialized: overlapping calls (say, the debounce firing during an unload
+  // flush) queue behind each other instead of racing. Never rejects —
+  // failures surface through the 'save' event, same as always.
+  const p = saveChain.then(writeDoc);
+  saveChain = p.catch(() => {});
+  return p;
 }
 const saveDebounced = debounce(saveNow, 300);
 function scheduleSave() {
@@ -355,27 +404,101 @@ function regenIds(n) {
   return n;
 }
 
-function load() {
+/* --- schema migrations ------------------------------------------------ */
+/* Stepwise upcasting for saved and exported payloads. DOC_MIGRATIONS[v]
+   takes a whole payload {schemaVersion, savedAt, focusId, root} written at
+   schema version v and returns its version-(v+1) shape; the framework
+   stamps the new schemaVersion itself, so a step can't forget to. Runs on
+   load AND on import, always BEFORE normalizeNode — migrations see the
+   historical shape, normalizeNode enforces only the current one.
+   Empty until the first breaking change. */
+const DOC_MIGRATIONS = {
+  // 1: (data) => ({ ...data, root: transform(data.root) }),  // v1 → v2, when the day comes
+};
+
+function migrateDoc(data) {
+  let v = data.schemaVersion || 1;
+  if (v > SCHEMA_VERSION) {
+    return { data, warning: 'This outline was saved by a newer version of 37nodes. It has been loaded as-is; some data may not round-trip.' };
+  }
+  while (v < SCHEMA_VERSION) {
+    const step = DOC_MIGRATIONS[v];
+    if (!step) { // registry gap: should never happen, but never eat data over it
+      return { data, warning: 'This outline was saved with an old data format (v' + v + ') this build cannot upgrade. It has been loaded as-is.' };
+    }
+    data = step(data);
+    data.schemaVersion = ++v;
+  }
+  return { data, warning: null };
+}
+
+async function load() {
+  // Pick a backend: IndexedDB, else localStorage (the pre-IDB production
+  // path — some private modes block IDB but allow localStorage), else
+  // memory-only.
+  try { await idbOpen(); backend = 'idb'; }
+  catch (e) {
+    try {
+      localStorage.getItem(DOC_KEY);
+      backend = 'local';
+      console.warn('37nodes: IndexedDB unavailable, falling back to localStorage.', e);
+    } catch (e2) {
+      backend = 'memory';
+      loadWarning = 'Browser storage is not available in this context, so nothing will be saved.';
+    }
+  }
+
+  // Read both possible sources: the IDB record, and any localStorage-era
+  // document (pre-migration data, or edits from an old build / a session
+  // where IDB was blocked).
+  let idbData = null;
+  if (backend === 'idb') {
+    try {
+      const rec = await idbDocGet(DOC_RECORD_KEY);
+      if (rec && typeof rec === 'object' && rec.root) idbData = rec; // an invalid record counts as absent
+    } catch (e) { /* unreadable record counts as absent */ }
+  }
   let raw = null;
-  try { raw = localStorage.getItem(DOC_KEY); }
-  catch (e) { loadWarning = 'Local storage is not available in this browser context, so nothing will be saved.'; }
+  if (backend !== 'memory') {
+    try { raw = localStorage.getItem(DOC_KEY); } catch (e) { /* fine — IDB (or nothing) it is */ }
+  }
+  let localData = null;
   if (raw) {
     try {
-      const data = JSON.parse(raw);
-      if (data && data.root) {
-        if ((data.schemaVersion || 1) > SCHEMA_VERSION) {
-          loadWarning = 'This outline was saved by a newer version of 37nodes. It has been loaded as-is; some data may not round-trip.';
-        }
-        doc = {
-          schemaVersion: SCHEMA_VERSION,
-          savedAt: data.savedAt || nowISO(),
-          focusId: typeof data.focusId === 'string' ? data.focusId : ROOT_ID,
-          root: normalizeNode(data.root),
-        };
-      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.root) localData = parsed;
     } catch (e) {
-      loadWarning = 'Saved data could not be read (corrupted JSON). Starting fresh. The broken payload was left in place.';
+      if (!idbData) loadWarning = 'Saved data could not be read (corrupted JSON). Starting fresh. The broken payload was left in place.';
+      raw = null; // never migrate or move aside a payload we can't parse
     }
+  }
+
+  // Resolve the live payload. Both present only when an old build or an
+  // IDB-blocked session wrote to localStorage after migration already ran:
+  // the newest edit wins, tie goes to IDB (the already-migrated side).
+  let payload = null;
+  let migrateSource = null; // raw string to freeze at DOC_BACKUP_KEY once IDB verifiably holds the doc
+  if (idbData && localData) {
+    const ts = d => { const t = new Date(d.savedAt || 0).getTime(); return isFinite(t) ? t : 0; };
+    payload = ts(localData) > ts(idbData) ? localData : idbData;
+    migrateSource = raw; // either way the stale localStorage key gets moved aside
+  } else if (idbData) {
+    payload = idbData;
+  } else if (localData) {
+    payload = localData;
+    migrateSource = raw;
+  }
+
+  if (payload) {
+    const m = migrateDoc(payload);
+    if (m.warning) loadWarning = m.warning;
+    const data = m.data;
+    doc = {
+      schemaVersion: SCHEMA_VERSION,
+      savedAt: data.savedAt || nowISO(),
+      focusId: typeof data.focusId === 'string' ? data.focusId : ROOT_ID,
+      root: normalizeNode(data.root),
+    };
   }
   if (!doc) {
     doc = { schemaVersion: SCHEMA_VERSION, savedAt: nowISO(), focusId: ROOT_ID, root: seedRoot() };
@@ -384,6 +507,28 @@ function load() {
   doc.root.id = ROOT_ID;
   nodeIndex.clear();
   indexSubtree(doc.root, null);
+
+  // One-time migration: fold the localStorage-era document into IndexedDB,
+  // verify it landed, and only then move the old key aside as a frozen
+  // backup. On any failure the old key stays live and we keep saving to
+  // localStorage this session; the migration retries next boot.
+  if (backend === 'idb' && migrateSource !== null) {
+    try {
+      const snapshot = buildPayload();
+      await idbDocPut(DOC_RECORD_KEY, snapshot);
+      const check = await idbDocGet(DOC_RECORD_KEY);
+      if (!check || !check.root || check.savedAt !== snapshot.savedAt) {
+        throw new Error('IndexedDB write verification failed');
+      }
+      try {
+        localStorage.setItem(DOC_BACKUP_KEY, migrateSource);
+        localStorage.removeItem(DOC_KEY);
+      } catch (e) { /* moving the backup aside is best-effort */ }
+    } catch (e) {
+      backend = 'local';
+      console.warn('37nodes: migration to IndexedDB failed, staying on localStorage.', e);
+    }
+  }
   return doc;
 }
 function setSavedFocus(id) {
@@ -446,12 +591,12 @@ function seedRoot() {
       mk('Press ? for the full keyboard reference'),
     ]),
     mk('About your data',
-      'Everything lives in *this browser\'s* local storage, so nothing ever leaves your machine. Browsers can evict local storage when clearing site data, so use **Export JSON** in the ☰ menu for real backups.'),
+      'Everything lives in *this browser* — in its built-in database (IndexedDB) — so nothing ever leaves your machine. Browsers can still evict site data, so use **Export JSON** in the ☰ menu for real backups.'),
   ]);
 }
 
 const store = {
-  ROOT_ID, DOC_KEY, PREFS_KEY,
+  ROOT_ID, DOC_KEY, DOC_BACKUP_KEY, PREFS_KEY,
   subscribe, getNode, getParent, ancestorsOf, isDescendant, countNodes,
   group, breakTyping,
   setTitle, setNote, setTitleImmediate,
@@ -459,9 +604,11 @@ const store = {
   move, indent, outdent, moveSibling,
   setCollapsed, toggleCompleted,
   undo, redo,
-  load, saveNow, scheduleSave, setSavedFocus,
+  load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
+  migrateDoc,
   importReplace, importAppend,
   get doc() { return doc; },
   get loadWarning() { return loadWarning; },
   get wasSeeded() { return seeded; },
+  get backend() { return backend; }, // 'idb' | 'local' | 'memory' — diagnostics
 };

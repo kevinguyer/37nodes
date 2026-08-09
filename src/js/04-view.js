@@ -499,7 +499,7 @@ function visibleTitles() {
 const bannerEl = $('#banner');
 const bannerMsgEl = $('#banner-msg');
 const bannerActionEl = $('#banner-export');
-let bannerKind = null; // 'storage' | 'notice' | 'fsbackup' | null (generic)
+let bannerKind = null; // 'storage' | 'notice' | 'fsbackup' | 'multitab' | null (generic)
 let bannerActionFn = null; // custom action; null = default (export JSON)
 const bannerMutedKinds = new Set(); // kinds the user dismissed this session
 function showBanner(msg, { kind = null, action = null } = {}) {
@@ -565,6 +565,13 @@ store.subscribe(ev => {
         bannerMutedKinds.delete('storage'); // saves work again; a future failure may warn once more
         if (bannerKind === 'storage') hideBanner();
       }
+      break;
+    case 'remote-save':
+      // Cross-tab guard: another tab just saved this outline. Warn-only —
+      // dismissing mutes the kind for the session. The default banner
+      // action (Export now) is deliberate: a fresh backup is the right
+      // move before a potential conflict.
+      showBanner('This outline is open in another tab, which just saved changes. Edits here may overwrite it — best to use one tab at a time.', { kind: 'multitab' });
       break;
   }
 });

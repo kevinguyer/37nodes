@@ -643,7 +643,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <hr>
   <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
   <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
-  <div class="menu-note" id="build-readout">Build 17 &middot; 2026-07-29</div>
+  <div class="menu-note" id="build-readout">Build 18 &middot; 2026-08-09</div>
 </div>
 
 <div id="link-auto" role="listbox" aria-label="Link suggestions" hidden></div>
@@ -691,7 +691,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <span><kbd>?</kbd></span><span>This help</span>
   </div>
   <p class="help-note">On macOS, use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>.</p>
-  <p class="help-note">Your outline lives in this browser's local storage. Browsers can evict local storage under disk pressure or when clearing site data. <strong>Export JSON</strong> from the menu is your real backup.</p>
+  <p class="help-note">Your outline lives in this browser's built-in database (IndexedDB). Browsers can evict site data under disk pressure or when clearing it manually. <strong>Export JSON</strong> from the menu is your real backup.</p>
   <div class="dialog-actions"><button id="help-tour">Take the tour</button><button id="help-close">Close</button></div>
 </dialog>
 
@@ -809,6 +809,68 @@ function parseOutlineText(text) {
   }
   return rootItems;
 }
+
+/* ===== 02b idb =====
+   Unified IndexedDB plumbing. One database, one cached connection.
+   Stores:
+     'doc' — the document. Today a single whole-doc record under
+             DOC_RECORD_KEY; per-node records (keyed by node id) can move
+             into this same store later without another DB version bump.
+     'kv'  — small odds and ends that need structured cloning
+             (currently just the file-mirror FileSystemFileHandle). */
+
+const IDB_NAME = '37nodes';
+const IDB_VERSION = 2; // v1: kv only. v2: + doc store.
+const IDB_KV = 'kv';
+const IDB_DOC = 'doc';
+const DOC_RECORD_KEY = 'current';
+
+let idbPromise = null;
+
+function idbOpen() {
+  if (idbPromise) return idbPromise;
+  idbPromise = new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(IDB_NAME, IDB_VERSION); }
+    catch (err) { reject(err); return; } // e.g. indexedDB itself unavailable
+    req.onupgradeneeded = () => {
+      // Guarded: a v1 database already has 'kv' (and its backupHandle record,
+      // which this upgrade must not touch).
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_KV)) db.createObjectStore(IDB_KV);
+      if (!db.objectStoreNames.contains(IDB_DOC)) db.createObjectStore(IDB_DOC);
+    };
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      // Let a future-version tab upgrade without being blocked by us; drop
+      // the cache so the next call here reopens fresh.
+      db.onversionchange = () => { db.close(); idbPromise = null; };
+      db.onclose = () => { idbPromise = null; }; // browser-forced close
+      resolve(db);
+    };
+  });
+  idbPromise.catch(() => { idbPromise = null; }); // allow retry on failure
+  return idbPromise;
+}
+
+function idbTx(storeName, mode, fn) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, mode);
+    const req = fn(tx.objectStore(storeName));
+    tx.oncomplete = () => resolve(req && req.result);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  }));
+}
+
+const idbKvGet = k => idbTx(IDB_KV, 'readonly', os => os.get(k));
+const idbKvSet = (k, v) => idbTx(IDB_KV, 'readwrite', os => os.put(v, k));
+const idbKvDel = k => idbTx(IDB_KV, 'readwrite', os => os.delete(k));
+
+const idbDocGet = k => idbTx(IDB_DOC, 'readonly', os => os.get(k));
+const idbDocPut = (k, v) => idbTx(IDB_DOC, 'readwrite', os => os.put(v, k));
+const idbDocDel = k => idbTx(IDB_DOC, 'readwrite', os => os.delete(k));
 
 /* ===== 02 markdown =====
    Small markdown subset rendered by DOM construction only —
@@ -965,6 +1027,7 @@ function mdRender(src) {
 const ROOT_ID = 'root';
 const SCHEMA_VERSION = 1;
 const DOC_KEY = '37nodes:doc';
+const DOC_BACKUP_KEY = '37nodes:doc:pre-idb'; // frozen copy left behind by the one-time IndexedDB migration
 const PREFS_KEY = '37nodes:prefs';
 const UNDO_LIMIT = 200;
 
@@ -1271,22 +1334,70 @@ function redo() {
 }
 
 /* --- persistence ----------------------------------------------------- */
+/* The document lives in IndexedDB ('doc' store, one whole-doc record).
+   localStorage remains as a fallback backend for contexts where IndexedDB
+   is unavailable (some private modes); 'memory' means neither works and
+   nothing persists. The backend is chosen once, in load(). */
+let backend = 'memory'; // 'idb' | 'local' | 'memory'
 let saveErrored = false;
-function saveNow() {
+let saveChain = Promise.resolve();
+
+/* Cross-tab guard: each successful save is announced, so another tab
+   holding the same outline can warn before edits silently collide.
+   Warn-only — a tab never blocks its own saves. */
+const TAB_ID = uid();
+let bc = null;
+try { bc = new BroadcastChannel('37nodes'); } catch (e) { /* unsupported: degrade silently */ }
+if (bc) {
+  bc.onmessage = e => {
+    const m = e.data;
+    if (m && m.type === 'doc-saved' && m.tabId !== TAB_ID) {
+      emit({ type: 'remote-save', savedAt: m.savedAt, tabId: m.tabId });
+    }
+  };
+}
+function bcAnnounce(savedAt) {
+  if (!bc) return;
+  try { bc.postMessage({ type: 'doc-saved', tabId: TAB_ID, savedAt }); } catch (e) { /* non-fatal */ }
+}
+
+function buildPayload() {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    savedAt: nowISO(),
+    focusId: doc.focusId,
+    root: doc.root,
+  };
+}
+
+async function writeDoc() {
   if (!doc) return;
+  const payload = buildPayload();
   try {
-    localStorage.setItem(DOC_KEY, JSON.stringify({
-      schemaVersion: SCHEMA_VERSION,
-      savedAt: nowISO(),
-      focusId: doc.focusId,
-      root: doc.root,
-    }));
+    if (backend === 'idb') {
+      // put() structured-clones synchronously, so the record is a consistent
+      // snapshot of the live tree even though the commit is async.
+      await idbDocPut(DOC_RECORD_KEY, payload);
+    } else if (backend === 'local') {
+      localStorage.setItem(DOC_KEY, JSON.stringify(payload));
+    } else {
+      throw new Error('no storage backend available');
+    }
     emit({ type: 'save', state: 'saved', recovered: saveErrored });
     saveErrored = false;
+    bcAnnounce(payload.savedAt);
   } catch (err) {
     saveErrored = true;
     emit({ type: 'save', state: 'error', error: err });
   }
+}
+function saveNow() {
+  // Serialized: overlapping calls (say, the debounce firing during an unload
+  // flush) queue behind each other instead of racing. Never rejects —
+  // failures surface through the 'save' event, same as always.
+  const p = saveChain.then(writeDoc);
+  saveChain = p.catch(() => {});
+  return p;
 }
 const saveDebounced = debounce(saveNow, 300);
 function scheduleSave() {
@@ -1314,27 +1425,101 @@ function regenIds(n) {
   return n;
 }
 
-function load() {
+/* --- schema migrations ------------------------------------------------ */
+/* Stepwise upcasting for saved and exported payloads. DOC_MIGRATIONS[v]
+   takes a whole payload {schemaVersion, savedAt, focusId, root} written at
+   schema version v and returns its version-(v+1) shape; the framework
+   stamps the new schemaVersion itself, so a step can't forget to. Runs on
+   load AND on import, always BEFORE normalizeNode — migrations see the
+   historical shape, normalizeNode enforces only the current one.
+   Empty until the first breaking change. */
+const DOC_MIGRATIONS = {
+  // 1: (data) => ({ ...data, root: transform(data.root) }),  // v1 → v2, when the day comes
+};
+
+function migrateDoc(data) {
+  let v = data.schemaVersion || 1;
+  if (v > SCHEMA_VERSION) {
+    return { data, warning: 'This outline was saved by a newer version of 37nodes. It has been loaded as-is; some data may not round-trip.' };
+  }
+  while (v < SCHEMA_VERSION) {
+    const step = DOC_MIGRATIONS[v];
+    if (!step) { // registry gap: should never happen, but never eat data over it
+      return { data, warning: 'This outline was saved with an old data format (v' + v + ') this build cannot upgrade. It has been loaded as-is.' };
+    }
+    data = step(data);
+    data.schemaVersion = ++v;
+  }
+  return { data, warning: null };
+}
+
+async function load() {
+  // Pick a backend: IndexedDB, else localStorage (the pre-IDB production
+  // path — some private modes block IDB but allow localStorage), else
+  // memory-only.
+  try { await idbOpen(); backend = 'idb'; }
+  catch (e) {
+    try {
+      localStorage.getItem(DOC_KEY);
+      backend = 'local';
+      console.warn('37nodes: IndexedDB unavailable, falling back to localStorage.', e);
+    } catch (e2) {
+      backend = 'memory';
+      loadWarning = 'Browser storage is not available in this context, so nothing will be saved.';
+    }
+  }
+
+  // Read both possible sources: the IDB record, and any localStorage-era
+  // document (pre-migration data, or edits from an old build / a session
+  // where IDB was blocked).
+  let idbData = null;
+  if (backend === 'idb') {
+    try {
+      const rec = await idbDocGet(DOC_RECORD_KEY);
+      if (rec && typeof rec === 'object' && rec.root) idbData = rec; // an invalid record counts as absent
+    } catch (e) { /* unreadable record counts as absent */ }
+  }
   let raw = null;
-  try { raw = localStorage.getItem(DOC_KEY); }
-  catch (e) { loadWarning = 'Local storage is not available in this browser context, so nothing will be saved.'; }
+  if (backend !== 'memory') {
+    try { raw = localStorage.getItem(DOC_KEY); } catch (e) { /* fine — IDB (or nothing) it is */ }
+  }
+  let localData = null;
   if (raw) {
     try {
-      const data = JSON.parse(raw);
-      if (data && data.root) {
-        if ((data.schemaVersion || 1) > SCHEMA_VERSION) {
-          loadWarning = 'This outline was saved by a newer version of 37nodes. It has been loaded as-is; some data may not round-trip.';
-        }
-        doc = {
-          schemaVersion: SCHEMA_VERSION,
-          savedAt: data.savedAt || nowISO(),
-          focusId: typeof data.focusId === 'string' ? data.focusId : ROOT_ID,
-          root: normalizeNode(data.root),
-        };
-      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.root) localData = parsed;
     } catch (e) {
-      loadWarning = 'Saved data could not be read (corrupted JSON). Starting fresh. The broken payload was left in place.';
+      if (!idbData) loadWarning = 'Saved data could not be read (corrupted JSON). Starting fresh. The broken payload was left in place.';
+      raw = null; // never migrate or move aside a payload we can't parse
     }
+  }
+
+  // Resolve the live payload. Both present only when an old build or an
+  // IDB-blocked session wrote to localStorage after migration already ran:
+  // the newest edit wins, tie goes to IDB (the already-migrated side).
+  let payload = null;
+  let migrateSource = null; // raw string to freeze at DOC_BACKUP_KEY once IDB verifiably holds the doc
+  if (idbData && localData) {
+    const ts = d => { const t = new Date(d.savedAt || 0).getTime(); return isFinite(t) ? t : 0; };
+    payload = ts(localData) > ts(idbData) ? localData : idbData;
+    migrateSource = raw; // either way the stale localStorage key gets moved aside
+  } else if (idbData) {
+    payload = idbData;
+  } else if (localData) {
+    payload = localData;
+    migrateSource = raw;
+  }
+
+  if (payload) {
+    const m = migrateDoc(payload);
+    if (m.warning) loadWarning = m.warning;
+    const data = m.data;
+    doc = {
+      schemaVersion: SCHEMA_VERSION,
+      savedAt: data.savedAt || nowISO(),
+      focusId: typeof data.focusId === 'string' ? data.focusId : ROOT_ID,
+      root: normalizeNode(data.root),
+    };
   }
   if (!doc) {
     doc = { schemaVersion: SCHEMA_VERSION, savedAt: nowISO(), focusId: ROOT_ID, root: seedRoot() };
@@ -1343,6 +1528,28 @@ function load() {
   doc.root.id = ROOT_ID;
   nodeIndex.clear();
   indexSubtree(doc.root, null);
+
+  // One-time migration: fold the localStorage-era document into IndexedDB,
+  // verify it landed, and only then move the old key aside as a frozen
+  // backup. On any failure the old key stays live and we keep saving to
+  // localStorage this session; the migration retries next boot.
+  if (backend === 'idb' && migrateSource !== null) {
+    try {
+      const snapshot = buildPayload();
+      await idbDocPut(DOC_RECORD_KEY, snapshot);
+      const check = await idbDocGet(DOC_RECORD_KEY);
+      if (!check || !check.root || check.savedAt !== snapshot.savedAt) {
+        throw new Error('IndexedDB write verification failed');
+      }
+      try {
+        localStorage.setItem(DOC_BACKUP_KEY, migrateSource);
+        localStorage.removeItem(DOC_KEY);
+      } catch (e) { /* moving the backup aside is best-effort */ }
+    } catch (e) {
+      backend = 'local';
+      console.warn('37nodes: migration to IndexedDB failed, staying on localStorage.', e);
+    }
+  }
   return doc;
 }
 function setSavedFocus(id) {
@@ -1405,12 +1612,12 @@ function seedRoot() {
       mk('Press ? for the full keyboard reference'),
     ]),
     mk('About your data',
-      'Everything lives in *this browser\'s* local storage, so nothing ever leaves your machine. Browsers can evict local storage when clearing site data, so use **Export JSON** in the ☰ menu for real backups.'),
+      'Everything lives in *this browser* — in its built-in database (IndexedDB) — so nothing ever leaves your machine. Browsers can still evict site data, so use **Export JSON** in the ☰ menu for real backups.'),
   ]);
 }
 
 const store = {
-  ROOT_ID, DOC_KEY, PREFS_KEY,
+  ROOT_ID, DOC_KEY, DOC_BACKUP_KEY, PREFS_KEY,
   subscribe, getNode, getParent, ancestorsOf, isDescendant, countNodes,
   group, breakTyping,
   setTitle, setNote, setTitleImmediate,
@@ -1418,11 +1625,13 @@ const store = {
   move, indent, outdent, moveSibling,
   setCollapsed, toggleCompleted,
   undo, redo,
-  load, saveNow, scheduleSave, setSavedFocus,
+  load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
+  migrateDoc,
   importReplace, importAppend,
   get doc() { return doc; },
   get loadWarning() { return loadWarning; },
   get wasSeeded() { return seeded; },
+  get backend() { return backend; }, // 'idb' | 'local' | 'memory' — diagnostics
 };
 
 /* ===== 04 view =====
@@ -1926,7 +2135,7 @@ function visibleTitles() {
 const bannerEl = $('#banner');
 const bannerMsgEl = $('#banner-msg');
 const bannerActionEl = $('#banner-export');
-let bannerKind = null; // 'storage' | 'notice' | 'fsbackup' | null (generic)
+let bannerKind = null; // 'storage' | 'notice' | 'fsbackup' | 'multitab' | null (generic)
 let bannerActionFn = null; // custom action; null = default (export JSON)
 const bannerMutedKinds = new Set(); // kinds the user dismissed this session
 function showBanner(msg, { kind = null, action = null } = {}) {
@@ -1992,6 +2201,13 @@ store.subscribe(ev => {
         bannerMutedKinds.delete('storage'); // saves work again; a future failure may warn once more
         if (bannerKind === 'storage') hideBanner();
       }
+      break;
+    case 'remote-save':
+      // Cross-tab guard: another tab just saved this outline. Warn-only —
+      // dismissing mutes the kind for the session. The default banner
+      // action (Export now) is deliberate: a fresh backup is the right
+      // move before a potential conflict.
+      showBanner('This outline is open in another tab, which just saved changes. Edits here may overwrite it — best to use one tab at a time.', { kind: 'multitab' });
       break;
   }
 });
@@ -2599,10 +2815,15 @@ importFileEl.addEventListener('change', async () => {
     showBanner(`"${file.name}" doesn't look like a 37nodes backup (missing root.children), so nothing was imported.`);
     return;
   }
+  // Upcast older schema versions before anything reads the payload; a
+  // newer-than-this-build backup still imports, with a warning.
+  const migrated = store.migrateDoc(data);
+  data = migrated.data;
   pendingImport = data;
   const count = store.countNodes(data.root) - 1;
   const when = data.savedAt ? ` saved ${String(data.savedAt).slice(0, 10)}` : '';
-  $('#import-summary').textContent = `“${file.name}” contains ${count.toLocaleString()} item${count === 1 ? '' : 's'}${when}.`;
+  const warn = migrated.warning ? ' ⚠ This backup was saved by a newer version of 37nodes; some data may not round-trip.' : '';
+  $('#import-summary').textContent = `“${file.name}” contains ${count.toLocaleString()} item${count === 1 ? '' : 's'}${when}.${warn}`;
   importDialogEl.showModal();
 });
 $('#import-cancel').addEventListener('click', () => { pendingImport = null; importDialogEl.close(); });
@@ -2622,35 +2843,18 @@ $('#import-replace').addEventListener('click', () => {
 });
 
 /* --- file mirror (File System Access API) ------------------------------
-   Keeps a real .json file on disk continuously up to date, so localStorage
-   eviction stops being a data-loss risk. Chromium-only; the handle persists
-   in IndexedDB (handles are structured-cloneable; localStorage can't hold
-   them). After a reload the browser may demand a fresh user gesture before
-   we can write again — that's the 'paused' state and the Resume flow. */
+   Keeps a real .json file on disk continuously up to date, so browser
+   storage eviction stops being a data-loss risk. Chromium-only; the handle
+   persists in the shared IndexedDB 'kv' store (handles are
+   structured-cloneable). After a reload the browser may demand a fresh
+   user gesture before we can write again — that's the 'paused' state and
+   the Resume flow. IDB plumbing lives in 02b-idb.js. */
 
 const fsSupported = typeof window.showSaveFilePicker === 'function';
 let fsHandle = null;
 let fsState = 'off'; // 'off' | 'active' | 'paused' (needs permission) | 'error'
 let fsLastWriteAt = null;
 let fsWriting = false, fsDirty = false;
-
-function idbKV(fn) {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('37nodes', 1);
-    req.onupgradeneeded = () => req.result.createObjectStore('kv');
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction('kv', 'readwrite');
-      const r = fn(tx.objectStore('kv'));
-      tx.oncomplete = () => { db.close(); resolve(r && r.result); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    };
-  });
-}
-const idbGet = k => idbKV(os => os.get(k));
-const idbSet = (k, v) => idbKV(os => os.put(v, k));
-const idbDel = k => idbKV(os => os.delete(k));
 
 const fsReadoutEl = $('#fsbackup-readout');
 const fsSetupEl = $('#fsbackup-setup');
@@ -2704,7 +2908,7 @@ async function fsSetup() { // must run from a user gesture
     });
     fsHandle = h;
     fsState = 'active';
-    try { await idbSet('backupHandle', h); } catch (e) { /* session-only mirror */ }
+    try { await idbKvSet('backupHandle', h); } catch (e) { /* session-only mirror */ }
     await fsWrite();
   } catch (err) { /* picker cancelled */ }
   updateFsUI();
@@ -2726,14 +2930,14 @@ async function fsStop() {
   fsHandle = null;
   fsState = 'off';
   fsLastWriteAt = null;
-  try { await idbDel('backupHandle'); } catch (e) {}
+  try { await idbKvDel('backupHandle'); } catch (e) {}
   if (bannerKind === 'fsbackup') hideBanner();
   updateFsUI();
 }
 async function initFileBackup() {
   updateFsUI();
   if (!fsSupported) return;
-  try { fsHandle = (await idbGet('backupHandle')) || null; } catch (e) { fsHandle = null; }
+  try { fsHandle = (await idbKvGet('backupHandle')) || null; } catch (e) { fsHandle = null; }
   if (!fsHandle) return;
   let p = 'prompt';
   try { p = fsHandle.queryPermission ? await fsHandle.queryPermission({ mode: 'readwrite' }) : 'prompt'; } catch (e) {}
@@ -2753,7 +2957,7 @@ fsSetupEl.addEventListener('click', () => { closeMenu(); fsSetup(); });
 fsResumeEl.addEventListener('click', () => { closeMenu(); fsResume(); });
 fsStopEl.addEventListener('click', () => { fsStop(); });
 
-// every successful localStorage save also refreshes the mirror (debounced)
+// every successful document save also refreshes the mirror (debounced)
 store.subscribe(ev => {
   if (ev.type === 'save' && ev.state === 'saved') fsWriteDebounced();
 });
@@ -2907,7 +3111,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkExportReminder();
 });
 
-/* --- flush saves when leaving --- */
+/* --- flush saves when leaving ---
+   saveNow() is async now (IndexedDB), but the cached connection means the
+   transaction *starts* synchronously here and browsers complete pending
+   IDB transactions during teardown. visibilitychange(hidden) is the
+   reliable moment (fires before every normal close/navigate/background);
+   beforeunload stays as best-effort belt and braces. */
 window.addEventListener('beforeunload', () => { store.saveNow(); fsFlush(); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { store.saveNow(); fsFlush(); }
@@ -2930,8 +3139,14 @@ document.addEventListener('keydown', e => {
        keep it single-line against stray DOM (already enforced in keydown) --- */
 
 /* --- boot --- */
-(function boot() {
-  const loaded = store.load();
+// Resolved once boot() finishes; later files (the tour's first-run check)
+// wait on this rather than racing the async document load.
+let bootReadyResolve;
+const bootReady = new Promise(r => { bootReadyResolve = r; });
+
+(async function boot() {
+  // All sync, pre-paint work first — the theme especially must land before
+  // first paint (prefs are sync localStorage precisely for this).
   applyTheme();
   themeSelectEl.value = prefs.theme || DEFAULT_THEME;
   document.body.classList.toggle('hide-completed', !!prefs.hideCompleted);
@@ -2944,6 +3159,9 @@ document.addEventListener('keydown', e => {
   savePrefs();
   exportWarnDaysEl.value = prefs.exportWarnDays;
   updateExportReadout();
+
+  // The static shell shows during this await (typically well under 50 ms).
+  const loaded = await store.load();
 
   // initial zoom: URL hash wins, else last saved focus
   const initial = parseHash() || (store.getNode(loaded.focusId) ? loaded.focusId : ROOT_ID);
@@ -2960,6 +3178,7 @@ document.addEventListener('keydown', e => {
   // land the caret on the first visible item
   const first = visibleTitles()[0];
   if (first) activateTitle(first, 'end');
+  bootReadyResolve();
 })();
 
 /* ===== 10 palette =====
@@ -3582,7 +3801,7 @@ function tourBuild(auto) {
     },
     {
       title: 'Your data, your machine',
-      body: 'The outline lives in this browser\'s local storage. Nothing is ever sent anywhere, so the data is yours outright: no account, no server, no third party to trust or be breached by.\n\nThat also means nothing is backed up for you. **Export JSON** is the real backup. On Chromium browsers, *Mirror to a file on disk* keeps a copy on disk current with every save; without a mirror running, the app nudges you every so often to export one.',
+      body: 'The outline lives in this browser\'s built-in database (IndexedDB). Nothing is ever sent anywhere, so the data is yours outright: no account, no server, no third party to trust or be breached by.\n\nThat also means nothing is backed up for you. **Export JSON** is the real backup. On Chromium browsers, *Mirror to a file on disk* keeps a copy on disk current with every save; without a mirror running, the app nudges you every so often to export one.',
       target: () => $('#export-json'), place: 'left', pad: 4, menu: true,
     },
     {
@@ -3836,10 +4055,13 @@ $('#help-tour').addEventListener('click', () => { $('#help-dialog').close(); tou
 
 /* First run only: a seeded document means there was nothing saved to load.
    A load warning means something is wrong with the user's data — that
-   deserves the screen more than a tour does. */
-if (!prefs.tourDoneAt && store.wasSeeded && !store.loadWarning) {
-  requestAnimationFrame(() => tourStart({ auto: true }));
-}
+   deserves the screen more than a tour does. Waits for bootReady because
+   the document now loads asynchronously (IndexedDB). */
+bootReady.then(() => {
+  if (!prefs.tourDoneAt && store.wasSeeded && !store.loadWarning) {
+    requestAnimationFrame(() => tourStart({ auto: true }));
+  }
+});
 
 /* ===== 13 tagline =====
    The top-bar tagline changes once a minute. Each new line arrives as a

@@ -21,7 +21,7 @@ Every node is a complete document and a fragment of a larger one.
 **Core constraints (non-negotiable):**
 
 - **Single file.** One `.html` file containing all markup, CSS, and JavaScript. Opens via double-click (`file://`) with no server, no build step, no network access, and no external dependencies.
-- **Local-first.** All data lives in the browser's `localStorage`. Nothing ever leaves the machine.
+- **Local-first.** All data lives in the browser (IndexedDB, with a localStorage fallback where IDB is unavailable). Nothing ever leaves the machine.
 - **Vanilla JS.** No frameworks. Modern browser APIs only.
 
 ## 2. Goals and non-goals
@@ -31,7 +31,7 @@ Every node is a complete document and a fragment of a larger one.
 1. Frictionless outlining: capturing and restructuring thoughts should feel as fast as typing.
 2. Full keyboard operability — a power user should never need the mouse.
 3. Markdown notes on any node, rendered cleanly, edited as raw text.
-4. Data safety within the limits of localStorage: autosave, export/import, and undo.
+4. Data safety within the limits of browser storage: autosave, export/import, and undo.
 5. A calm, text-forward visual design with swappable CSS themes.
 
 ### Non-goals (v1)
@@ -117,20 +117,21 @@ Mac equivalents (`Cmd` for `Ctrl`) are supported throughout.
 
 ### 4.6 Persistence
 
-- **F27.** Autosave to `localStorage` on every mutation, debounced ~300 ms, plus a flush on `beforeunload` / `visibilitychange`.
-- **F28.** Stored payload is versioned: `{ schemaVersion, savedAt, focusId, root }` under a single key (`37nodes:doc`). Loading a newer-than-known schema shows a warning instead of destroying data; older schemas migrate forward (including a silent one-time migration from the legacy `holon:*` and `holarchy:*` keys).
+- **F27.** Autosave to IndexedDB (database `37nodes`, store `doc`, one whole-document record, structured-clone — no serialization on save) on every mutation, debounced ~300 ms, plus a flush on `visibilitychange(hidden)` (the reliable moment) and `beforeunload` (best-effort). Where IndexedDB is unavailable (some private modes), saving falls back to the legacy `localStorage` path transparently; edits made there are folded into IndexedDB on the next normal load.
+- **F28.** Stored payload is versioned: `{ schemaVersion, savedAt, focusId, root }`. Loading a newer-than-known schema shows a warning instead of destroying data; older schemas migrate forward through a stepwise migration registry applied on load **and** on import (so old exported backups upcast too). Legacy chain: `holon:*` / `holarchy:*` keys → `37nodes:doc` (localStorage) → IndexedDB; the one-time move to IndexedDB is write-then-verified, and the last localStorage-era payload is left frozen under `37nodes:doc:pre-idb`.
+- **F28a.** **Cross-tab guard:** each successful save is announced on a BroadcastChannel; another tab holding the outline shows a dismissible warning banner (last write wins — warn-only, saves are never blocked). Degrades silently where BroadcastChannel is unavailable.
 - **F29.** UI preferences (theme, show-completed, pane widths if any) are stored under a separate key (`37nodes:prefs`) so document export/import never touches them.
 - **F30.** Quota/failure handling: if a save throws (quota exceeded, private mode), show a persistent visible warning banner with a one-click "Export now" action. Never fail silently.
 - **F31.** A subtle save-state indicator ("Saved" / "Saving…") in the top bar.
 
 ### 4.7 Export / import
 
-- **F32.** **Export JSON:** downloads the full document (same schema as storage) — the lossless backup format.
+- **F32.** **Export JSON:** downloads the full document (same versioned schema as storage) — the lossless backup format.
 - **F33.** **Export Markdown:** downloads the outline as nested Markdown — titles as `-` list items indented by depth, notes as indented paragraph text under their item. Export honors current zoom (exports the focused subtree) with an option for full document.
-- **F34.** **Import JSON:** file picker; validates schema; explicit choice between **Replace** (with confirmation) and **Append** (as new top-level children). A malformed file is rejected with a readable error and no data change.
+- **F34.** **Import JSON:** file picker; validates shape and checks `schemaVersion` — older backups are migrated forward through the F28 registry before import; newer-than-this-build backups import with a visible round-trip warning in the confirmation dialog. Explicit choice between **Replace** (with confirmation) and **Append** (as new top-level children). A malformed file is rejected with a readable error and no data change.
 - **F35.** **Copy as Markdown/plain text:** copying a selection or a node subtree to the clipboard produces sensible indented text for pasting into other apps. Pasting multi-line indented text creates a matching node structure.
 - **F40.** **Backup reminder:** prefs record `lastExportAt` (set only by JSON export — the lossless format) and `firstUseAt`. The ☰ menu shows a "Last JSON export: N ago / never" readout and a configurable threshold in days (default 14; 0 = off). When elapsed time since the last export (or first use, if never exported) exceeds the threshold, a dismissible notice toast appears; checked at boot, hourly, and on tab wake. Exporting clears it immediately. Suppressed while a file mirror (F42) is active.
-- **F42.** **File mirroring** (progressive enhancement, Chromium only): via the ☰ menu the user picks a JSON file once (File System Access API); thereafter every successful save also rewrites that file (debounced ~1.2 s, flushed on tab hide/unload). The handle persists in IndexedDB. If the browser requires a fresh permission grant after restart, the app enters a visible "paused" state with a one-click Resume (toast + menu). Write failures pause mirroring with a Retry action — localStorage remains the primary store and is never blocked by mirror state. Browsers without the API simply never show the menu entry.
+- **F42.** **File mirroring** (progressive enhancement, Chromium only): via the ☰ menu the user picks a JSON file once (File System Access API); thereafter every successful save also rewrites that file (debounced ~1.2 s, flushed on tab hide/unload). The handle persists in IndexedDB. If the browser requires a fresh permission grant after restart, the app enters a visible "paused" state with a one-click Resume (toast + menu). Write failures pause mirroring with a Retry action — the in-browser store remains primary and is never blocked by mirror state. Browsers without the API simply never show the menu entry.
 
 ### 4.8 Theming
 
@@ -163,7 +164,7 @@ Mac equivalents (`Cmd` for `Ctrl`) are supported throughout.
 - **N2. Payload:** the single file stays under ~150 KB uncompressed — a discipline target, not a hard cap.
 - **N3. Browser support:** current Chrome, Edge, Firefox, Safari. No transpilation; modern JS (modules-in-one-file via IIFE or inline `type="module"`).
 - **N4. Accessibility:** full keyboard operability (already core), visible focus states, ARIA tree semantics (`role="tree"/"treeitem"`, `aria-expanded`, `aria-level`), WCAG AA contrast in all shipped themes.
-- **N5. Data durability honesty:** the UI never overstates safety. The help/menu states plainly that localStorage can be evicted by the browser and that JSON export is the real backup.
+- **N5. Data durability honesty:** the UI never overstates safety. The help/menu states plainly that browser-stored site data can be evicted and that JSON export is the real backup.
 - **N6. No network:** zero external requests, ever. Works fully offline from `file://`.
 
 ## 7. Architecture
@@ -193,7 +194,7 @@ Mac equivalents (`Cmd` for `Ctrl`) are supported throughout.
 
 | Risk | Mitigation |
 |---|---|
-| localStorage eviction / ~5 MB quota | F30 warning banner, F32 one-click export, N5 honest messaging. Post-v1: IndexedDB or File System Access API. |
+| Browser storage eviction | Primary store is IndexedDB (done post-v1 — removes the old ~5 MB localStorage quota). F30 warning banner, F32 one-click export, F42 file mirroring, N5 honest messaging. Residual: private modes fall back to localStorage (and its quota); multi-tab is last-write-wins, mitigated by the F28a guard. |
 | `contenteditable` cross-browser quirks (caret placement, paste) | Keep editable regions single-line and tiny; normalize paste to plain text; test matrix across the four browsers early, not last. |
 | Performance collapse on large outlines | N1 target tested with a generated 20k-node fixture from the first rendering milestone. |
 | Markdown parser edge cases / XSS | Fixed small subset, DOM-construction rendering (F19), table-driven unit checks in a dev-only test harness. |
@@ -214,7 +215,7 @@ Each milestone ends in a working single file — the app is never broken between
 
 - A 30-minute brainstorming session produces a 200-node outline without once touching the mouse or noticing lag.
 - Close browser → reopen → everything is exactly as left, including zoom position and theme.
-- Export JSON → wipe localStorage → import → byte-identical document.
+- Export JSON → wipe site data (IndexedDB + localStorage) → import → byte-identical document.
 - A pasted `<script>` tag in a note renders as visible text and executes nothing.
 - Switching to the CRT theme restyles every visible element with zero layout breakage.
 

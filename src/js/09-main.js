@@ -147,7 +147,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkExportReminder();
 });
 
-/* --- flush saves when leaving --- */
+/* --- flush saves when leaving ---
+   saveNow() is async now (IndexedDB), but the cached connection means the
+   transaction *starts* synchronously here and browsers complete pending
+   IDB transactions during teardown. visibilitychange(hidden) is the
+   reliable moment (fires before every normal close/navigate/background);
+   beforeunload stays as best-effort belt and braces. */
 window.addEventListener('beforeunload', () => { store.saveNow(); fsFlush(); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { store.saveNow(); fsFlush(); }
@@ -170,8 +175,14 @@ document.addEventListener('keydown', e => {
        keep it single-line against stray DOM (already enforced in keydown) --- */
 
 /* --- boot --- */
-(function boot() {
-  const loaded = store.load();
+// Resolved once boot() finishes; later files (the tour's first-run check)
+// wait on this rather than racing the async document load.
+let bootReadyResolve;
+const bootReady = new Promise(r => { bootReadyResolve = r; });
+
+(async function boot() {
+  // All sync, pre-paint work first — the theme especially must land before
+  // first paint (prefs are sync localStorage precisely for this).
   applyTheme();
   themeSelectEl.value = prefs.theme || DEFAULT_THEME;
   document.body.classList.toggle('hide-completed', !!prefs.hideCompleted);
@@ -184,6 +195,9 @@ document.addEventListener('keydown', e => {
   savePrefs();
   exportWarnDaysEl.value = prefs.exportWarnDays;
   updateExportReadout();
+
+  // The static shell shows during this await (typically well under 50 ms).
+  const loaded = await store.load();
 
   // initial zoom: URL hash wins, else last saved focus
   const initial = parseHash() || (store.getNode(loaded.focusId) ? loaded.focusId : ROOT_ID);
@@ -200,4 +214,5 @@ document.addEventListener('keydown', e => {
   // land the caret on the first visible item
   const first = visibleTitles()[0];
   if (first) activateTitle(first, 'end');
+  bootReadyResolve();
 })();

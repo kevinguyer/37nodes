@@ -99,10 +99,15 @@ importFileEl.addEventListener('change', async () => {
     showBanner(`"${file.name}" doesn't look like a 37nodes backup (missing root.children), so nothing was imported.`);
     return;
   }
+  // Upcast older schema versions before anything reads the payload; a
+  // newer-than-this-build backup still imports, with a warning.
+  const migrated = store.migrateDoc(data);
+  data = migrated.data;
   pendingImport = data;
   const count = store.countNodes(data.root) - 1;
   const when = data.savedAt ? ` saved ${String(data.savedAt).slice(0, 10)}` : '';
-  $('#import-summary').textContent = `“${file.name}” contains ${count.toLocaleString()} item${count === 1 ? '' : 's'}${when}.`;
+  const warn = migrated.warning ? ' ⚠ This backup was saved by a newer version of 37nodes; some data may not round-trip.' : '';
+  $('#import-summary').textContent = `“${file.name}” contains ${count.toLocaleString()} item${count === 1 ? '' : 's'}${when}.${warn}`;
   importDialogEl.showModal();
 });
 $('#import-cancel').addEventListener('click', () => { pendingImport = null; importDialogEl.close(); });
@@ -122,35 +127,18 @@ $('#import-replace').addEventListener('click', () => {
 });
 
 /* --- file mirror (File System Access API) ------------------------------
-   Keeps a real .json file on disk continuously up to date, so localStorage
-   eviction stops being a data-loss risk. Chromium-only; the handle persists
-   in IndexedDB (handles are structured-cloneable; localStorage can't hold
-   them). After a reload the browser may demand a fresh user gesture before
-   we can write again — that's the 'paused' state and the Resume flow. */
+   Keeps a real .json file on disk continuously up to date, so browser
+   storage eviction stops being a data-loss risk. Chromium-only; the handle
+   persists in the shared IndexedDB 'kv' store (handles are
+   structured-cloneable). After a reload the browser may demand a fresh
+   user gesture before we can write again — that's the 'paused' state and
+   the Resume flow. IDB plumbing lives in 02b-idb.js. */
 
 const fsSupported = typeof window.showSaveFilePicker === 'function';
 let fsHandle = null;
 let fsState = 'off'; // 'off' | 'active' | 'paused' (needs permission) | 'error'
 let fsLastWriteAt = null;
 let fsWriting = false, fsDirty = false;
-
-function idbKV(fn) {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('37nodes', 1);
-    req.onupgradeneeded = () => req.result.createObjectStore('kv');
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction('kv', 'readwrite');
-      const r = fn(tx.objectStore('kv'));
-      tx.oncomplete = () => { db.close(); resolve(r && r.result); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    };
-  });
-}
-const idbGet = k => idbKV(os => os.get(k));
-const idbSet = (k, v) => idbKV(os => os.put(v, k));
-const idbDel = k => idbKV(os => os.delete(k));
 
 const fsReadoutEl = $('#fsbackup-readout');
 const fsSetupEl = $('#fsbackup-setup');
@@ -204,7 +192,7 @@ async function fsSetup() { // must run from a user gesture
     });
     fsHandle = h;
     fsState = 'active';
-    try { await idbSet('backupHandle', h); } catch (e) { /* session-only mirror */ }
+    try { await idbKvSet('backupHandle', h); } catch (e) { /* session-only mirror */ }
     await fsWrite();
   } catch (err) { /* picker cancelled */ }
   updateFsUI();
@@ -226,14 +214,14 @@ async function fsStop() {
   fsHandle = null;
   fsState = 'off';
   fsLastWriteAt = null;
-  try { await idbDel('backupHandle'); } catch (e) {}
+  try { await idbKvDel('backupHandle'); } catch (e) {}
   if (bannerKind === 'fsbackup') hideBanner();
   updateFsUI();
 }
 async function initFileBackup() {
   updateFsUI();
   if (!fsSupported) return;
-  try { fsHandle = (await idbGet('backupHandle')) || null; } catch (e) { fsHandle = null; }
+  try { fsHandle = (await idbKvGet('backupHandle')) || null; } catch (e) { fsHandle = null; }
   if (!fsHandle) return;
   let p = 'prompt';
   try { p = fsHandle.queryPermission ? await fsHandle.queryPermission({ mode: 'readwrite' }) : 'prompt'; } catch (e) {}
@@ -253,7 +241,7 @@ fsSetupEl.addEventListener('click', () => { closeMenu(); fsSetup(); });
 fsResumeEl.addEventListener('click', () => { closeMenu(); fsResume(); });
 fsStopEl.addEventListener('click', () => { fsStop(); });
 
-// every successful localStorage save also refreshes the mirror (debounced)
+// every successful document save also refreshes the mirror (debounced)
 store.subscribe(ev => {
   if (ev.type === 'save' && ev.state === 'saved') fsWriteDebounced();
 });

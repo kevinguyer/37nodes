@@ -125,7 +125,7 @@ function tourBuild(auto) {
     },
     {
       title: 'Your data, your machine',
-      body: 'The outline lives in this browser\'s local storage. Nothing is ever sent anywhere, so the data is yours outright: no account, no server, no third party to trust or be breached by.\n\nThat also means nothing is backed up for you. **Export JSON** is the real backup. On Chromium browsers, *Mirror to a file on disk* keeps a copy on disk current with every save; without a mirror running, the app nudges you every so often to export one.',
+      body: 'The outline lives in this browser\'s built-in database (IndexedDB). Nothing is ever sent anywhere, so the data is yours outright: no account, no server, no third party to trust or be breached by.\n\nThat also means nothing is backed up for you. **Export JSON** is the real backup. On Chromium browsers, *Mirror to a file on disk* keeps a copy on disk current with every save; without a mirror running, the app nudges you every so often to export one.',
       target: () => $('#export-json'), place: 'left', pad: 4, menu: true,
     },
     {
@@ -379,7 +379,10 @@ $('#help-tour').addEventListener('click', () => { $('#help-dialog').close(); tou
 
 /* First run only: a seeded document means there was nothing saved to load.
    A load warning means something is wrong with the user's data — that
-   deserves the screen more than a tour does. */
-if (!prefs.tourDoneAt && store.wasSeeded && !store.loadWarning) {
-  requestAnimationFrame(() => tourStart({ auto: true }));
-}
+   deserves the screen more than a tour does. Waits for bootReady because
+   the document now loads asynchronously (IndexedDB). */
+bootReady.then(() => {
+  if (!prefs.tourDoneAt && store.wasSeeded && !store.loadWarning) {
+    requestAnimationFrame(() => tourStart({ auto: true }));
+  }
+});
