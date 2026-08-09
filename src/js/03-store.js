@@ -50,11 +50,33 @@ function countNodes(n) { return 1 + n.children.reduce((s, c) => s + countNodes(c
 
 function indexSubtree(n, parent) {
   nodeIndex.set(n.id, { node: n, parent });
+  if (n.mirrorOf) mirrorIndexAdd(n.mirrorOf, n.id);
   for (const c of n.children) indexSubtree(c, n);
 }
 function unindexSubtree(n) {
   nodeIndex.delete(n.id);
+  if (n.mirrorOf) mirrorIndexDel(n.mirrorOf, n.id);
   for (const c of n.children) unindexSubtree(c);
+}
+
+/* targetId -> Set<mirrorId>, maintained by (un)indexSubtree and the
+   'flag' op — hasMirrors() runs per row in applyNodeState, so it must be
+   O(1), not a tree scan */
+const mirrorIndex = new Map();
+function mirrorIndexAdd(targetId, mirrorId) {
+  let s = mirrorIndex.get(targetId);
+  if (!s) mirrorIndex.set(targetId, s = new Set());
+  s.add(mirrorId);
+}
+function mirrorIndexDel(targetId, mirrorId) {
+  const s = mirrorIndex.get(targetId);
+  if (s) { s.delete(mirrorId); if (!s.size) mirrorIndex.delete(targetId); }
+}
+function hasMirrors(id) {
+  const s = mirrorIndex.get(id);
+  if (!s) return false;
+  for (const mid of s) if (nodeIndex.has(mid)) return true;
+  return false;
 }
 
 /* --- op primitives ------------------------------------------------ */
@@ -91,7 +113,14 @@ function applyOp(op, dir) { // dir: 1 = forward, -1 = inverse
     }
     case 'flag': {
       const n = getNode(op.id);
-      if (n) n[op.key] = dir > 0 ? op.b : op.a;
+      if (n) {
+        const val = dir > 0 ? op.b : op.a;
+        if (op.key === 'mirrorOf') {
+          if (n.mirrorOf) mirrorIndexDel(n.mirrorOf, op.id);
+          if (val) mirrorIndexAdd(val, op.id);
+        }
+        n[op.key] = val;
+      }
       break;
     }
     case 'ins':
@@ -200,9 +229,9 @@ function deletePromote(id) {
   scheduleSave();
   emit({ type: 'children', id: p.id });
   // mirrors of the deleted node broke: repaint them as tombstones
-  for (const e of nodeIndex.values()) {
-    if (e.node.mirrorOf === id) emit({ type: 'node', id: e.node.id });
-  }
+  for (const mn of mirrorsOf(id)) emit({ type: 'node', id: mn.id });
+  // and if the deleted node was itself a mirror, its target may lose the badge
+  if (n.mirrorOf && nodeIndex.has(n.mirrorOf)) emit({ type: 'node', id: n.mirrorOf });
 }
 
 function deleteSubtree(id) {
@@ -226,13 +255,22 @@ function deleteSubtree(id) {
   if (m) {
     const mp = getParent(id); // n's parent after promotion
     if (mp && mp.id !== p.id) emit({ type: 'children', id: mp.id });
+    emit({ type: 'node', id }); // may have lost its last mirror: ⧉ badge off
   } else {
-    // no promotion: mirrors pointing anywhere into the deleted subtree just
-    // broke — repaint them as tombstones now, not on the next full render
-    const gone = new Set();
-    (function collect(x) { gone.add(x.id); x.children.forEach(collect); })(n);
+    // no promotion. Two kinds of fallout to repaint: mirrors pointing into
+    // the deleted subtree broke (tombstones), and targets of mirrors that
+    // DIED with the subtree may have lost their ⧉ badge.
+    const gone = new Set(), lostTargets = new Set();
+    (function collect(x) {
+      gone.add(x.id);
+      if (x.mirrorOf) lostTargets.add(x.mirrorOf);
+      x.children.forEach(collect);
+    })(n);
     for (const e of nodeIndex.values()) {
       if (e.node.mirrorOf && gone.has(e.node.mirrorOf)) emit({ type: 'node', id: e.node.id });
+    }
+    for (const tid of lostTargets) {
+      if (nodeIndex.has(tid)) emit({ type: 'node', id: tid });
     }
   }
 }
@@ -328,11 +366,10 @@ const setColor = (id, v) => setNodeProp(id, 'color', NODE_COLORS, v);
 function mirrorContent(n) { // the node whose content a row shows
   return n.mirrorOf ? (getNode(n.mirrorOf) || null) : n;
 }
-function mirrorsOf(targetId) { // lazy scan: called on rare paths only
+function mirrorsOf(targetId) {
   const out = [];
-  for (const e of nodeIndex.values()) {
-    if (e.node.mirrorOf === targetId) out.push(e.node);
-  }
+  const s = mirrorIndex.get(targetId);
+  if (s) for (const mid of s) { const n = getNode(mid); if (n) out.push(n); }
   return out;
 }
 function mirrorResolveTarget(targetId) { // flatten chains: mirror a mirror → its target
@@ -356,6 +393,7 @@ function setMirror(id, targetId) {
   scheduleSave();
   emit({ type: 'node', id });
   emit({ type: 'children', id: p.id }); // the row changes shape: rebuild it
+  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
   return true;
 }
 /* place a new mirror of targetId as its next sibling (the menu flow) */
@@ -363,7 +401,9 @@ function createMirror(targetId) {
   const target = mirrorResolveTarget(targetId);
   const anchor = getNode(targetId), p = getParent(targetId);
   if (!target || !anchor || !p) return null;
-  return create(p.id, p.children.indexOf(anchor) + 1, { mirrorOf: target.id });
+  const m = create(p.id, p.children.indexOf(anchor) + 1, { mirrorOf: target.id });
+  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
+  return m;
 }
 
 function duplicate(id) {
@@ -376,6 +416,11 @@ function duplicate(id) {
   group(() => record({ t: 'ins', parentId: p.id, index: idx + 1, node: copy }));
   scheduleSave();
   emit({ type: 'children', id: p.id });
+  // mirrors in the copied subtree are new mirrors of their targets: badges
+  (function badges(x) {
+    if (x.mirrorOf && nodeIndex.has(x.mirrorOf)) emit({ type: 'node', id: x.mirrorOf });
+    x.children.forEach(badges);
+  })(copy);
   return copy;
 }
 
@@ -659,14 +704,23 @@ function importReplace(rootNode) {
   emit({ type: 'doc' });
 }
 function importAppend(children) {
+  const appended = [];
   group(() => {
     for (const c of children) {
       const norm = regenIds(normalizeNode(c));
+      appended.push(norm);
       record({ t: 'ins', parentId: ROOT_ID, index: doc.root.children.length, node: norm });
     }
   });
   scheduleSave();
   emit({ type: 'children', id: ROOT_ID });
+  // appended mirrors may badge targets that already existed in the outline
+  for (const a of appended) {
+    (function badges(x) {
+      if (x.mirrorOf && nodeIndex.has(x.mirrorOf)) emit({ type: 'node', id: x.mirrorOf });
+      x.children.forEach(badges);
+    })(a);
+  }
 }
 
 /* --- seed document ---------------------------------------------------- */
@@ -715,7 +769,7 @@ const store = {
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
   setCollapsed, toggleCompleted, setFormat, setColor, duplicate,
-  mirrorContent, mirrorsOf, setMirror, createMirror,
+  mirrorContent, mirrorsOf, hasMirrors, setMirror, createMirror,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
   migrateDoc,

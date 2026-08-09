@@ -312,17 +312,30 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .bullet:hover .dot{transform:scale(1.35);}
 .node.collapsed > .row > .bullet .dot{box-shadow:0 0 0 3.5px var(--bullet-ring);}
-/* mirrors: hollow dot (the item lives elsewhere; this row is a live view) */
-.node.mirror > .row > .bullet .dot{
-  width:8px; height:8px;
-  background:transparent; border:2px solid var(--bullet);
+/* mirrors: the ⧉ badge marks a mirror row AND an original that has mirrors —
+   either way, this item lives in more than one place */
+.node.mirror > .row > .bullet .dot,
+.node.mirrored > .row > .bullet .dot{
+  width:12px; height:12px; border-radius:2px;
+  background:transparent; color:var(--bullet);
 }
-.node.mirror[data-color="red"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-red);}
-.node.mirror[data-color="orange"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-orange);}
-.node.mirror[data-color="yellow"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-yellow);}
-.node.mirror[data-color="green"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-green);}
-.node.mirror[data-color="blue"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-blue);}
-.node.mirror[data-color="purple"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-purple);}
+.node.mirror > .row > .bullet .dot::before,
+.node.mirrored > .row > .bullet .dot::before{
+  content:"⧉"; display:block;
+  font-size:13px; line-height:12px; text-align:center;
+}
+.node.mirror[data-color="red"] > .row > .bullet .dot,
+.node.mirrored[data-color="red"] > .row > .bullet .dot{background:transparent; color:var(--nc-red);}
+.node.mirror[data-color="orange"] > .row > .bullet .dot,
+.node.mirrored[data-color="orange"] > .row > .bullet .dot{background:transparent; color:var(--nc-orange);}
+.node.mirror[data-color="yellow"] > .row > .bullet .dot,
+.node.mirrored[data-color="yellow"] > .row > .bullet .dot{background:transparent; color:var(--nc-yellow);}
+.node.mirror[data-color="green"] > .row > .bullet .dot,
+.node.mirrored[data-color="green"] > .row > .bullet .dot{background:transparent; color:var(--nc-green);}
+.node.mirror[data-color="blue"] > .row > .bullet .dot,
+.node.mirrored[data-color="blue"] > .row > .bullet .dot{background:transparent; color:var(--nc-blue);}
+.node.mirror[data-color="purple"] > .row > .bullet .dot,
+.node.mirrored[data-color="purple"] > .row > .bullet .dot{background:transparent; color:var(--nc-purple);}
 .node.mirror.broken > .row > .title{color:var(--fg-faint); font-style:italic;}
 .node.mirror.loop > .row > .toggle{visibility:hidden;}
 .title{
@@ -765,7 +778,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <hr>
   <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
   <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
-  <div class="menu-note" id="build-readout">Build 24 &middot; 2026-08-09</div>
+  <div class="menu-note" id="build-readout">Build 25 &middot; 2026-08-09</div>
 </div>
 
 <div id="node-menu" role="menu" aria-label="Item menu" hidden>
@@ -1260,11 +1273,33 @@ function countNodes(n) { return 1 + n.children.reduce((s, c) => s + countNodes(c
 
 function indexSubtree(n, parent) {
   nodeIndex.set(n.id, { node: n, parent });
+  if (n.mirrorOf) mirrorIndexAdd(n.mirrorOf, n.id);
   for (const c of n.children) indexSubtree(c, n);
 }
 function unindexSubtree(n) {
   nodeIndex.delete(n.id);
+  if (n.mirrorOf) mirrorIndexDel(n.mirrorOf, n.id);
   for (const c of n.children) unindexSubtree(c);
+}
+
+/* targetId -> Set<mirrorId>, maintained by (un)indexSubtree and the
+   'flag' op — hasMirrors() runs per row in applyNodeState, so it must be
+   O(1), not a tree scan */
+const mirrorIndex = new Map();
+function mirrorIndexAdd(targetId, mirrorId) {
+  let s = mirrorIndex.get(targetId);
+  if (!s) mirrorIndex.set(targetId, s = new Set());
+  s.add(mirrorId);
+}
+function mirrorIndexDel(targetId, mirrorId) {
+  const s = mirrorIndex.get(targetId);
+  if (s) { s.delete(mirrorId); if (!s.size) mirrorIndex.delete(targetId); }
+}
+function hasMirrors(id) {
+  const s = mirrorIndex.get(id);
+  if (!s) return false;
+  for (const mid of s) if (nodeIndex.has(mid)) return true;
+  return false;
 }
 
 /* --- op primitives ------------------------------------------------ */
@@ -1301,7 +1336,14 @@ function applyOp(op, dir) { // dir: 1 = forward, -1 = inverse
     }
     case 'flag': {
       const n = getNode(op.id);
-      if (n) n[op.key] = dir > 0 ? op.b : op.a;
+      if (n) {
+        const val = dir > 0 ? op.b : op.a;
+        if (op.key === 'mirrorOf') {
+          if (n.mirrorOf) mirrorIndexDel(n.mirrorOf, op.id);
+          if (val) mirrorIndexAdd(val, op.id);
+        }
+        n[op.key] = val;
+      }
       break;
     }
     case 'ins':
@@ -1410,9 +1452,9 @@ function deletePromote(id) {
   scheduleSave();
   emit({ type: 'children', id: p.id });
   // mirrors of the deleted node broke: repaint them as tombstones
-  for (const e of nodeIndex.values()) {
-    if (e.node.mirrorOf === id) emit({ type: 'node', id: e.node.id });
-  }
+  for (const mn of mirrorsOf(id)) emit({ type: 'node', id: mn.id });
+  // and if the deleted node was itself a mirror, its target may lose the badge
+  if (n.mirrorOf && nodeIndex.has(n.mirrorOf)) emit({ type: 'node', id: n.mirrorOf });
 }
 
 function deleteSubtree(id) {
@@ -1436,13 +1478,22 @@ function deleteSubtree(id) {
   if (m) {
     const mp = getParent(id); // n's parent after promotion
     if (mp && mp.id !== p.id) emit({ type: 'children', id: mp.id });
+    emit({ type: 'node', id }); // may have lost its last mirror: ⧉ badge off
   } else {
-    // no promotion: mirrors pointing anywhere into the deleted subtree just
-    // broke — repaint them as tombstones now, not on the next full render
-    const gone = new Set();
-    (function collect(x) { gone.add(x.id); x.children.forEach(collect); })(n);
+    // no promotion. Two kinds of fallout to repaint: mirrors pointing into
+    // the deleted subtree broke (tombstones), and targets of mirrors that
+    // DIED with the subtree may have lost their ⧉ badge.
+    const gone = new Set(), lostTargets = new Set();
+    (function collect(x) {
+      gone.add(x.id);
+      if (x.mirrorOf) lostTargets.add(x.mirrorOf);
+      x.children.forEach(collect);
+    })(n);
     for (const e of nodeIndex.values()) {
       if (e.node.mirrorOf && gone.has(e.node.mirrorOf)) emit({ type: 'node', id: e.node.id });
+    }
+    for (const tid of lostTargets) {
+      if (nodeIndex.has(tid)) emit({ type: 'node', id: tid });
     }
   }
 }
@@ -1538,11 +1589,10 @@ const setColor = (id, v) => setNodeProp(id, 'color', NODE_COLORS, v);
 function mirrorContent(n) { // the node whose content a row shows
   return n.mirrorOf ? (getNode(n.mirrorOf) || null) : n;
 }
-function mirrorsOf(targetId) { // lazy scan: called on rare paths only
+function mirrorsOf(targetId) {
   const out = [];
-  for (const e of nodeIndex.values()) {
-    if (e.node.mirrorOf === targetId) out.push(e.node);
-  }
+  const s = mirrorIndex.get(targetId);
+  if (s) for (const mid of s) { const n = getNode(mid); if (n) out.push(n); }
   return out;
 }
 function mirrorResolveTarget(targetId) { // flatten chains: mirror a mirror → its target
@@ -1566,6 +1616,7 @@ function setMirror(id, targetId) {
   scheduleSave();
   emit({ type: 'node', id });
   emit({ type: 'children', id: p.id }); // the row changes shape: rebuild it
+  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
   return true;
 }
 /* place a new mirror of targetId as its next sibling (the menu flow) */
@@ -1573,7 +1624,9 @@ function createMirror(targetId) {
   const target = mirrorResolveTarget(targetId);
   const anchor = getNode(targetId), p = getParent(targetId);
   if (!target || !anchor || !p) return null;
-  return create(p.id, p.children.indexOf(anchor) + 1, { mirrorOf: target.id });
+  const m = create(p.id, p.children.indexOf(anchor) + 1, { mirrorOf: target.id });
+  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
+  return m;
 }
 
 function duplicate(id) {
@@ -1586,6 +1639,11 @@ function duplicate(id) {
   group(() => record({ t: 'ins', parentId: p.id, index: idx + 1, node: copy }));
   scheduleSave();
   emit({ type: 'children', id: p.id });
+  // mirrors in the copied subtree are new mirrors of their targets: badges
+  (function badges(x) {
+    if (x.mirrorOf && nodeIndex.has(x.mirrorOf)) emit({ type: 'node', id: x.mirrorOf });
+    x.children.forEach(badges);
+  })(copy);
   return copy;
 }
 
@@ -1869,14 +1927,23 @@ function importReplace(rootNode) {
   emit({ type: 'doc' });
 }
 function importAppend(children) {
+  const appended = [];
   group(() => {
     for (const c of children) {
       const norm = regenIds(normalizeNode(c));
+      appended.push(norm);
       record({ t: 'ins', parentId: ROOT_ID, index: doc.root.children.length, node: norm });
     }
   });
   scheduleSave();
   emit({ type: 'children', id: ROOT_ID });
+  // appended mirrors may badge targets that already existed in the outline
+  for (const a of appended) {
+    (function badges(x) {
+      if (x.mirrorOf && nodeIndex.has(x.mirrorOf)) emit({ type: 'node', id: x.mirrorOf });
+      x.children.forEach(badges);
+    })(a);
+  }
 }
 
 /* --- seed document ---------------------------------------------------- */
@@ -1925,7 +1992,7 @@ const store = {
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
   setCollapsed, toggleCompleted, setFormat, setColor, duplicate,
-  mirrorContent, mirrorsOf, setMirror, createMirror,
+  mirrorContent, mirrorsOf, hasMirrors, setMirror, createMirror,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
   migrateDoc,
@@ -2282,6 +2349,14 @@ function applyNodeState(el, n, own = n) {
   el.classList.toggle('expanded', hasKids && expanded);
   if (hasKids) el.setAttribute('aria-expanded', String(expanded));
   else el.removeAttribute('aria-expanded');
+  // originals that have live mirrors wear the same ⧉ badge as their mirrors
+  const mirrored = !own.mirrorOf && store.hasMirrors(own.id);
+  el.classList.toggle('mirrored', mirrored);
+  if (!own.mirrorOf) {
+    el.querySelector(':scope > .row > .bullet').title = mirrored
+      ? 'This item is mirrored elsewhere · Click to zoom in · drag to move'
+      : 'Click to zoom in · drag to move';
+  }
   const f = view.filter;
   el.classList.toggle('dim', !!(f && f.anc.has(own.id) && !f.under.has(own.id)));
   // checklist progress: shown once any direct child is checked off
@@ -2966,7 +3041,7 @@ function onTitleKeydown(e, el) {
   // --- copy subtree as markdown ---
   if (mod && e.shiftKey && (key === 'c' || key === 'C')) {
     e.preventDefault();
-    copySubtreeMarkdown(id);
+    copySubtreeMarkdown(contentIdOfTitle(el)); // a mirror copies what it shows
     return;
   }
   // --- item menu (headings, colors, actions) ---
@@ -3229,8 +3304,10 @@ document.addEventListener('focusout', e => {
     store.breakTyping();
     if (title !== focusTitleEl) {
       title.contentEditable = 'false';
-      // restore decorations (tag chips, search marks) the flatten removed
-      const id = idOfTitle(title);
+      // restore the rendered form (chips, marks, formatting) the flatten
+      // removed — from the CONTENT node: a mirror row's own title is empty,
+      // and rebuilding from it would blank the row until the next repaint
+      const id = contentIdOfTitle(title);
       const n = id && store.getNode(id);
       if (n) setTitleContent(title, n);
     }
@@ -5197,7 +5274,7 @@ function hideFmtBar() {
   fmtBarEl.hidden = true;
 }
 function fmtBarSync(titleEl) {
-  const id = idOfTitle(titleEl);
+  const id = contentIdOfTitle(titleEl); // mirror rows show the target's format
   const n = id && store.getNode(id);
   const fmt = (n && n.format) || '';
   for (const btn of fmtBarEl.querySelectorAll('[data-hfmt]')) {
@@ -5243,7 +5320,7 @@ fmtBarEl.addEventListener('click', e => {
       }
     }
   } else if ('hfmt' in btn.dataset) {
-    const id = idOfTitle(el);
+    const id = contentIdOfTitle(el); // heading lives on a mirror's target
     if (id) store.setFormat(id, btn.dataset.hfmt); // updateRow leaves an editing title alone
     fmtBarSync(el);
   } else if ('tc' in btn.dataset) {

@@ -344,6 +344,14 @@ function applyNodeState(el, n, own = n) {
   el.classList.toggle('expanded', hasKids && expanded);
   if (hasKids) el.setAttribute('aria-expanded', String(expanded));
   else el.removeAttribute('aria-expanded');
+  // originals that have live mirrors wear the same ⧉ badge as their mirrors
+  const mirrored = !own.mirrorOf && store.hasMirrors(own.id);
+  el.classList.toggle('mirrored', mirrored);
+  if (!own.mirrorOf) {
+    el.querySelector(':scope > .row > .bullet').title = mirrored
+      ? 'This item is mirrored elsewhere · Click to zoom in · drag to move'
+      : 'Click to zoom in · drag to move';
+  }
   const f = view.filter;
   el.classList.toggle('dim', !!(f && f.anc.has(own.id) && !f.under.has(own.id)));
   // checklist progress: shown once any direct child is checked off

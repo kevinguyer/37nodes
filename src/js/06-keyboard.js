@@ -118,7 +118,7 @@ function onTitleKeydown(e, el) {
   // --- copy subtree as markdown ---
   if (mod && e.shiftKey && (key === 'c' || key === 'C')) {
     e.preventDefault();
-    copySubtreeMarkdown(id);
+    copySubtreeMarkdown(contentIdOfTitle(el)); // a mirror copies what it shows
     return;
   }
   // --- item menu (headings, colors, actions) ---
@@ -381,8 +381,10 @@ document.addEventListener('focusout', e => {
     store.breakTyping();
     if (title !== focusTitleEl) {
       title.contentEditable = 'false';
-      // restore decorations (tag chips, search marks) the flatten removed
-      const id = idOfTitle(title);
+      // restore the rendered form (chips, marks, formatting) the flatten
+      // removed — from the CONTENT node: a mirror row's own title is empty,
+      // and rebuilding from it would blank the row until the next repaint
+      const id = contentIdOfTitle(title);
       const n = id && store.getNode(id);
       if (n) setTitleContent(title, n);
     }

@@ -302,17 +302,30 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .bullet:hover .dot{transform:scale(1.35);}
 .node.collapsed > .row > .bullet .dot{box-shadow:0 0 0 3.5px var(--bullet-ring);}
-/* mirrors: hollow dot (the item lives elsewhere; this row is a live view) */
-.node.mirror > .row > .bullet .dot{
-  width:8px; height:8px;
-  background:transparent; border:2px solid var(--bullet);
+/* mirrors: the ⧉ badge marks a mirror row AND an original that has mirrors —
+   either way, this item lives in more than one place */
+.node.mirror > .row > .bullet .dot,
+.node.mirrored > .row > .bullet .dot{
+  width:12px; height:12px; border-radius:2px;
+  background:transparent; color:var(--bullet);
 }
-.node.mirror[data-color="red"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-red);}
-.node.mirror[data-color="orange"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-orange);}
-.node.mirror[data-color="yellow"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-yellow);}
-.node.mirror[data-color="green"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-green);}
-.node.mirror[data-color="blue"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-blue);}
-.node.mirror[data-color="purple"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-purple);}
+.node.mirror > .row > .bullet .dot::before,
+.node.mirrored > .row > .bullet .dot::before{
+  content:"⧉"; display:block;
+  font-size:13px; line-height:12px; text-align:center;
+}
+.node.mirror[data-color="red"] > .row > .bullet .dot,
+.node.mirrored[data-color="red"] > .row > .bullet .dot{background:transparent; color:var(--nc-red);}
+.node.mirror[data-color="orange"] > .row > .bullet .dot,
+.node.mirrored[data-color="orange"] > .row > .bullet .dot{background:transparent; color:var(--nc-orange);}
+.node.mirror[data-color="yellow"] > .row > .bullet .dot,
+.node.mirrored[data-color="yellow"] > .row > .bullet .dot{background:transparent; color:var(--nc-yellow);}
+.node.mirror[data-color="green"] > .row > .bullet .dot,
+.node.mirrored[data-color="green"] > .row > .bullet .dot{background:transparent; color:var(--nc-green);}
+.node.mirror[data-color="blue"] > .row > .bullet .dot,
+.node.mirrored[data-color="blue"] > .row > .bullet .dot{background:transparent; color:var(--nc-blue);}
+.node.mirror[data-color="purple"] > .row > .bullet .dot,
+.node.mirrored[data-color="purple"] > .row > .bullet .dot{background:transparent; color:var(--nc-purple);}
 .node.mirror.broken > .row > .title{color:var(--fg-faint); font-style:italic;}
 .node.mirror.loop > .row > .toggle{visibility:hidden;}
 .title{

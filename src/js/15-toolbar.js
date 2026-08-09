@@ -125,7 +125,7 @@ function hideFmtBar() {
   fmtBarEl.hidden = true;
 }
 function fmtBarSync(titleEl) {
-  const id = idOfTitle(titleEl);
+  const id = contentIdOfTitle(titleEl); // mirror rows show the target's format
   const n = id && store.getNode(id);
   const fmt = (n && n.format) || '';
   for (const btn of fmtBarEl.querySelectorAll('[data-hfmt]')) {
@@ -171,7 +171,7 @@ fmtBarEl.addEventListener('click', e => {
       }
     }
   } else if ('hfmt' in btn.dataset) {
-    const id = idOfTitle(el);
+    const id = contentIdOfTitle(el); // heading lives on a mirror's target
     if (id) store.setFormat(id, btn.dataset.hfmt); // updateRow leaves an editing title alone
     fmtBarSync(el);
   } else if ('tc' in btn.dataset) {
