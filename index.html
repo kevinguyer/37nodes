@@ -752,7 +752,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <hr>
   <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
   <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
-  <div class="menu-note" id="build-readout">Build 21 &middot; 2026-08-09</div>
+  <div class="menu-note" id="build-readout">Build 22 &middot; 2026-08-09</div>
 </div>
 
 <div id="node-menu" role="menu" aria-label="Item menu" hidden>
@@ -1868,15 +1868,36 @@ const view = {
   filterExempt: new Set(), // ids created during this search: shown though they don't match
 };
 
-/* id → element map: nodeEl() must be O(1), not a DOM scan — it runs on
-   every keystroke and every reconcile step. Entries are validated on read
-   (an element may have been detached by a bulk rebuild). */
-const elMap = new Map();
-function nodeEl(id) {
-  const el = elMap.get(id);
+/* Instance maps: a node normally renders exactly once, but inside a mirror
+   expansion the same node renders again elsewhere. Each rendered element
+   therefore carries an INSTANCE id (data-iid): the node id itself for the
+   primary instance, nodeId + '@' + mirror-path for copies inside mirrors.
+   elMap is keyed by iid; instMap collects every live element whose content
+   reflects a given real node, so one store event can update all of them.
+   Lookups must be O(1), not DOM scans — they run on every keystroke and
+   every reconcile step. Entries are validated on read (an element may have
+   been detached by a bulk rebuild). */
+const elMap = new Map();   // iid -> element
+const instMap = new Map(); // nodeId -> Set<element>
+function nodeEl(key) { // node id (primary instance) or full iid
+  const el = elMap.get(key);
   if (el && el.isConnected) return el;
-  if (el) elMap.delete(id);
+  if (el) elMap.delete(key);
   return null;
+}
+function nodeInstances(id) { // every live element rendering this node
+  const set = instMap.get(id);
+  if (!set) return [];
+  const out = [];
+  for (const el of set) {
+    if (el.isConnected) out.push(el);
+    else set.delete(el);
+  }
+  if (!set.size) instMap.delete(id);
+  return out;
+}
+function suffixOf(el) { // '' outside mirrors; '@…' inside an expansion
+  return el.dataset.iid.slice(el.dataset.id.length);
 }
 function idOfTitle(titleEl) {
   if (titleEl === focusTitleEl) return view.focusId;
@@ -2180,12 +2201,16 @@ function buildNoteContent(n) {
   wrap.append(mdRender(n.note));
   return wrap;
 }
-function renderNode(n, level) {
+function renderNode(n, level, suffix = '') {
   if (!nodeVisibleInFilter(n)) return null;
   const el = document.createElement('div');
   el.className = 'node';
   el.dataset.id = n.id;
-  elMap.set(n.id, el);
+  el.dataset.iid = n.id + suffix;
+  elMap.set(el.dataset.iid, el);
+  let set = instMap.get(n.id);
+  if (!set) instMap.set(n.id, set = new Set());
+  set.add(el);
   el.setAttribute('role', 'treeitem');
   el.setAttribute('aria-level', level);
 
@@ -2232,13 +2257,13 @@ function renderNode(n, level) {
 
   applyNodeState(el, n);
   const expand = view.filter ? true : !n.collapsed;
-  if (expand && n.children.length) fillChildren(kids, n, level);
+  if (expand && n.children.length) fillChildren(kids, n, level, suffix);
   return el;
 }
-function fillChildren(kidsEl, n, level) {
+function fillChildren(kidsEl, n, level, suffix = '') {
   kidsEl.dataset.filled = '1';
   for (const c of n.children) {
-    const ce = renderNode(c, level + 1);
+    const ce = renderNode(c, level + 1, suffix);
     if (ce) kidsEl.append(ce);
   }
 }
@@ -2246,6 +2271,7 @@ function fillChildren(kidsEl, n, level) {
 /* --- region renderers --------------------------------------------------- */
 function renderTree() {
   elMap.clear();
+  instMap.clear();
   treeEl.textContent = '';
   const focus = store.getNode(view.focusId);
   const frag = document.createDocumentFragment();
@@ -2325,16 +2351,17 @@ function fixLevels(el, level) {
 }
 /* Keyed reconciliation: reuse existing rows by id, move/insert/remove only
    what changed. This is what keeps Enter O(1)-ish in a 20k-node outline. */
-function reconcileChildren(container, parentNode, level) {
+function reconcileChildren(container, parentNode, level, suffix = '') {
   let expected = container.firstElementChild;
   for (const c of parentNode.children) {
-    let el = (expected && expected.dataset.id === c.id) ? expected : nodeEl(c.id);
+    const iid = c.id + suffix;
+    let el = (expected && expected.dataset.iid === iid) ? expected : nodeEl(iid);
     if (el && el === expected) {
       expected = expected.nextElementSibling;
     } else if (el) {
       container.insertBefore(el, expected); // reuse (subtree comes along intact)
     } else {
-      el = renderNode(c, level + 1);
+      el = renderNode(c, level + 1, suffix);
       container.insertBefore(el, expected);
     }
     if (el.getAttribute('aria-level') !== String(level + 1)) fixLevels(el, level + 1);
@@ -2361,27 +2388,24 @@ function renderChildrenOf(id) {
     updateEmptyHint();
     return;
   }
-  const el = nodeEl(id);
-  if (!el) return; // inside a collapsed region; will render lazily on expand
-  const kids = el.querySelector(':scope > .children');
-  const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-  applyNodeState(el, parentNode);
-  if (parentNode.collapsed || !parentNode.children.length) {
-    kids.textContent = '';
-    delete kids.dataset.filled;
-    updateEmptyHint();
-    return;
+  // every instance of this node (primary + any mirror copies) reconciles its
+  // own children container, each under its own instance suffix
+  for (const el of nodeInstances(id)) {
+    const kids = el.querySelector(':scope > .children');
+    const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+    applyNodeState(el, parentNode);
+    if (parentNode.collapsed || !parentNode.children.length) {
+      kids.textContent = '';
+      delete kids.dataset.filled;
+      continue;
+    }
+    kids.dataset.filled = '1';
+    reconcileChildren(kids, parentNode, level, suffixOf(el));
   }
-  kids.dataset.filled = '1';
-  reconcileChildren(kids, parentNode, level);
   updateEmptyHint();
 }
 
-function updateRow(id, isTypingEcho) {
-  if (id === view.focusId) { renderFocusHead(); renderCrumbs(); return; }
-  const el = nodeEl(id);
-  const n = store.getNode(id);
-  if (!el || !n) return;
+function updateRowEl(el, n, isTypingEcho) {
   const title = el.querySelector(':scope > .row > .title');
   // While being edited the title is RAW text and the DOM is the source of
   // truth: rebuild it only when the store text actually differs (programmatic
@@ -2403,11 +2427,16 @@ function updateRow(id, isTypingEcho) {
     if (n.note) el.querySelector(':scope > .row').after(buildNoteContent(n));
   }
   applyNodeState(el, n);
+}
+function updateRow(id, isTypingEcho) {
+  if (id === view.focusId) { renderFocusHead(); renderCrumbs(); return; }
+  const n = store.getNode(id);
+  if (!n) return;
+  for (const el of nodeInstances(id)) updateRowEl(el, n, isTypingEcho);
   // completion toggles change the parent's progress badge too
   const p = store.getParent(id);
   if (p && p.id !== ROOT_ID) {
-    const pe = nodeEl(p.id);
-    if (pe) applyNodeState(pe, p);
+    for (const pe of nodeInstances(p.id)) applyNodeState(pe, p);
   }
 }
 
@@ -2548,19 +2577,20 @@ store.subscribe(ev => {
       }
       break;
     case 'collapse': {
-      const el = nodeEl(ev.id);
       const n = store.getNode(ev.id);
-      if (!el || !n) break;
-      const kids = el.querySelector(':scope > .children');
-      if (!n.collapsed && !kids.dataset.filled && n.children.length) {
-        const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-        fillChildren(kids, n, level);
+      if (!n) break;
+      for (const el of nodeInstances(ev.id)) {
+        const kids = el.querySelector(':scope > .children');
+        if (!n.collapsed && !kids.dataset.filled && n.children.length) {
+          const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+          fillChildren(kids, n, level, suffixOf(el));
+        }
+        if (!n.collapsed) {
+          kids.classList.add('just-expanded');
+          setTimeout(() => kids.classList.remove('just-expanded'), 250);
+        }
+        applyNodeState(el, n);
       }
-      if (!n.collapsed) {
-        kids.classList.add('just-expanded');
-        setTimeout(() => kids.classList.remove('just-expanded'), 250);
-      }
-      applyNodeState(el, n);
       break;
     }
     case 'doc':
