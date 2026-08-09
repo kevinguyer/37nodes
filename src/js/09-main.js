@@ -50,6 +50,9 @@ hideCompletedEl.addEventListener('change', () => {
   prefs.hideCompleted = hideCompletedEl.checked;
   savePrefs();
   document.body.classList.toggle('hide-completed', prefs.hideCompleted);
+  // hiding completed rows changes what can be a search result, so results
+  // computed under the old setting have to be recomputed
+  if (view.query) renderAll();
 });
 const wideLayoutEl = $('#wide-layout');
 wideLayoutEl.addEventListener('change', () => {

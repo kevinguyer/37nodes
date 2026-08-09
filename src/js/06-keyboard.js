@@ -23,12 +23,14 @@ function handleEnter(el, id) {
   const text = el.textContent;
   if (el === focusTitleEl) {
     const nn = store.create(id, 0, {});
+    keepInFilter(nn.id);
     focusNodeTitle(nn.id, 0);
     return;
   }
   const parent = store.getParent(id);
   const idx = parent.children.indexOf(n);
   let focusAfter = null, focusOff = 0;
+  const touched = []; // ids that must survive an active search filter
   store.group(() => {
     if (off >= text.length) {
       // at end: into expanded children, else sibling after
@@ -37,16 +39,20 @@ function handleEnter(el, id) {
       } else {
         focusAfter = store.create(parent.id, idx + 1).id;
       }
+      touched.push(focusAfter);
     } else if (off === 0 && text.length) {
       // at start: empty item above, caret stays on current text
-      store.create(parent.id, idx, {});
+      touched.push(store.create(parent.id, idx, {}).id);
       focusAfter = id;
     } else {
       // split at caret
       store.setTitleImmediate(id, text.slice(0, off));
       focusAfter = store.create(parent.id, idx + 1, { title: text.slice(off) }).id;
+      // the half left behind may no longer match the search that found it
+      touched.push(id, focusAfter);
     }
   });
+  keepInFilter(touched);
   focusNodeTitle(focusAfter, focusOff);
 }
 
@@ -227,15 +233,17 @@ function onTitlePaste(e, el) {
   if (!trees.length) return;
   const id = idOfTitle(el);
   let last = null;
+  const touched = [];
   store.group(() => {
     if (el === focusTitleEl) {
-      trees.forEach((t, k) => { last = store.createTree(view.focusId, k, t); });
+      trees.forEach((t, k) => { last = store.createTree(view.focusId, k, t); touched.push(last.id); });
     } else {
       const p = store.getParent(id);
       const idx = p.children.indexOf(store.getNode(id));
-      trees.forEach((t, k) => { last = store.createTree(p.id, idx + 1 + k, t); });
+      trees.forEach((t, k) => { last = store.createTree(p.id, idx + 1 + k, t); touched.push(last.id); });
     }
   });
+  keepInFilter(touched);
   if (last) focusNodeTitle(last.id, 'end');
 }
 

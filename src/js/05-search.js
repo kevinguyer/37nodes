@@ -4,6 +4,7 @@ const applySearch = debounce(() => {
   const q = searchEl.value;
   if (q === view.query) return;
   view.query = q;
+  clearFilterExempt(); // a new query gets a clean set of results
   renderAll();
 }, 150);
 
@@ -26,6 +27,7 @@ document.addEventListener('click', e => {
 
 function clearSearch(refocusOutline = true) {
   searchEl.value = '';
+  clearFilterExempt();
   if (view.query) {
     view.query = '';
     renderAll();

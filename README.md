@@ -84,6 +84,10 @@ active the backup reminder stays quiet.
 
 ## Development
 
+[CLAUDE.md](CLAUDE.md) is the architecture orientation — build pipeline, data
+and storage layout, the store event bus, and the traps that aren't obvious from
+reading one file. Start there before changing anything.
+
 Source lives in `src/` and is concatenated into the single shippable file:
 
 ```

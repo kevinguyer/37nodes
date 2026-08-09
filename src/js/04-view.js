@@ -18,6 +18,7 @@ const view = {
   focusId: ROOT_ID,
   query: '',
   filter: null, // { matched:Set, anc:Set, under:Set, q } while searching
+  filterExempt: new Set(), // ids created during this search: shown though they don't match
 };
 
 /* id → element map: nodeEl() must be O(1), not a DOM scan — it runs on
@@ -37,6 +38,13 @@ function idOfTitle(titleEl) {
 }
 
 /* --- search filter ---------------------------------------------------- */
+/* Hide-completed is a CSS rule (body.hide-completed .node.completed) that takes
+   the whole completed subtree off screen. The filter has to agree with it: a
+   completed hit that can't be seen must not drag its ancestors into the results
+   either. Reading the same body class the CSS keys off keeps the two in step. */
+function completedRowsHidden() {
+  return document.body.classList.contains('hide-completed');
+}
 function computeFilter() {
   const q = view.query.trim().toLowerCase();
   if (!q) { view.filter = null; return; }
@@ -45,16 +53,20 @@ function computeFilter() {
   const test = tagRe
     ? s => tagRe.test(s || '')
     : s => (s || '').toLowerCase().includes(q);
+  const skipCompleted = completedRowsHidden();
   const matched = new Set(), anc = new Set(), under = new Set();
   const focus = store.getNode(view.focusId);
   (function walk(n, ancIds, underMatch) {
     const isFocus = n === focus;
+    // an off-screen completed row can't be a result, and neither can anything
+    // inside it (the CSS hides the subtree with it)
+    if (!isFocus && skipCompleted && n.completed) return;
     const hit = !isFocus && (test(n.title) || test(n.note));
-    if (hit) {
-      matched.add(n.id);
-      for (const a of ancIds) anc.add(a);
-    }
-    const nowUnder = underMatch || hit;
+    // items made during this search don't match it; keep them on screen anyway
+    const kept = !isFocus && view.filterExempt.has(n.id);
+    if (hit) matched.add(n.id);
+    if (hit || kept) for (const a of ancIds) anc.add(a);
+    const nowUnder = underMatch || hit || kept;
     if (nowUnder && !isFocus) under.add(n.id);
     const nextAnc = isFocus ? ancIds : ancIds.concat(n.id);
     for (const c of n.children) walk(c, nextAnc, nowUnder);
@@ -64,6 +76,26 @@ function computeFilter() {
 function nodeVisibleInFilter(n) {
   if (!view.filter) return true;
   return view.filter.under.has(n.id) || view.filter.anc.has(n.id);
+}
+/* Newly created items match nothing, so the filtered rebuild that follows their
+   own 'children' event would render them out of existence — invisible, and
+   unreachable by the caret. Exempting them keeps a new line editable where it
+   was made; the exemption lasts until the query changes. */
+function keepInFilter(ids) {
+  if (!view.filter) return;
+  let added = false;
+  for (const id of [].concat(ids)) {
+    // an item the filter already shows (say, a child of a match) needs nothing
+    if (!id || view.filterExempt.has(id) || view.filter.under.has(id)) continue;
+    view.filterExempt.add(id);
+    added = true;
+  }
+  if (!added) return; // nothing changed: skip the rebuild
+  computeFilter();
+  renderTree();
+}
+function clearFilterExempt() {
+  view.filterExempt.clear();
 }
 
 /* --- node rendering ---------------------------------------------------- */
