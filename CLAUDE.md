@@ -63,7 +63,7 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `08-io.js` | JSON/Markdown export, import flow, File System Access file mirror |
 | `09-main.js` | Prefs, themes, zoom-via-hash, ☰ menu, backup reminder, `boot()` |
 | `10-palette.js` | `Ctrl+K` fuzzy jump palette |
-| `11-linkauto.js` | `[[` autocomplete in titles and note textareas |
+| `11-linkauto.js` | `[[` link autocomplete in titles and notes; `((` mirror conversion in titles |
 | `12-tour.js` | First-run guided tour (declarative steps + spotlight) |
 | `13-tagline.js` | Rotating top-bar tagline with cipher-decode reveal |
 | `14-nodemenu.js` | Per-item ≡ handle popover: heading format, bullet color, row actions |
@@ -77,8 +77,14 @@ out of animation or add CRT glow. Themes should never need new selectors.
 
 ```js
 { id, title, note, children: [], collapsed, completed, createdAt, updatedAt,
-  format?, color? } // optional: 'h1'|'h2'|'h3'; palette slot — absent when unset
+  format?, color?,  // optional: 'h1'|'h2'|'h3'; palette slot — absent when unset
+  mirrorOf? }       // optional: this node is a live mirror of another item
 ```
+
+A node with `mirrorOf` is a **mirror**: childless, no text of its own — all
+content resolves through the target (`store.mirrorContent`). Only its id,
+position, and `collapsed` state are its own. Deleting a mirrored original
+promotes the first surviving mirror into the real subtree (`deleteSubtree`).
 
 One tree under `doc.root` (`id === ROOT_ID === 'root'`). `nodeIndex` is a
 `Map<id, {node, parent}>` maintained by every structural op, so `getNode` /
@@ -133,8 +139,17 @@ coalesces into a burst until `breakTyping()`. Collapse state is deliberately
 
 ## Rendering
 
-- `elMap` is `Map<id, element>`, validated with `isConnected` on read. Never
-  `querySelector` for a node by id.
+- Rendering is keyed by **instance id** (`data-iid`), not node id: mirrors
+  make one node renderable in many places. `elMap` is `Map<iid, element>`
+  (iid = node id, plus `@mirrorId…` inside a mirror expansion) and `instMap`
+  maps a node id to every live element showing it — primary row, plus any
+  mirror rows and expansion copies. All are validated with `isConnected` on
+  read. Never `querySelector` for a node by id.
+- Every row has two identities: `data-id` (structural — moves, deletes,
+  collapse) and content (`data-mirror || data-id` — text, notes, completion,
+  format). Keyboard, dnd, menu, and autocomplete code must pick the right
+  one; `idOfTitle` vs `contentIdOfTitle` embody the split. For non-mirror
+  rows they coincide.
 - `reconcileChildren` reuses rows by `data-id` and moves them, so pressing Enter
   in a 20k-node outline stays cheap. Nodes removed from one parent and re-homed
   under another are left alone; the new parent's own `children` event moves the

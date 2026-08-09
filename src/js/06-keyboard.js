@@ -3,11 +3,17 @@
    focus-header title and tree titles share one code path.            */
 
 function onTitleInput(el) {
-  const id = idOfTitle(el);
+  const id = contentIdOfTitle(el); // a mirror row's text lives on its target
   if (!id) return;
   // contenteditable can sneak in <br>/newlines via some IME paths; flatten
   const v = el.textContent.replace(/\n/g, ' ');
   store.setTitle(id, v);
+}
+
+/* the mirror-expansion suffix of the row a title sits in ('' elsewhere) */
+function sfxOfTitle(el) {
+  const nd = el.closest?.('.node');
+  return nd ? suffixOf(nd) : '';
 }
 
 function navRelative(el, dir, off) {
@@ -19,8 +25,10 @@ function navRelative(el, dir, off) {
 
 function handleEnter(el, id) {
   const n = store.getNode(id);
+  const content = store.mirrorContent(n) || n; // mirror rows: text/children live on the target
   const off = caretOffset(el);
   const text = el.textContent;
+  const sfx = sfxOfTitle(el);
   if (el === focusTitleEl) {
     const nn = store.create(id, 0, {});
     keepInFilter(nn.id);
@@ -29,13 +37,15 @@ function handleEnter(el, id) {
   }
   const parent = store.getParent(id);
   const idx = parent.children.indexOf(n);
-  let focusAfter = null, focusOff = 0;
+  let focusAfter = null, focusOff = 0, focusSfx = sfx;
   const touched = []; // ids that must survive an active search filter
   store.group(() => {
     if (off >= text.length) {
       // at end: into expanded children, else sibling after
-      if (n.children.length && !n.collapsed && !view.filter) {
-        focusAfter = store.create(id, 0).id;
+      if (content.children.length && !n.collapsed && !view.filter) {
+        focusAfter = store.create(content.id, 0).id;
+        // the child renders inside this row's expansion when it's a mirror
+        if (n.mirrorOf) focusSfx = sfx + '@' + n.id;
       } else {
         focusAfter = store.create(parent.id, idx + 1).id;
       }
@@ -46,14 +56,14 @@ function handleEnter(el, id) {
       focusAfter = id;
     } else {
       // split at caret
-      store.setTitleImmediate(id, text.slice(0, off));
+      store.setTitleImmediate(content.id, text.slice(0, off));
       focusAfter = store.create(parent.id, idx + 1, { title: text.slice(off) }).id;
       // the half left behind may no longer match the search that found it
       touched.push(id, focusAfter);
     }
   });
   keepInFilter(touched);
-  focusNodeTitle(focusAfter, focusOff);
+  focusNodeTitle(focusAfter, focusOff, focusSfx);
 }
 
 function handleBackspace(e, el, id) {
@@ -127,11 +137,15 @@ function onTitleKeydown(e, el) {
 
   switch (key) {
     case 'Enter':
-      if (e.shiftKey) { e.preventDefault(); openNoteEditor(id); return; }
+      if (e.shiftKey) {
+        e.preventDefault();
+        openNoteEditor(contentIdOfTitle(el), el.closest('.node'));
+        return;
+      }
       if (mod) {
         e.preventDefault();
         if (el === focusTitleEl) return;
-        store.toggleCompleted(id);
+        store.toggleCompleted(contentIdOfTitle(el));
         // if hide-completed just swallowed the row, land somewhere sensible
         if (el.offsetParent === null) {
           const t = siblingTitle(el, 1) || siblingTitle(el, -1);
@@ -147,8 +161,9 @@ function onTitleKeydown(e, el) {
       e.preventDefault();
       if (el === focusTitleEl) return;
       const off = caretOffset(el);
+      const sfx = sfxOfTitle(el);
       const ok = e.shiftKey ? store.outdent(id, view.focusId) : store.indent(id);
-      if (ok) focusNodeTitle(id, off);
+      if (ok) focusNodeTitle(id, off, sfx);
       return;
     }
 
@@ -164,7 +179,8 @@ function onTitleKeydown(e, el) {
         e.preventDefault();
         if (el === focusTitleEl) return;
         const off = caretOffset(el);
-        if (store.moveSibling(id, dir)) focusNodeTitle(id, off);
+        const sfx = sfxOfTitle(el);
+        if (store.moveSibling(id, dir)) focusNodeTitle(id, off, sfx);
         return;
       }
       if (mod && !e.altKey && !e.shiftKey) {
@@ -196,7 +212,8 @@ function onTitleKeydown(e, el) {
     case 'ArrowRight':
       if (e.altKey && !mod) {
         e.preventDefault();
-        if (el !== focusTitleEl) location.hash = '#' + id;
+        // zooming a mirror goes to the original — a mirror has no view of its own
+        if (el !== focusTitleEl) location.hash = '#' + contentIdOfTitle(el);
         return;
       }
       if (!mod && !e.shiftKey && selectionCollapsedIn(el)
@@ -323,9 +340,10 @@ document.addEventListener('input', e => {
   const ta = e.target.closest?.('.note-edit');
   if (ta) {
     autoGrow(ta);
+    const host = ta.closest('.node');
     const id = ta.parentElement === focusNoteEl
       ? view.focusId
-      : (ta.closest('.node') || {}).dataset?.id;
+      : host && (host.dataset.mirror || host.dataset.id); // mirror rows: the target's note
     if (id) store.setNote(id, ta.value);
   }
 });
@@ -352,7 +370,7 @@ document.addEventListener('focusin', e => {
     // mapping the caret from rendered space to raw space (formatting hides
     // its delimiters, so the two no longer line up — titleRawOffset knows)
     const off = titleRawOffset(title, caretOffset(title));
-    const id = idOfTitle(title);
+    const id = contentIdOfTitle(title); // mirror rows edit their target's text
     const n = id && store.getNode(id);
     if (n) { title.textContent = n.title; setCaret(title, off); }
   }
@@ -385,7 +403,7 @@ treeEl.addEventListener('click', e => {
   const noteWrap = e.target.closest('.note');
   if (noteWrap && !e.target.closest('a') && !e.target.closest('.note-edit')) {
     const el = noteWrap.closest('.node');
-    if (el) openNoteEditor(el.dataset.id);
+    if (el) openNoteEditor(el.dataset.mirror || el.dataset.id, el);
   }
 });
 focusNoteEl.addEventListener('click', e => {

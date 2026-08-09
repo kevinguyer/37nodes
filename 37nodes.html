@@ -312,6 +312,19 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .bullet:hover .dot{transform:scale(1.35);}
 .node.collapsed > .row > .bullet .dot{box-shadow:0 0 0 3.5px var(--bullet-ring);}
+/* mirrors: hollow dot (the item lives elsewhere; this row is a live view) */
+.node.mirror > .row > .bullet .dot{
+  width:8px; height:8px;
+  background:transparent; border:2px solid var(--bullet);
+}
+.node.mirror[data-color="red"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-red);}
+.node.mirror[data-color="orange"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-orange);}
+.node.mirror[data-color="yellow"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-yellow);}
+.node.mirror[data-color="green"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-green);}
+.node.mirror[data-color="blue"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-blue);}
+.node.mirror[data-color="purple"] > .row > .bullet .dot{background:transparent; border-color:var(--nc-purple);}
+.node.mirror.broken > .row > .title{color:var(--fg-faint); font-style:italic;}
+.node.mirror.loop > .row > .toggle{visibility:hidden;}
 .title{
   flex:1; min-width:0; min-height:24px;
   padding:1px 4px 1px 2px; line-height:22px;
@@ -752,7 +765,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <hr>
   <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
   <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
-  <div class="menu-note" id="build-readout">Build 22 &middot; 2026-08-09</div>
+  <div class="menu-note" id="build-readout">Build 24 &middot; 2026-08-09</div>
 </div>
 
 <div id="node-menu" role="menu" aria-label="Item menu" hidden>
@@ -778,6 +791,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <button class="menu-row" id="nm-zoom">Zoom in</button>
   <button class="menu-row" id="nm-note">Add note</button>
   <button class="menu-row" id="nm-duplicate">Duplicate</button>
+  <button class="menu-row" id="nm-mirror" title="Place a live mirror of this item right below it, then move it anywhere. Or type (( in any empty item.">Mirror this item</button>
   <button class="menu-row" id="nm-copy">Copy as markdown</button>
   <hr>
   <button class="menu-row danger" id="nm-delete">Delete</button>
@@ -858,6 +872,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <span><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>Search</span>
     <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
     <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
+    <span><kbd>((</kbd> <em>on an empty item</em></span><span>Turn the item into a live <em>mirror</em> of another item (hollow bullet); also in the ≡ menu</span>
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
     <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
     <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
@@ -1199,7 +1214,7 @@ function mdRender(src) {
    Collapse state is deliberately NOT undoable (it's view state, but persisted). */
 
 const ROOT_ID = 'root';
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const NODE_FORMATS = ['h1', 'h2', 'h3']; // '' (absent) = normal text
 const NODE_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple']; // '' (absent) = theme default
 const DOC_KEY = '37nodes:doc';
@@ -1394,15 +1409,42 @@ function deletePromote(id) {
   });
   scheduleSave();
   emit({ type: 'children', id: p.id });
+  // mirrors of the deleted node broke: repaint them as tombstones
+  for (const e of nodeIndex.values()) {
+    if (e.node.mirrorOf === id) emit({ type: 'node', id: e.node.id });
+  }
 }
 
 function deleteSubtree(id) {
   const n = getNode(id), p = getParent(id);
   if (!n || !p) return;
-  const idx = p.children.indexOf(n);
-  group(() => record({ t: 'del', parentId: p.id, index: idx, node: n }));
+  // A mirrored item never dies while a mirror of it survives: the first
+  // mirror outside the doomed subtree is replaced by the real subtree
+  // (promotion). Other mirrors keep pointing at the surviving node.
+  const m = !n.mirrorOf && mirrorsOf(id).find(mn => !isDescendant(mn.id, id));
+  group(() => {
+    record({ t: 'del', parentId: p.id, index: p.children.indexOf(n), node: n });
+    if (m) {
+      // indices computed after each applied op, so same-parent shifts are exact
+      const mp = getParent(m.id), mi = mp.children.indexOf(m);
+      record({ t: 'del', parentId: mp.id, index: mi, node: m });
+      record({ t: 'ins', parentId: mp.id, index: mi, node: n });
+    }
+  });
   scheduleSave();
   emit({ type: 'children', id: p.id });
+  if (m) {
+    const mp = getParent(id); // n's parent after promotion
+    if (mp && mp.id !== p.id) emit({ type: 'children', id: mp.id });
+  } else {
+    // no promotion: mirrors pointing anywhere into the deleted subtree just
+    // broke — repaint them as tombstones now, not on the next full render
+    const gone = new Set();
+    (function collect(x) { gone.add(x.id); x.children.forEach(collect); })(n);
+    for (const e of nodeIndex.values()) {
+      if (e.node.mirrorOf && gone.has(e.node.mirrorOf)) emit({ type: 'node', id: e.node.id });
+    }
+  }
 }
 
 function move(id, toParentId, toIndex) {
@@ -1489,6 +1531,50 @@ function setNodeProp(id, key, allowed, val) {
 }
 const setFormat = (id, v) => setNodeProp(id, 'format', NODE_FORMATS, v);
 const setColor = (id, v) => setNodeProp(id, 'color', NODE_COLORS, v);
+
+/* --- mirrors ------------------------------------------------------- */
+/* A mirror is a childless node whose content (title, note, completed,
+   format, color, children) all resolve through mirrorOf. */
+function mirrorContent(n) { // the node whose content a row shows
+  return n.mirrorOf ? (getNode(n.mirrorOf) || null) : n;
+}
+function mirrorsOf(targetId) { // lazy scan: called on rare paths only
+  const out = [];
+  for (const e of nodeIndex.values()) {
+    if (e.node.mirrorOf === targetId) out.push(e.node);
+  }
+  return out;
+}
+function mirrorResolveTarget(targetId) { // flatten chains: mirror a mirror → its target
+  let t = getNode(targetId);
+  if (t && t.mirrorOf) t = getNode(t.mirrorOf);
+  return t;
+}
+/* convert an existing childless node into a mirror (the `((` flow) */
+function setMirror(id, targetId) {
+  const n = getNode(id), p = getParent(id);
+  const target = mirrorResolveTarget(targetId);
+  if (!n || !p || !target || n.mirrorOf || n.children.length) return false;
+  if (target.id === id) return false;
+  if (isDescendant(id, target.id)) return false; // target is an ancestor: cycle
+  group(() => {
+    // a mirror has no text of its own: clear leftovers like a "((query" stub
+    if (n.title) record({ t: 'text', id, field: 'title', a: n.title, b: '' });
+    if (n.note) record({ t: 'text', id, field: 'note', a: n.note, b: '' });
+    record({ t: 'flag', id, key: 'mirrorOf', a: n.mirrorOf || '', b: target.id });
+  });
+  scheduleSave();
+  emit({ type: 'node', id });
+  emit({ type: 'children', id: p.id }); // the row changes shape: rebuild it
+  return true;
+}
+/* place a new mirror of targetId as its next sibling (the menu flow) */
+function createMirror(targetId) {
+  const target = mirrorResolveTarget(targetId);
+  const anchor = getNode(targetId), p = getParent(targetId);
+  if (!target || !anchor || !p) return null;
+  return create(p.id, p.children.indexOf(anchor) + 1, { mirrorOf: target.id });
+}
 
 function duplicate(id) {
   const n = getNode(id), p = getParent(id);
@@ -1624,6 +1710,7 @@ function normalizeNode(n) {
   // optional fields: present only when set, so unstyled nodes cost no bytes
   if (NODE_FORMATS.includes(n.format)) out.format = n.format;
   if (NODE_COLORS.includes(n.color)) out.color = n.color;
+  if (typeof n.mirrorOf === 'string' && n.mirrorOf) out.mirrorOf = n.mirrorOf;
   return out;
 }
 function regenIds(n) {
@@ -1646,6 +1733,9 @@ const DOC_MIGRATIONS = {
   // v2 payload — but the version bump makes *older* builds warn instead of
   // silently stripping the new fields on their next save.
   1: data => data,
+  // v2 → v3: added optional per-node `mirrorOf` (id of the mirrored item).
+  // Additive again; the bump exists for the same warn-don't-strip reason.
+  2: data => data,
 };
 
 function migrateDoc(data) {
@@ -1835,6 +1925,7 @@ const store = {
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
   setCollapsed, toggleCompleted, setFormat, setColor, duplicate,
+  mirrorContent, mirrorsOf, setMirror, createMirror,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
   migrateDoc,
@@ -1899,10 +1990,15 @@ function nodeInstances(id) { // every live element rendering this node
 function suffixOf(el) { // '' outside mirrors; '@…' inside an expansion
   return el.dataset.iid.slice(el.dataset.id.length);
 }
-function idOfTitle(titleEl) {
+function idOfTitle(titleEl) { // structural id: moves, deletes, collapse
   if (titleEl === focusTitleEl) return view.focusId;
   const el = titleEl.closest('.node');
   return el ? el.dataset.id : null;
+}
+function contentIdOfTitle(titleEl) { // content id: text, notes, completion
+  if (titleEl === focusTitleEl) return view.focusId;
+  const el = titleEl.closest('.node');
+  return el ? (el.dataset.mirror || el.dataset.id) : null;
 }
 
 /* --- search filter ---------------------------------------------------- */
@@ -1926,10 +2022,13 @@ function computeFilter() {
   const focus = store.getNode(view.focusId);
   (function walk(n, ancIds, underMatch) {
     const isFocus = n === focus;
+    // a mirror matches on its target's text (it has none of its own); its
+    // subtree is not walked here — the original reports the real hits
+    const c = n.mirrorOf ? (store.getNode(n.mirrorOf) || n) : n;
     // an off-screen completed row can't be a result, and neither can anything
     // inside it (the CSS hides the subtree with it)
-    if (!isFocus && skipCompleted && n.completed) return;
-    const hit = !isFocus && (test(n.title) || test(n.note));
+    if (!isFocus && skipCompleted && c.completed) return;
+    const hit = !isFocus && (test(c.title) || test(c.note));
     // items made during this search don't match it; keep them on screen anyway
     const kept = !isFocus && view.filterExempt.has(n.id);
     if (hit) matched.add(n.id);
@@ -2168,9 +2267,13 @@ function setTitleContent(el, n) {
     el.append(titleFrag(el, n.title || '', f && f.tagQuery ? f.q : null));
   }
 }
-function applyNodeState(el, n) {
+/* n = the CONTENT node (what the row shows); own = the row's structural
+   node. They differ only for mirror rows, whose collapse state and filter
+   membership are their own while everything visible comes from the target. */
+function applyNodeState(el, n, own = n) {
   const hasKids = n.children.length > 0;
-  const expanded = view.filter ? true : !n.collapsed;
+  // mirrors sit collapsed in search view (their subtrees would duplicate results)
+  const expanded = view.filter ? !own.mirrorOf : !own.collapsed;
   if (n.format) el.dataset.format = n.format; else delete el.dataset.format;
   if (n.color) el.dataset.color = n.color; else delete el.dataset.color;
   el.classList.toggle('completed', n.completed);
@@ -2180,7 +2283,7 @@ function applyNodeState(el, n) {
   if (hasKids) el.setAttribute('aria-expanded', String(expanded));
   else el.removeAttribute('aria-expanded');
   const f = view.filter;
-  el.classList.toggle('dim', !!(f && f.anc.has(n.id) && !f.under.has(n.id)));
+  el.classList.toggle('dim', !!(f && f.anc.has(own.id) && !f.under.has(own.id)));
   // checklist progress: shown once any direct child is checked off
   const done = n.children.reduce((s, c) => s + (c.completed ? 1 : 0), 0);
   let badge = el.querySelector(':scope > .row > .progress');
@@ -2201,16 +2304,38 @@ function buildNoteContent(n) {
   wrap.append(mdRender(n.note));
   return wrap;
 }
+/* would expanding mirror `n` (of `target`) at this instance re-enter an
+   expansion already on the path? Two ways in: the mirror physically lives
+   inside its target's subtree (a move can arrange that after creation), or
+   some mirror already expanded on this path points at the same target. */
+function mirrorExpansionLoop(n, target, suffix) {
+  if (store.isDescendant(n.id, target.id)) return true;
+  for (const mid of suffix.split('@')) {
+    if (!mid) continue;
+    const m = store.getNode(mid);
+    if (m && m.mirrorOf === target.id) return true;
+  }
+  return false;
+}
 function renderNode(n, level, suffix = '') {
   if (!nodeVisibleInFilter(n)) return null;
+  const isMirror = !!n.mirrorOf;
+  const target = isMirror ? store.getNode(n.mirrorOf) : null;
+  const content = isMirror ? target : n; // null = broken mirror (target deleted)
   const el = document.createElement('div');
-  el.className = 'node';
-  el.dataset.id = n.id;
+  el.className = 'node' + (isMirror ? ' mirror' : '') + (isMirror && !target ? ' broken' : '');
+  el.dataset.id = n.id; // structural identity: moves, deletes, collapse
   el.dataset.iid = n.id + suffix;
+  if (target) el.dataset.mirror = target.id; // content identity: text, completion
   elMap.set(el.dataset.iid, el);
   let set = instMap.get(n.id);
   if (!set) instMap.set(n.id, set = new Set());
   set.add(el);
+  if (target) { // content events on the target must reach this row too
+    let cset = instMap.get(target.id);
+    if (!cset) instMap.set(target.id, cset = new Set());
+    cset.add(el);
+  }
   el.setAttribute('role', 'treeitem');
   el.setAttribute('aria-level', level);
 
@@ -2231,10 +2356,13 @@ function renderNode(n, level, suffix = '') {
   tg.title = 'Collapse / expand';
   const bullet = document.createElement('a');
   bullet.className = 'bullet';
-  bullet.href = '#' + n.id;
+  bullet.href = '#' + (content ? content.id : n.id);
   bullet.tabIndex = -1;
   bullet.draggable = true;
-  bullet.title = 'Click to zoom in · drag to move';
+  bullet.title = isMirror
+    ? (target ? `Mirror of “${truncate(target.title, 40) || 'Untitled'}” · Click to zoom to the original · drag to move`
+              : 'The mirrored item was deleted')
+    : 'Click to zoom in · drag to move';
   const dot = document.createElement('span');
   dot.className = 'dot';
   bullet.append(dot);
@@ -2244,20 +2372,27 @@ function renderNode(n, level, suffix = '') {
   // ~100ms in Chrome. Editing is enabled per-title on mousedown/keyboard-nav
   // (activateTitle) and disabled again on focusout.
   title.spellcheck = false;
-  setTitleContent(title, n);
+  if (content) setTitleContent(title, content);
+  else title.textContent = '(mirrored item no longer exists)';
   row.append(handle, tg, bullet, title);
   el.append(row);
 
-  if (n.note) el.append(buildNoteContent(n));
+  if (content && content.note) el.append(buildNoteContent(content));
 
   const kids = document.createElement('div');
   kids.className = 'children';
   kids.setAttribute('role', 'group');
   el.append(kids);
 
-  applyNodeState(el, n);
-  const expand = view.filter ? true : !n.collapsed;
-  if (expand && n.children.length) fillChildren(kids, n, level, suffix);
+  applyNodeState(el, content || n, n);
+  const loop = isMirror && target && mirrorExpansionLoop(n, target, suffix);
+  if (loop) el.classList.add('loop');
+  // mirrors stay collapsed while a search filter is up: their subtrees would
+  // duplicate results the original already reports
+  const expand = view.filter ? !isMirror : !n.collapsed;
+  if (expand && content && content.children.length && !loop) {
+    fillChildren(kids, content, level, isMirror ? suffix + '@' + n.id : suffix);
+  }
   return el;
 }
 function fillChildren(kidsEl, n, level, suffix = '') {
@@ -2388,24 +2523,43 @@ function renderChildrenOf(id) {
     updateEmptyHint();
     return;
   }
-  // every instance of this node (primary + any mirror copies) reconciles its
-  // own children container, each under its own instance suffix
+  // every instance of this node (primary + any mirror rows showing it)
+  // reconciles its own children container, each under its own suffix
   for (const el of nodeInstances(id)) {
+    const own = store.getNode(el.dataset.id); // ≠ parentNode for mirror rows
+    if (!own) continue;
     const kids = el.querySelector(':scope > .children');
     const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-    applyNodeState(el, parentNode);
-    if (parentNode.collapsed || !parentNode.children.length) {
+    applyNodeState(el, parentNode, own);
+    const loop = own.mirrorOf && mirrorExpansionLoop(own, parentNode, suffixOf(el));
+    if (own.collapsed || loop || !parentNode.children.length) {
       kids.textContent = '';
       delete kids.dataset.filled;
       continue;
     }
     kids.dataset.filled = '1';
-    reconcileChildren(kids, parentNode, level, suffixOf(el));
+    reconcileChildren(kids, parentNode, level,
+      own.mirrorOf ? suffixOf(el) + '@' + own.id : suffixOf(el));
   }
   updateEmptyHint();
 }
 
-function updateRowEl(el, n, isTypingEcho) {
+function updateRowEl(el, nodeArg, isTypingEcho) {
+  // el may be a primary row or a mirror row (reached via either identity);
+  // re-derive both sides from the element itself
+  const own = store.getNode(el.dataset.id) || nodeArg;
+  const n = store.mirrorContent(own); // content node; null = broken mirror
+  if (!n) {
+    el.classList.add('broken');
+    el.querySelector(':scope > .row > .title').textContent = '(mirrored item no longer exists)';
+    const kids = el.querySelector(':scope > .children');
+    kids.textContent = ''; // the expansion showed nodes that no longer exist
+    delete kids.dataset.filled;
+    const noteWrap = el.querySelector(':scope > .note');
+    if (noteWrap) noteWrap.remove();
+    applyNodeState(el, own, own);
+    return;
+  }
   const title = el.querySelector(':scope > .row > .title');
   // While being edited the title is RAW text and the DOM is the source of
   // truth: rebuild it only when the store text actually differs (programmatic
@@ -2426,13 +2580,23 @@ function updateRowEl(el, n, isTypingEcho) {
     if (noteWrap) noteWrap.remove();
     if (n.note) el.querySelector(':scope > .row').after(buildNoteContent(n));
   }
-  applyNodeState(el, n);
+  applyNodeState(el, n, own);
 }
 function updateRow(id, isTypingEcho) {
   if (id === view.focusId) { renderFocusHead(); renderCrumbs(); return; }
   const n = store.getNode(id);
   if (!n) return;
-  for (const el of nodeInstances(id)) updateRowEl(el, n, isTypingEcho);
+  for (const el of nodeInstances(id)) {
+    // a row that changed species (node ↔ mirror, via setMirror or its undo)
+    // needs a full rebuild — classes, bullet, dataset all differ
+    if (el.dataset.id === id && !!n.mirrorOf !== el.classList.contains('mirror')) {
+      const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+      const fresh = renderNode(n, level, suffixOf(el));
+      if (fresh) el.replaceWith(fresh); else el.remove();
+      continue;
+    }
+    updateRowEl(el, n, isTypingEcho);
+  }
   // completion toggles change the parent's progress badge too
   const p = store.getParent(id);
   if (p && p.id !== ROOT_ID) {
@@ -2445,9 +2609,9 @@ function autoGrow(ta) {
   ta.style.height = 'auto';
   ta.style.height = ta.scrollHeight + 'px';
 }
-function noteContainerFor(id) {
+function noteContainerFor(id, hostEl = null) {
   if (id === view.focusId) return focusNoteEl;
-  const el = nodeEl(id);
+  const el = hostEl || nodeEl(id);
   if (!el) return null;
   let wrap = el.querySelector(':scope > .note');
   if (!wrap) {
@@ -2457,9 +2621,9 @@ function noteContainerFor(id) {
   }
   return wrap;
 }
-function openNoteEditor(id) {
+function openNoteEditor(id, hostEl = null) {
   const n = store.getNode(id);
-  const container = noteContainerFor(id);
+  const container = noteContainerFor(id, hostEl);
   if (!n || !container) return;
   if (container.querySelector('.note-edit')) {
     container.querySelector('.note-edit').focus();
@@ -2481,7 +2645,8 @@ function closeNoteEditor(ta) {
   const container = ta.parentElement;
   if (!container) return;
   const isFocusNote = container === focusNoteEl;
-  const id = isFocusNote ? view.focusId : (container.closest('.node') || {}).dataset?.id;
+  const host = container.closest('.node');
+  const id = isFocusNote ? view.focusId : host && (host.dataset.mirror || host.dataset.id);
   if (!id) { container.remove(); return; }
   const n = store.getNode(id);
   const noteText = n ? n.note : '';
@@ -2502,14 +2667,16 @@ function activateTitle(t, off = 0) {
   setCaret(t, off === 'end' ? t.textContent.length : clamp(off, 0, t.textContent.length));
   t.scrollIntoView({ block: 'nearest' });
 }
-function focusNodeTitle(id, off = 0) {
+function focusNodeTitle(id, off = 0, sfx = '') {
   if (!store.getNode(id)) return;
   if (id === view.focusId) {
     focusTitleEl.focus();
     setCaret(focusTitleEl, off === 'end' ? focusTitleEl.textContent.length : off);
     return;
   }
-  let el = nodeEl(id);
+  // sfx: land on the instance where the user is working (inside a mirror
+  // expansion), falling back to the primary instance
+  let el = (sfx && nodeEl(id + sfx)) || nodeEl(id);
   if (!el) { revealNode(id); el = nodeEl(id); }
   if (!el) return;
   activateTitle(el.querySelector(':scope > .row > .title'), off);
@@ -2579,17 +2746,23 @@ store.subscribe(ev => {
     case 'collapse': {
       const n = store.getNode(ev.id);
       if (!n) break;
+      const content = store.mirrorContent(n) || n;
       for (const el of nodeInstances(ev.id)) {
+        // collapse state belongs to the row's own node: mirror rows showing
+        // ev.id as content keep their own state and are skipped here
+        if (el.dataset.id !== ev.id) continue;
         const kids = el.querySelector(':scope > .children');
-        if (!n.collapsed && !kids.dataset.filled && n.children.length) {
+        const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
+        if (!n.collapsed && !kids.dataset.filled && content.children.length && !loop) {
           const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-          fillChildren(kids, n, level, suffixOf(el));
+          fillChildren(kids, content, level,
+            n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
         }
         if (!n.collapsed) {
           kids.classList.add('just-expanded');
           setTimeout(() => kids.classList.remove('just-expanded'), 250);
         }
-        applyNodeState(el, n);
+        applyNodeState(el, content, n);
       }
       break;
     }
@@ -2678,11 +2851,17 @@ searchEl.addEventListener('keydown', e => {
    focus-header title and tree titles share one code path.            */
 
 function onTitleInput(el) {
-  const id = idOfTitle(el);
+  const id = contentIdOfTitle(el); // a mirror row's text lives on its target
   if (!id) return;
   // contenteditable can sneak in <br>/newlines via some IME paths; flatten
   const v = el.textContent.replace(/\n/g, ' ');
   store.setTitle(id, v);
+}
+
+/* the mirror-expansion suffix of the row a title sits in ('' elsewhere) */
+function sfxOfTitle(el) {
+  const nd = el.closest?.('.node');
+  return nd ? suffixOf(nd) : '';
 }
 
 function navRelative(el, dir, off) {
@@ -2694,8 +2873,10 @@ function navRelative(el, dir, off) {
 
 function handleEnter(el, id) {
   const n = store.getNode(id);
+  const content = store.mirrorContent(n) || n; // mirror rows: text/children live on the target
   const off = caretOffset(el);
   const text = el.textContent;
+  const sfx = sfxOfTitle(el);
   if (el === focusTitleEl) {
     const nn = store.create(id, 0, {});
     keepInFilter(nn.id);
@@ -2704,13 +2885,15 @@ function handleEnter(el, id) {
   }
   const parent = store.getParent(id);
   const idx = parent.children.indexOf(n);
-  let focusAfter = null, focusOff = 0;
+  let focusAfter = null, focusOff = 0, focusSfx = sfx;
   const touched = []; // ids that must survive an active search filter
   store.group(() => {
     if (off >= text.length) {
       // at end: into expanded children, else sibling after
-      if (n.children.length && !n.collapsed && !view.filter) {
-        focusAfter = store.create(id, 0).id;
+      if (content.children.length && !n.collapsed && !view.filter) {
+        focusAfter = store.create(content.id, 0).id;
+        // the child renders inside this row's expansion when it's a mirror
+        if (n.mirrorOf) focusSfx = sfx + '@' + n.id;
       } else {
         focusAfter = store.create(parent.id, idx + 1).id;
       }
@@ -2721,14 +2904,14 @@ function handleEnter(el, id) {
       focusAfter = id;
     } else {
       // split at caret
-      store.setTitleImmediate(id, text.slice(0, off));
+      store.setTitleImmediate(content.id, text.slice(0, off));
       focusAfter = store.create(parent.id, idx + 1, { title: text.slice(off) }).id;
       // the half left behind may no longer match the search that found it
       touched.push(id, focusAfter);
     }
   });
   keepInFilter(touched);
-  focusNodeTitle(focusAfter, focusOff);
+  focusNodeTitle(focusAfter, focusOff, focusSfx);
 }
 
 function handleBackspace(e, el, id) {
@@ -2802,11 +2985,15 @@ function onTitleKeydown(e, el) {
 
   switch (key) {
     case 'Enter':
-      if (e.shiftKey) { e.preventDefault(); openNoteEditor(id); return; }
+      if (e.shiftKey) {
+        e.preventDefault();
+        openNoteEditor(contentIdOfTitle(el), el.closest('.node'));
+        return;
+      }
       if (mod) {
         e.preventDefault();
         if (el === focusTitleEl) return;
-        store.toggleCompleted(id);
+        store.toggleCompleted(contentIdOfTitle(el));
         // if hide-completed just swallowed the row, land somewhere sensible
         if (el.offsetParent === null) {
           const t = siblingTitle(el, 1) || siblingTitle(el, -1);
@@ -2822,8 +3009,9 @@ function onTitleKeydown(e, el) {
       e.preventDefault();
       if (el === focusTitleEl) return;
       const off = caretOffset(el);
+      const sfx = sfxOfTitle(el);
       const ok = e.shiftKey ? store.outdent(id, view.focusId) : store.indent(id);
-      if (ok) focusNodeTitle(id, off);
+      if (ok) focusNodeTitle(id, off, sfx);
       return;
     }
 
@@ -2839,7 +3027,8 @@ function onTitleKeydown(e, el) {
         e.preventDefault();
         if (el === focusTitleEl) return;
         const off = caretOffset(el);
-        if (store.moveSibling(id, dir)) focusNodeTitle(id, off);
+        const sfx = sfxOfTitle(el);
+        if (store.moveSibling(id, dir)) focusNodeTitle(id, off, sfx);
         return;
       }
       if (mod && !e.altKey && !e.shiftKey) {
@@ -2871,7 +3060,8 @@ function onTitleKeydown(e, el) {
     case 'ArrowRight':
       if (e.altKey && !mod) {
         e.preventDefault();
-        if (el !== focusTitleEl) location.hash = '#' + id;
+        // zooming a mirror goes to the original — a mirror has no view of its own
+        if (el !== focusTitleEl) location.hash = '#' + contentIdOfTitle(el);
         return;
       }
       if (!mod && !e.shiftKey && selectionCollapsedIn(el)
@@ -2998,9 +3188,10 @@ document.addEventListener('input', e => {
   const ta = e.target.closest?.('.note-edit');
   if (ta) {
     autoGrow(ta);
+    const host = ta.closest('.node');
     const id = ta.parentElement === focusNoteEl
       ? view.focusId
-      : (ta.closest('.node') || {}).dataset?.id;
+      : host && (host.dataset.mirror || host.dataset.id); // mirror rows: the target's note
     if (id) store.setNote(id, ta.value);
   }
 });
@@ -3027,7 +3218,7 @@ document.addEventListener('focusin', e => {
     // mapping the caret from rendered space to raw space (formatting hides
     // its delimiters, so the two no longer line up — titleRawOffset knows)
     const off = titleRawOffset(title, caretOffset(title));
-    const id = idOfTitle(title);
+    const id = contentIdOfTitle(title); // mirror rows edit their target's text
     const n = id && store.getNode(id);
     if (n) { title.textContent = n.title; setCaret(title, off); }
   }
@@ -3060,7 +3251,7 @@ treeEl.addEventListener('click', e => {
   const noteWrap = e.target.closest('.note');
   if (noteWrap && !e.target.closest('a') && !e.target.closest('.note-edit')) {
     const el = noteWrap.closest('.node');
-    if (el) openNoteEditor(el.dataset.id);
+    if (el) openNoteEditor(el.dataset.mirror || el.dataset.id, el);
   }
 });
 focusNoteEl.addEventListener('click', e => {
@@ -3132,8 +3323,11 @@ treeEl.addEventListener('drop', e => {
   const target = store.getNode(tid);
   if (!target) return;
   if (mode === 'drop-into') {
-    store.setCollapsed(tid, false);
-    store.move(movedId, tid, 0);
+    // dropping INTO a mirror row files the item under the mirrored original —
+    // a mirror has no children of its own
+    const intoId = targetEl.dataset.mirror || tid;
+    store.setCollapsed(tid, false); // expand the row the user aimed at
+    store.move(movedId, intoId, 0);
   } else {
     const parent = store.getParent(tid);
     if (!parent) return;
@@ -3180,8 +3374,17 @@ function exportJSON() {
   if (bannerKind === 'notice') hideBanner();
 }
 
+function mirrorMarkdownLine(c) {
+  const t = store.getNode(c.mirrorOf);
+  return `↪ mirror of "${t ? (t.title || 'Untitled') : '(deleted item)'}"`;
+}
 function childrenToMarkdown(n, depth, out) {
   for (const c of n.children) {
+    if (c.mirrorOf) {
+      // a single marker line: expanding the subtree here would duplicate it
+      out.push(`${'  '.repeat(depth)}- ${mirrorMarkdownLine(c)}`);
+      continue;
+    }
     out.push(`${'  '.repeat(depth)}- ${c.title || ''}`);
     if (c.note) {
       for (const l of c.note.split('\n')) out.push(`${'  '.repeat(depth + 1)}${l}`);
@@ -3190,6 +3393,7 @@ function childrenToMarkdown(n, depth, out) {
   }
 }
 function nodeToMarkdownText(n) {
+  if (n.mirrorOf) return `- ${mirrorMarkdownLine(n)}`;
   const out = [`- ${n.title || ''}`];
   if (n.note) for (const l of n.note.split('\n')) out.push(`  ${l}`);
   childrenToMarkdown(n, 1, out);
@@ -3784,17 +3988,20 @@ document.addEventListener('keydown', e => {
   }
 }, true);
 
-/* ===== 11 [[link]] autocomplete =====
+/* ===== 11 [[link]] and ((mirror)) autocomplete =====
    Obsidian-style suggester. Typing the second '[' closes the pair and opens a
    list of item titles filtered as you type; Enter/Tab completes it. Links
    resolve by title (F44), so completing one is a pure text insertion — there is
    no id to keep in sync afterwards. Works in titles (contenteditable) and in
-   note editors (textarea).                                                   */
+   note editors (textarea).
+   '((' (titles only, childless items) runs the same picker in mirror mode:
+   accepting converts the item into a live mirror of the picked one (F58). */
 
 const AC_MAX = 8;
 const acPopEl = $('#link-auto');
 let acEl = null;    // element being edited while the popup is open
-let acStart = -1;   // text index just after the opening '[['
+let acStart = -1;   // text index just after the opening '[[' / '(('
+let acKind = 'link'; // 'link' | 'mirror'
 let acItems = [];   // candidate snapshot, taken when a link region is entered
 let acShown = [];   // rows currently rendered
 let acSel = 0;
@@ -3810,11 +4017,16 @@ function acEditable(node) {
   if (!node || !node.classList) return null;
   return (node.classList.contains('title') || node.classList.contains('note-edit')) ? node : null;
 }
-function acOwnerId(el) {
-  if (!acIsTextarea(el)) return idOfTitle(el);
+function acOwnerId(el) { // CONTENT id: text written here lands on a mirror's target
+  if (!acIsTextarea(el)) return contentIdOfTitle(el);
+  const host = el.closest('.node');
   return el.parentElement === focusNoteEl
     ? view.focusId
-    : (el.closest('.node') || {}).dataset?.id || null;
+    : (host && (host.dataset.mirror || host.dataset.id)) || null;
+}
+function acStructuralId(el) { // the row's own node: what '((' would convert
+  if (acIsTextarea(el)) return null;
+  return idOfTitle(el);
 }
 /* write text back to both the DOM (source of truth while focused) and the store */
 function acWrite(el, text, caret, atomic) {
@@ -3832,17 +4044,27 @@ function acWrite(el, text, caret, atomic) {
   if (atomic) store.group(put); else put(); // atomic: completion is one undo step
 }
 
-/* --- the link region under the caret --- */
+/* --- the link/mirror region under the caret --- */
 function acProbe(el) {
   if (!acCollapsed(el)) return null;
   const caret = acCaret(el);
   const before = acText(el).slice(0, caret);
-  const open = before.lastIndexOf('[[');
+  const openL = before.lastIndexOf('[[');
+  // mirrors are node surgery, not text: titles only, never the focus header
+  const openM = (!acIsTextarea(el) && el !== focusTitleEl) ? before.lastIndexOf('((') : -1;
+  const open = Math.max(openL, openM);
   if (open < 0) return null;
+  const kind = open === openM && openM > openL ? 'mirror' : 'link';
   const query = before.slice(open + 2);
-  // brackets or a line break between '[[' and the caret: no longer a link
-  if (/[[\]\n]/.test(query) || query.length > 80) return null;
-  return { start: open + 2, query };
+  // brackets/parens or a line break between the opener and the caret: region over
+  if (/[[\]()\n]/.test(query) || query.length > 80) return null;
+  if (kind === 'mirror') {
+    // only a childless, non-mirror item can become a mirror (F58 guards)
+    const id = acStructuralId(el);
+    const n = id && store.getNode(id);
+    if (!n || n.mirrorOf || n.children.length) return null;
+  }
+  return { start: open + 2, kind, query };
 }
 
 /* Candidates, deduped the way resolveTitleLink resolves: first in document
@@ -3865,6 +4087,24 @@ function acIndex(selfId) {
   })(store.doc.root, '');
   // the node being edited would resolve to itself — not a link worth making
   return [...byKey.values()].filter(it => it.id !== selfId);
+}
+
+/* mirror candidates: any titled item that isn't the node itself, one of its
+   ancestors (cycle), or another mirror (chains flatten, but offering them
+   would just duplicate rows) */
+function acMirrorIndex(selfId) {
+  const items = [];
+  (function walk(n, path) {
+    for (const c of n.children) {
+      if (c.id !== selfId && !c.mirrorOf && c.title
+          && !store.isDescendant(selfId, c.id)) {
+        items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      }
+      const label = truncate(c.title, 30) || 'Untitled';
+      walk(c, path ? `${path} › ${label}` : label);
+    }
+  })(store.doc.root, '');
+  return items;
 }
 
 function acHint(text) {
@@ -3893,8 +4133,13 @@ function acRender(query) {
     acShown = scored.slice(0, AC_MAX);
   }
   if (!acShown.length) {
-    acHint(q ? 'No item with that title, so this link will show as broken.'
-             : 'No other items to link to yet.');
+    if (acKind === 'mirror') {
+      acHint(q ? 'No matching item to mirror — Esc keeps the text as typed.'
+               : 'Pick an item to mirror here: it will appear as a live copy.');
+    } else {
+      acHint(q ? 'No item with that title, so this link will show as broken.'
+               : 'No other items to link to yet.');
+    }
     return;
   }
   acShown.forEach((r, i) => {
@@ -4007,16 +4252,29 @@ function acUpdate() {
   if (!el) { acClose(); return; }
   const probe = acProbe(el);
   if (!probe) { acClose(); return; }
-  // entering a different link region: take a fresh candidate snapshot
-  if (el !== acEl || probe.start !== acStart) acItems = acIndex(acOwnerId(el));
+  // entering a different region: take a fresh candidate snapshot
+  if (el !== acEl || probe.start !== acStart || probe.kind !== acKind) {
+    acItems = probe.kind === 'mirror'
+      ? acMirrorIndex(acStructuralId(el))
+      : acIndex(acOwnerId(el));
+  }
   acEl = el;
   acStart = probe.start;
+  acKind = probe.kind;
   acRender(probe.query);
   acPlace(el);
 }
 function acAccept(i) {
   const r = acShown[i];
   if (!r || !acEl) return;
+  if (acKind === 'mirror') {
+    // node surgery, not text insertion: the item becomes a live mirror and
+    // setMirror clears the leftover "((query" text as part of the same undo step
+    const id = acStructuralId(acEl);
+    acClose();
+    if (id && store.setMirror(id, r.id)) focusNodeTitle(id, 'end');
+    return;
+  }
   const el = acEl, start = acStart;
   const text = acText(el);
   const caret = acCaret(el);
@@ -4041,6 +4299,13 @@ document.addEventListener('input', e => {
     const caret = acCaret(el), text = acText(el);
     if (text.slice(caret - 2, caret) === '[[' && text.slice(caret, caret + 2) !== ']]') {
       acWrite(el, text.slice(0, caret) + ']]' + text.slice(caret), caret, false);
+    }
+  }
+  // '((' pairs the same way, but only where a mirror could actually happen
+  if (e.data && e.data.endsWith('(') && !acIsTextarea(el)) {
+    const caret = acCaret(el), text = acText(el);
+    if (text.slice(caret - 2, caret) === '((' && text.slice(caret, caret + 2) !== '))') {
+      acWrite(el, text.slice(0, caret) + '))' + text.slice(caret), caret, false);
     }
   }
   acUpdate();
@@ -4069,10 +4334,12 @@ document.addEventListener('keydown', e => {
       return;
     case 'Backspace': {
       // backspacing the opening pair takes the auto-inserted closing pair with
-      // it, so changing your mind never leaves a stray ']]' behind
+      // it, so changing your mind never leaves a stray ']]' / '))' behind
       const text = acText(el), caret = acCaret(el);
       if (!plain || !acCollapsed(el)) return;
-      if (text.slice(caret - 2, caret) !== '[[' || text.slice(caret, caret + 2) !== ']]') return;
+      const pair = [['[[', ']]'], ['((', '))']].find(([o, c]) =>
+        text.slice(caret - 2, caret) === o && text.slice(caret, caret + 2) === c);
+      if (!pair) return;
       take();
       acClose();
       el.focus();
@@ -4668,14 +4935,16 @@ function closeNodeMenu({ refocus = false } = {}) {
 }
 
 function syncNodeMenu(n) {
+  const c = store.mirrorContent(n) || n; // a mirror row shows its target's state
   for (const b of nodeMenuEl.querySelectorAll('.nm-fmt')) {
-    b.classList.toggle('active', (n.format || '') === b.dataset.format);
+    b.classList.toggle('active', (c.format || '') === b.dataset.format);
   }
   for (const b of nodeMenuEl.querySelectorAll('.nm-color')) {
-    b.classList.toggle('active', (n.color || '') === b.dataset.color);
+    b.classList.toggle('active', (c.color || '') === b.dataset.color);
   }
-  $('#nm-complete').textContent = n.completed ? 'Un-complete' : 'Complete';
-  $('#nm-note').textContent = n.note ? 'Edit note' : 'Add note';
+  $('#nm-complete').textContent = c.completed ? 'Un-complete' : 'Complete';
+  $('#nm-note').textContent = c.note ? 'Edit note' : 'Add note';
+  $('#nm-mirror').textContent = n.mirrorOf ? 'Mirror the original again' : 'Mirror this item';
 }
 
 function openNodeMenu(id, { viaKeyboard = false } = {}) {
@@ -4709,23 +4978,36 @@ nodeMenuEl.addEventListener('click', e => {
   const id = nmId;
   const n = nmNode();
   if (!n) { closeNodeMenu(); return; }
+  // content actions act on the target when the row is a mirror;
+  // structural actions (duplicate, delete) act on the row's own node
+  const cid = (store.mirrorContent(n) || n).id;
+  const host = nodeEl(id);
   const fmt = e.target.closest('.nm-fmt');
-  if (fmt) { store.setFormat(id, fmt.dataset.format); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
+  if (fmt) { store.setFormat(cid, fmt.dataset.format); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
   const col = e.target.closest('.nm-color');
-  if (col) { store.setColor(id, col.dataset.color); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
+  if (col) { store.setColor(cid, col.dataset.color); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
   switch (e.target.closest('button')?.id) {
     case 'nm-complete':
-      store.toggleCompleted(id);
+      store.toggleCompleted(cid);
       closeNodeMenu({ refocus: nmViaKeyboard });
       break;
     case 'nm-zoom':
       closeNodeMenu();
-      location.hash = '#' + id;
+      location.hash = '#' + cid;
       break;
     case 'nm-note':
       closeNodeMenu();
-      openNoteEditor(id);
+      openNoteEditor(cid, host);
       break;
+    case 'nm-mirror': {
+      const copy = store.createMirror(id);
+      closeNodeMenu();
+      if (copy) {
+        keepInFilter(copy.id);
+        focusNodeTitle(copy.id, 'end');
+      }
+      break;
+    }
     case 'nm-duplicate': {
       const copy = store.duplicate(id);
       closeNodeMenu();
@@ -4736,7 +5018,7 @@ nodeMenuEl.addEventListener('click', e => {
       break;
     }
     case 'nm-copy':
-      copySubtreeMarkdown(id);
+      copySubtreeMarkdown(cid); // a mirror copies what it shows
       closeNodeMenu({ refocus: nmViaKeyboard });
       break;
     case 'nm-delete': {

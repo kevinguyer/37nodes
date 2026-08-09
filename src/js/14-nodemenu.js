@@ -19,14 +19,16 @@ function closeNodeMenu({ refocus = false } = {}) {
 }
 
 function syncNodeMenu(n) {
+  const c = store.mirrorContent(n) || n; // a mirror row shows its target's state
   for (const b of nodeMenuEl.querySelectorAll('.nm-fmt')) {
-    b.classList.toggle('active', (n.format || '') === b.dataset.format);
+    b.classList.toggle('active', (c.format || '') === b.dataset.format);
   }
   for (const b of nodeMenuEl.querySelectorAll('.nm-color')) {
-    b.classList.toggle('active', (n.color || '') === b.dataset.color);
+    b.classList.toggle('active', (c.color || '') === b.dataset.color);
   }
-  $('#nm-complete').textContent = n.completed ? 'Un-complete' : 'Complete';
-  $('#nm-note').textContent = n.note ? 'Edit note' : 'Add note';
+  $('#nm-complete').textContent = c.completed ? 'Un-complete' : 'Complete';
+  $('#nm-note').textContent = c.note ? 'Edit note' : 'Add note';
+  $('#nm-mirror').textContent = n.mirrorOf ? 'Mirror the original again' : 'Mirror this item';
 }
 
 function openNodeMenu(id, { viaKeyboard = false } = {}) {
@@ -60,23 +62,36 @@ nodeMenuEl.addEventListener('click', e => {
   const id = nmId;
   const n = nmNode();
   if (!n) { closeNodeMenu(); return; }
+  // content actions act on the target when the row is a mirror;
+  // structural actions (duplicate, delete) act on the row's own node
+  const cid = (store.mirrorContent(n) || n).id;
+  const host = nodeEl(id);
   const fmt = e.target.closest('.nm-fmt');
-  if (fmt) { store.setFormat(id, fmt.dataset.format); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
+  if (fmt) { store.setFormat(cid, fmt.dataset.format); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
   const col = e.target.closest('.nm-color');
-  if (col) { store.setColor(id, col.dataset.color); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
+  if (col) { store.setColor(cid, col.dataset.color); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
   switch (e.target.closest('button')?.id) {
     case 'nm-complete':
-      store.toggleCompleted(id);
+      store.toggleCompleted(cid);
       closeNodeMenu({ refocus: nmViaKeyboard });
       break;
     case 'nm-zoom':
       closeNodeMenu();
-      location.hash = '#' + id;
+      location.hash = '#' + cid;
       break;
     case 'nm-note':
       closeNodeMenu();
-      openNoteEditor(id);
+      openNoteEditor(cid, host);
       break;
+    case 'nm-mirror': {
+      const copy = store.createMirror(id);
+      closeNodeMenu();
+      if (copy) {
+        keepInFilter(copy.id);
+        focusNodeTitle(copy.id, 'end');
+      }
+      break;
+    }
     case 'nm-duplicate': {
       const copy = store.duplicate(id);
       closeNodeMenu();
@@ -87,7 +102,7 @@ nodeMenuEl.addEventListener('click', e => {
       break;
     }
     case 'nm-copy':
-      copySubtreeMarkdown(id);
+      copySubtreeMarkdown(cid); // a mirror copies what it shows
       closeNodeMenu({ refocus: nmViaKeyboard });
       break;
     case 'nm-delete': {

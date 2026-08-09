@@ -58,8 +58,11 @@ treeEl.addEventListener('drop', e => {
   const target = store.getNode(tid);
   if (!target) return;
   if (mode === 'drop-into') {
-    store.setCollapsed(tid, false);
-    store.move(movedId, tid, 0);
+    // dropping INTO a mirror row files the item under the mirrored original —
+    // a mirror has no children of its own
+    const intoId = targetEl.dataset.mirror || tid;
+    store.setCollapsed(tid, false); // expand the row the user aimed at
+    store.move(movedId, intoId, 0);
   } else {
     const parent = store.getParent(tid);
     if (!parent) return;

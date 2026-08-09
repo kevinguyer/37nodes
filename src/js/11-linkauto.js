@@ -1,14 +1,17 @@
-/* ===== 11 [[link]] autocomplete =====
+/* ===== 11 [[link]] and ((mirror)) autocomplete =====
    Obsidian-style suggester. Typing the second '[' closes the pair and opens a
    list of item titles filtered as you type; Enter/Tab completes it. Links
    resolve by title (F44), so completing one is a pure text insertion — there is
    no id to keep in sync afterwards. Works in titles (contenteditable) and in
-   note editors (textarea).                                                   */
+   note editors (textarea).
+   '((' (titles only, childless items) runs the same picker in mirror mode:
+   accepting converts the item into a live mirror of the picked one (F58). */
 
 const AC_MAX = 8;
 const acPopEl = $('#link-auto');
 let acEl = null;    // element being edited while the popup is open
-let acStart = -1;   // text index just after the opening '[['
+let acStart = -1;   // text index just after the opening '[[' / '(('
+let acKind = 'link'; // 'link' | 'mirror'
 let acItems = [];   // candidate snapshot, taken when a link region is entered
 let acShown = [];   // rows currently rendered
 let acSel = 0;
@@ -24,11 +27,16 @@ function acEditable(node) {
   if (!node || !node.classList) return null;
   return (node.classList.contains('title') || node.classList.contains('note-edit')) ? node : null;
 }
-function acOwnerId(el) {
-  if (!acIsTextarea(el)) return idOfTitle(el);
+function acOwnerId(el) { // CONTENT id: text written here lands on a mirror's target
+  if (!acIsTextarea(el)) return contentIdOfTitle(el);
+  const host = el.closest('.node');
   return el.parentElement === focusNoteEl
     ? view.focusId
-    : (el.closest('.node') || {}).dataset?.id || null;
+    : (host && (host.dataset.mirror || host.dataset.id)) || null;
+}
+function acStructuralId(el) { // the row's own node: what '((' would convert
+  if (acIsTextarea(el)) return null;
+  return idOfTitle(el);
 }
 /* write text back to both the DOM (source of truth while focused) and the store */
 function acWrite(el, text, caret, atomic) {
@@ -46,17 +54,27 @@ function acWrite(el, text, caret, atomic) {
   if (atomic) store.group(put); else put(); // atomic: completion is one undo step
 }
 
-/* --- the link region under the caret --- */
+/* --- the link/mirror region under the caret --- */
 function acProbe(el) {
   if (!acCollapsed(el)) return null;
   const caret = acCaret(el);
   const before = acText(el).slice(0, caret);
-  const open = before.lastIndexOf('[[');
+  const openL = before.lastIndexOf('[[');
+  // mirrors are node surgery, not text: titles only, never the focus header
+  const openM = (!acIsTextarea(el) && el !== focusTitleEl) ? before.lastIndexOf('((') : -1;
+  const open = Math.max(openL, openM);
   if (open < 0) return null;
+  const kind = open === openM && openM > openL ? 'mirror' : 'link';
   const query = before.slice(open + 2);
-  // brackets or a line break between '[[' and the caret: no longer a link
-  if (/[[\]\n]/.test(query) || query.length > 80) return null;
-  return { start: open + 2, query };
+  // brackets/parens or a line break between the opener and the caret: region over
+  if (/[[\]()\n]/.test(query) || query.length > 80) return null;
+  if (kind === 'mirror') {
+    // only a childless, non-mirror item can become a mirror (F58 guards)
+    const id = acStructuralId(el);
+    const n = id && store.getNode(id);
+    if (!n || n.mirrorOf || n.children.length) return null;
+  }
+  return { start: open + 2, kind, query };
 }
 
 /* Candidates, deduped the way resolveTitleLink resolves: first in document
@@ -79,6 +97,24 @@ function acIndex(selfId) {
   })(store.doc.root, '');
   // the node being edited would resolve to itself — not a link worth making
   return [...byKey.values()].filter(it => it.id !== selfId);
+}
+
+/* mirror candidates: any titled item that isn't the node itself, one of its
+   ancestors (cycle), or another mirror (chains flatten, but offering them
+   would just duplicate rows) */
+function acMirrorIndex(selfId) {
+  const items = [];
+  (function walk(n, path) {
+    for (const c of n.children) {
+      if (c.id !== selfId && !c.mirrorOf && c.title
+          && !store.isDescendant(selfId, c.id)) {
+        items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      }
+      const label = truncate(c.title, 30) || 'Untitled';
+      walk(c, path ? `${path} › ${label}` : label);
+    }
+  })(store.doc.root, '');
+  return items;
 }
 
 function acHint(text) {
@@ -107,8 +143,13 @@ function acRender(query) {
     acShown = scored.slice(0, AC_MAX);
   }
   if (!acShown.length) {
-    acHint(q ? 'No item with that title, so this link will show as broken.'
-             : 'No other items to link to yet.');
+    if (acKind === 'mirror') {
+      acHint(q ? 'No matching item to mirror — Esc keeps the text as typed.'
+               : 'Pick an item to mirror here: it will appear as a live copy.');
+    } else {
+      acHint(q ? 'No item with that title, so this link will show as broken.'
+               : 'No other items to link to yet.');
+    }
     return;
   }
   acShown.forEach((r, i) => {
@@ -221,16 +262,29 @@ function acUpdate() {
   if (!el) { acClose(); return; }
   const probe = acProbe(el);
   if (!probe) { acClose(); return; }
-  // entering a different link region: take a fresh candidate snapshot
-  if (el !== acEl || probe.start !== acStart) acItems = acIndex(acOwnerId(el));
+  // entering a different region: take a fresh candidate snapshot
+  if (el !== acEl || probe.start !== acStart || probe.kind !== acKind) {
+    acItems = probe.kind === 'mirror'
+      ? acMirrorIndex(acStructuralId(el))
+      : acIndex(acOwnerId(el));
+  }
   acEl = el;
   acStart = probe.start;
+  acKind = probe.kind;
   acRender(probe.query);
   acPlace(el);
 }
 function acAccept(i) {
   const r = acShown[i];
   if (!r || !acEl) return;
+  if (acKind === 'mirror') {
+    // node surgery, not text insertion: the item becomes a live mirror and
+    // setMirror clears the leftover "((query" text as part of the same undo step
+    const id = acStructuralId(acEl);
+    acClose();
+    if (id && store.setMirror(id, r.id)) focusNodeTitle(id, 'end');
+    return;
+  }
   const el = acEl, start = acStart;
   const text = acText(el);
   const caret = acCaret(el);
@@ -255,6 +309,13 @@ document.addEventListener('input', e => {
     const caret = acCaret(el), text = acText(el);
     if (text.slice(caret - 2, caret) === '[[' && text.slice(caret, caret + 2) !== ']]') {
       acWrite(el, text.slice(0, caret) + ']]' + text.slice(caret), caret, false);
+    }
+  }
+  // '((' pairs the same way, but only where a mirror could actually happen
+  if (e.data && e.data.endsWith('(') && !acIsTextarea(el)) {
+    const caret = acCaret(el), text = acText(el);
+    if (text.slice(caret - 2, caret) === '((' && text.slice(caret, caret + 2) !== '))') {
+      acWrite(el, text.slice(0, caret) + '))' + text.slice(caret), caret, false);
     }
   }
   acUpdate();
@@ -283,10 +344,12 @@ document.addEventListener('keydown', e => {
       return;
     case 'Backspace': {
       // backspacing the opening pair takes the auto-inserted closing pair with
-      // it, so changing your mind never leaves a stray ']]' behind
+      // it, so changing your mind never leaves a stray ']]' / '))' behind
       const text = acText(el), caret = acCaret(el);
       if (!plain || !acCollapsed(el)) return;
-      if (text.slice(caret - 2, caret) !== '[[' || text.slice(caret, caret + 2) !== ']]') return;
+      const pair = [['[[', ']]'], ['((', '))']].find(([o, c]) =>
+        text.slice(caret - 2, caret) === o && text.slice(caret, caret + 2) === c);
+      if (!pair) return;
       take();
       acClose();
       el.focus();

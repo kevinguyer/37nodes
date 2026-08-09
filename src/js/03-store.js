@@ -4,7 +4,7 @@
    Collapse state is deliberately NOT undoable (it's view state, but persisted). */
 
 const ROOT_ID = 'root';
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const NODE_FORMATS = ['h1', 'h2', 'h3']; // '' (absent) = normal text
 const NODE_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple']; // '' (absent) = theme default
 const DOC_KEY = '37nodes:doc';
@@ -199,15 +199,42 @@ function deletePromote(id) {
   });
   scheduleSave();
   emit({ type: 'children', id: p.id });
+  // mirrors of the deleted node broke: repaint them as tombstones
+  for (const e of nodeIndex.values()) {
+    if (e.node.mirrorOf === id) emit({ type: 'node', id: e.node.id });
+  }
 }
 
 function deleteSubtree(id) {
   const n = getNode(id), p = getParent(id);
   if (!n || !p) return;
-  const idx = p.children.indexOf(n);
-  group(() => record({ t: 'del', parentId: p.id, index: idx, node: n }));
+  // A mirrored item never dies while a mirror of it survives: the first
+  // mirror outside the doomed subtree is replaced by the real subtree
+  // (promotion). Other mirrors keep pointing at the surviving node.
+  const m = !n.mirrorOf && mirrorsOf(id).find(mn => !isDescendant(mn.id, id));
+  group(() => {
+    record({ t: 'del', parentId: p.id, index: p.children.indexOf(n), node: n });
+    if (m) {
+      // indices computed after each applied op, so same-parent shifts are exact
+      const mp = getParent(m.id), mi = mp.children.indexOf(m);
+      record({ t: 'del', parentId: mp.id, index: mi, node: m });
+      record({ t: 'ins', parentId: mp.id, index: mi, node: n });
+    }
+  });
   scheduleSave();
   emit({ type: 'children', id: p.id });
+  if (m) {
+    const mp = getParent(id); // n's parent after promotion
+    if (mp && mp.id !== p.id) emit({ type: 'children', id: mp.id });
+  } else {
+    // no promotion: mirrors pointing anywhere into the deleted subtree just
+    // broke — repaint them as tombstones now, not on the next full render
+    const gone = new Set();
+    (function collect(x) { gone.add(x.id); x.children.forEach(collect); })(n);
+    for (const e of nodeIndex.values()) {
+      if (e.node.mirrorOf && gone.has(e.node.mirrorOf)) emit({ type: 'node', id: e.node.id });
+    }
+  }
 }
 
 function move(id, toParentId, toIndex) {
@@ -294,6 +321,50 @@ function setNodeProp(id, key, allowed, val) {
 }
 const setFormat = (id, v) => setNodeProp(id, 'format', NODE_FORMATS, v);
 const setColor = (id, v) => setNodeProp(id, 'color', NODE_COLORS, v);
+
+/* --- mirrors ------------------------------------------------------- */
+/* A mirror is a childless node whose content (title, note, completed,
+   format, color, children) all resolve through mirrorOf. */
+function mirrorContent(n) { // the node whose content a row shows
+  return n.mirrorOf ? (getNode(n.mirrorOf) || null) : n;
+}
+function mirrorsOf(targetId) { // lazy scan: called on rare paths only
+  const out = [];
+  for (const e of nodeIndex.values()) {
+    if (e.node.mirrorOf === targetId) out.push(e.node);
+  }
+  return out;
+}
+function mirrorResolveTarget(targetId) { // flatten chains: mirror a mirror → its target
+  let t = getNode(targetId);
+  if (t && t.mirrorOf) t = getNode(t.mirrorOf);
+  return t;
+}
+/* convert an existing childless node into a mirror (the `((` flow) */
+function setMirror(id, targetId) {
+  const n = getNode(id), p = getParent(id);
+  const target = mirrorResolveTarget(targetId);
+  if (!n || !p || !target || n.mirrorOf || n.children.length) return false;
+  if (target.id === id) return false;
+  if (isDescendant(id, target.id)) return false; // target is an ancestor: cycle
+  group(() => {
+    // a mirror has no text of its own: clear leftovers like a "((query" stub
+    if (n.title) record({ t: 'text', id, field: 'title', a: n.title, b: '' });
+    if (n.note) record({ t: 'text', id, field: 'note', a: n.note, b: '' });
+    record({ t: 'flag', id, key: 'mirrorOf', a: n.mirrorOf || '', b: target.id });
+  });
+  scheduleSave();
+  emit({ type: 'node', id });
+  emit({ type: 'children', id: p.id }); // the row changes shape: rebuild it
+  return true;
+}
+/* place a new mirror of targetId as its next sibling (the menu flow) */
+function createMirror(targetId) {
+  const target = mirrorResolveTarget(targetId);
+  const anchor = getNode(targetId), p = getParent(targetId);
+  if (!target || !anchor || !p) return null;
+  return create(p.id, p.children.indexOf(anchor) + 1, { mirrorOf: target.id });
+}
 
 function duplicate(id) {
   const n = getNode(id), p = getParent(id);
@@ -429,6 +500,7 @@ function normalizeNode(n) {
   // optional fields: present only when set, so unstyled nodes cost no bytes
   if (NODE_FORMATS.includes(n.format)) out.format = n.format;
   if (NODE_COLORS.includes(n.color)) out.color = n.color;
+  if (typeof n.mirrorOf === 'string' && n.mirrorOf) out.mirrorOf = n.mirrorOf;
   return out;
 }
 function regenIds(n) {
@@ -451,6 +523,9 @@ const DOC_MIGRATIONS = {
   // v2 payload — but the version bump makes *older* builds warn instead of
   // silently stripping the new fields on their next save.
   1: data => data,
+  // v2 → v3: added optional per-node `mirrorOf` (id of the mirrored item).
+  // Additive again; the bump exists for the same warn-don't-strip reason.
+  2: data => data,
 };
 
 function migrateDoc(data) {
@@ -640,6 +715,7 @@ const store = {
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
   setCollapsed, toggleCompleted, setFormat, setColor, duplicate,
+  mirrorContent, mirrorsOf, setMirror, createMirror,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
   migrateDoc,

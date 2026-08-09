@@ -52,10 +52,15 @@ function nodeInstances(id) { // every live element rendering this node
 function suffixOf(el) { // '' outside mirrors; '@…' inside an expansion
   return el.dataset.iid.slice(el.dataset.id.length);
 }
-function idOfTitle(titleEl) {
+function idOfTitle(titleEl) { // structural id: moves, deletes, collapse
   if (titleEl === focusTitleEl) return view.focusId;
   const el = titleEl.closest('.node');
   return el ? el.dataset.id : null;
+}
+function contentIdOfTitle(titleEl) { // content id: text, notes, completion
+  if (titleEl === focusTitleEl) return view.focusId;
+  const el = titleEl.closest('.node');
+  return el ? (el.dataset.mirror || el.dataset.id) : null;
 }
 
 /* --- search filter ---------------------------------------------------- */
@@ -79,10 +84,13 @@ function computeFilter() {
   const focus = store.getNode(view.focusId);
   (function walk(n, ancIds, underMatch) {
     const isFocus = n === focus;
+    // a mirror matches on its target's text (it has none of its own); its
+    // subtree is not walked here — the original reports the real hits
+    const c = n.mirrorOf ? (store.getNode(n.mirrorOf) || n) : n;
     // an off-screen completed row can't be a result, and neither can anything
     // inside it (the CSS hides the subtree with it)
-    if (!isFocus && skipCompleted && n.completed) return;
-    const hit = !isFocus && (test(n.title) || test(n.note));
+    if (!isFocus && skipCompleted && c.completed) return;
+    const hit = !isFocus && (test(c.title) || test(c.note));
     // items made during this search don't match it; keep them on screen anyway
     const kept = !isFocus && view.filterExempt.has(n.id);
     if (hit) matched.add(n.id);
@@ -321,9 +329,13 @@ function setTitleContent(el, n) {
     el.append(titleFrag(el, n.title || '', f && f.tagQuery ? f.q : null));
   }
 }
-function applyNodeState(el, n) {
+/* n = the CONTENT node (what the row shows); own = the row's structural
+   node. They differ only for mirror rows, whose collapse state and filter
+   membership are their own while everything visible comes from the target. */
+function applyNodeState(el, n, own = n) {
   const hasKids = n.children.length > 0;
-  const expanded = view.filter ? true : !n.collapsed;
+  // mirrors sit collapsed in search view (their subtrees would duplicate results)
+  const expanded = view.filter ? !own.mirrorOf : !own.collapsed;
   if (n.format) el.dataset.format = n.format; else delete el.dataset.format;
   if (n.color) el.dataset.color = n.color; else delete el.dataset.color;
   el.classList.toggle('completed', n.completed);
@@ -333,7 +345,7 @@ function applyNodeState(el, n) {
   if (hasKids) el.setAttribute('aria-expanded', String(expanded));
   else el.removeAttribute('aria-expanded');
   const f = view.filter;
-  el.classList.toggle('dim', !!(f && f.anc.has(n.id) && !f.under.has(n.id)));
+  el.classList.toggle('dim', !!(f && f.anc.has(own.id) && !f.under.has(own.id)));
   // checklist progress: shown once any direct child is checked off
   const done = n.children.reduce((s, c) => s + (c.completed ? 1 : 0), 0);
   let badge = el.querySelector(':scope > .row > .progress');
@@ -354,16 +366,38 @@ function buildNoteContent(n) {
   wrap.append(mdRender(n.note));
   return wrap;
 }
+/* would expanding mirror `n` (of `target`) at this instance re-enter an
+   expansion already on the path? Two ways in: the mirror physically lives
+   inside its target's subtree (a move can arrange that after creation), or
+   some mirror already expanded on this path points at the same target. */
+function mirrorExpansionLoop(n, target, suffix) {
+  if (store.isDescendant(n.id, target.id)) return true;
+  for (const mid of suffix.split('@')) {
+    if (!mid) continue;
+    const m = store.getNode(mid);
+    if (m && m.mirrorOf === target.id) return true;
+  }
+  return false;
+}
 function renderNode(n, level, suffix = '') {
   if (!nodeVisibleInFilter(n)) return null;
+  const isMirror = !!n.mirrorOf;
+  const target = isMirror ? store.getNode(n.mirrorOf) : null;
+  const content = isMirror ? target : n; // null = broken mirror (target deleted)
   const el = document.createElement('div');
-  el.className = 'node';
-  el.dataset.id = n.id;
+  el.className = 'node' + (isMirror ? ' mirror' : '') + (isMirror && !target ? ' broken' : '');
+  el.dataset.id = n.id; // structural identity: moves, deletes, collapse
   el.dataset.iid = n.id + suffix;
+  if (target) el.dataset.mirror = target.id; // content identity: text, completion
   elMap.set(el.dataset.iid, el);
   let set = instMap.get(n.id);
   if (!set) instMap.set(n.id, set = new Set());
   set.add(el);
+  if (target) { // content events on the target must reach this row too
+    let cset = instMap.get(target.id);
+    if (!cset) instMap.set(target.id, cset = new Set());
+    cset.add(el);
+  }
   el.setAttribute('role', 'treeitem');
   el.setAttribute('aria-level', level);
 
@@ -384,10 +418,13 @@ function renderNode(n, level, suffix = '') {
   tg.title = 'Collapse / expand';
   const bullet = document.createElement('a');
   bullet.className = 'bullet';
-  bullet.href = '#' + n.id;
+  bullet.href = '#' + (content ? content.id : n.id);
   bullet.tabIndex = -1;
   bullet.draggable = true;
-  bullet.title = 'Click to zoom in · drag to move';
+  bullet.title = isMirror
+    ? (target ? `Mirror of “${truncate(target.title, 40) || 'Untitled'}” · Click to zoom to the original · drag to move`
+              : 'The mirrored item was deleted')
+    : 'Click to zoom in · drag to move';
   const dot = document.createElement('span');
   dot.className = 'dot';
   bullet.append(dot);
@@ -397,20 +434,27 @@ function renderNode(n, level, suffix = '') {
   // ~100ms in Chrome. Editing is enabled per-title on mousedown/keyboard-nav
   // (activateTitle) and disabled again on focusout.
   title.spellcheck = false;
-  setTitleContent(title, n);
+  if (content) setTitleContent(title, content);
+  else title.textContent = '(mirrored item no longer exists)';
   row.append(handle, tg, bullet, title);
   el.append(row);
 
-  if (n.note) el.append(buildNoteContent(n));
+  if (content && content.note) el.append(buildNoteContent(content));
 
   const kids = document.createElement('div');
   kids.className = 'children';
   kids.setAttribute('role', 'group');
   el.append(kids);
 
-  applyNodeState(el, n);
-  const expand = view.filter ? true : !n.collapsed;
-  if (expand && n.children.length) fillChildren(kids, n, level, suffix);
+  applyNodeState(el, content || n, n);
+  const loop = isMirror && target && mirrorExpansionLoop(n, target, suffix);
+  if (loop) el.classList.add('loop');
+  // mirrors stay collapsed while a search filter is up: their subtrees would
+  // duplicate results the original already reports
+  const expand = view.filter ? !isMirror : !n.collapsed;
+  if (expand && content && content.children.length && !loop) {
+    fillChildren(kids, content, level, isMirror ? suffix + '@' + n.id : suffix);
+  }
   return el;
 }
 function fillChildren(kidsEl, n, level, suffix = '') {
@@ -541,24 +585,43 @@ function renderChildrenOf(id) {
     updateEmptyHint();
     return;
   }
-  // every instance of this node (primary + any mirror copies) reconciles its
-  // own children container, each under its own instance suffix
+  // every instance of this node (primary + any mirror rows showing it)
+  // reconciles its own children container, each under its own suffix
   for (const el of nodeInstances(id)) {
+    const own = store.getNode(el.dataset.id); // ≠ parentNode for mirror rows
+    if (!own) continue;
     const kids = el.querySelector(':scope > .children');
     const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-    applyNodeState(el, parentNode);
-    if (parentNode.collapsed || !parentNode.children.length) {
+    applyNodeState(el, parentNode, own);
+    const loop = own.mirrorOf && mirrorExpansionLoop(own, parentNode, suffixOf(el));
+    if (own.collapsed || loop || !parentNode.children.length) {
       kids.textContent = '';
       delete kids.dataset.filled;
       continue;
     }
     kids.dataset.filled = '1';
-    reconcileChildren(kids, parentNode, level, suffixOf(el));
+    reconcileChildren(kids, parentNode, level,
+      own.mirrorOf ? suffixOf(el) + '@' + own.id : suffixOf(el));
   }
   updateEmptyHint();
 }
 
-function updateRowEl(el, n, isTypingEcho) {
+function updateRowEl(el, nodeArg, isTypingEcho) {
+  // el may be a primary row or a mirror row (reached via either identity);
+  // re-derive both sides from the element itself
+  const own = store.getNode(el.dataset.id) || nodeArg;
+  const n = store.mirrorContent(own); // content node; null = broken mirror
+  if (!n) {
+    el.classList.add('broken');
+    el.querySelector(':scope > .row > .title').textContent = '(mirrored item no longer exists)';
+    const kids = el.querySelector(':scope > .children');
+    kids.textContent = ''; // the expansion showed nodes that no longer exist
+    delete kids.dataset.filled;
+    const noteWrap = el.querySelector(':scope > .note');
+    if (noteWrap) noteWrap.remove();
+    applyNodeState(el, own, own);
+    return;
+  }
   const title = el.querySelector(':scope > .row > .title');
   // While being edited the title is RAW text and the DOM is the source of
   // truth: rebuild it only when the store text actually differs (programmatic
@@ -579,13 +642,23 @@ function updateRowEl(el, n, isTypingEcho) {
     if (noteWrap) noteWrap.remove();
     if (n.note) el.querySelector(':scope > .row').after(buildNoteContent(n));
   }
-  applyNodeState(el, n);
+  applyNodeState(el, n, own);
 }
 function updateRow(id, isTypingEcho) {
   if (id === view.focusId) { renderFocusHead(); renderCrumbs(); return; }
   const n = store.getNode(id);
   if (!n) return;
-  for (const el of nodeInstances(id)) updateRowEl(el, n, isTypingEcho);
+  for (const el of nodeInstances(id)) {
+    // a row that changed species (node ↔ mirror, via setMirror or its undo)
+    // needs a full rebuild — classes, bullet, dataset all differ
+    if (el.dataset.id === id && !!n.mirrorOf !== el.classList.contains('mirror')) {
+      const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+      const fresh = renderNode(n, level, suffixOf(el));
+      if (fresh) el.replaceWith(fresh); else el.remove();
+      continue;
+    }
+    updateRowEl(el, n, isTypingEcho);
+  }
   // completion toggles change the parent's progress badge too
   const p = store.getParent(id);
   if (p && p.id !== ROOT_ID) {
@@ -598,9 +671,9 @@ function autoGrow(ta) {
   ta.style.height = 'auto';
   ta.style.height = ta.scrollHeight + 'px';
 }
-function noteContainerFor(id) {
+function noteContainerFor(id, hostEl = null) {
   if (id === view.focusId) return focusNoteEl;
-  const el = nodeEl(id);
+  const el = hostEl || nodeEl(id);
   if (!el) return null;
   let wrap = el.querySelector(':scope > .note');
   if (!wrap) {
@@ -610,9 +683,9 @@ function noteContainerFor(id) {
   }
   return wrap;
 }
-function openNoteEditor(id) {
+function openNoteEditor(id, hostEl = null) {
   const n = store.getNode(id);
-  const container = noteContainerFor(id);
+  const container = noteContainerFor(id, hostEl);
   if (!n || !container) return;
   if (container.querySelector('.note-edit')) {
     container.querySelector('.note-edit').focus();
@@ -634,7 +707,8 @@ function closeNoteEditor(ta) {
   const container = ta.parentElement;
   if (!container) return;
   const isFocusNote = container === focusNoteEl;
-  const id = isFocusNote ? view.focusId : (container.closest('.node') || {}).dataset?.id;
+  const host = container.closest('.node');
+  const id = isFocusNote ? view.focusId : host && (host.dataset.mirror || host.dataset.id);
   if (!id) { container.remove(); return; }
   const n = store.getNode(id);
   const noteText = n ? n.note : '';
@@ -655,14 +729,16 @@ function activateTitle(t, off = 0) {
   setCaret(t, off === 'end' ? t.textContent.length : clamp(off, 0, t.textContent.length));
   t.scrollIntoView({ block: 'nearest' });
 }
-function focusNodeTitle(id, off = 0) {
+function focusNodeTitle(id, off = 0, sfx = '') {
   if (!store.getNode(id)) return;
   if (id === view.focusId) {
     focusTitleEl.focus();
     setCaret(focusTitleEl, off === 'end' ? focusTitleEl.textContent.length : off);
     return;
   }
-  let el = nodeEl(id);
+  // sfx: land on the instance where the user is working (inside a mirror
+  // expansion), falling back to the primary instance
+  let el = (sfx && nodeEl(id + sfx)) || nodeEl(id);
   if (!el) { revealNode(id); el = nodeEl(id); }
   if (!el) return;
   activateTitle(el.querySelector(':scope > .row > .title'), off);
@@ -732,17 +808,23 @@ store.subscribe(ev => {
     case 'collapse': {
       const n = store.getNode(ev.id);
       if (!n) break;
+      const content = store.mirrorContent(n) || n;
       for (const el of nodeInstances(ev.id)) {
+        // collapse state belongs to the row's own node: mirror rows showing
+        // ev.id as content keep their own state and are skipped here
+        if (el.dataset.id !== ev.id) continue;
         const kids = el.querySelector(':scope > .children');
-        if (!n.collapsed && !kids.dataset.filled && n.children.length) {
+        const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
+        if (!n.collapsed && !kids.dataset.filled && content.children.length && !loop) {
           const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-          fillChildren(kids, n, level, suffixOf(el));
+          fillChildren(kids, content, level,
+            n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
         }
         if (!n.collapsed) {
           kids.classList.add('just-expanded');
           setTimeout(() => kids.classList.remove('just-expanded'), 250);
         }
-        applyNodeState(el, n);
+        applyNodeState(el, content, n);
       }
       break;
     }

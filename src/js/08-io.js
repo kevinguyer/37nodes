@@ -35,8 +35,17 @@ function exportJSON() {
   if (bannerKind === 'notice') hideBanner();
 }
 
+function mirrorMarkdownLine(c) {
+  const t = store.getNode(c.mirrorOf);
+  return `↪ mirror of "${t ? (t.title || 'Untitled') : '(deleted item)'}"`;
+}
 function childrenToMarkdown(n, depth, out) {
   for (const c of n.children) {
+    if (c.mirrorOf) {
+      // a single marker line: expanding the subtree here would duplicate it
+      out.push(`${'  '.repeat(depth)}- ${mirrorMarkdownLine(c)}`);
+      continue;
+    }
     out.push(`${'  '.repeat(depth)}- ${c.title || ''}`);
     if (c.note) {
       for (const l of c.note.split('\n')) out.push(`${'  '.repeat(depth + 1)}${l}`);
@@ -45,6 +54,7 @@ function childrenToMarkdown(n, depth, out) {
   }
 }
 function nodeToMarkdownText(n) {
+  if (n.mirrorOf) return `- ${mirrorMarkdownLine(n)}`;
   const out = [`- ${n.title || ''}`];
   if (n.note) for (const l of n.note.split('\n')) out.push(`  ${l}`);
   childrenToMarkdown(n, 1, out);
