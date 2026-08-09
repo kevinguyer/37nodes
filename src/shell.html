@@ -80,6 +80,69 @@
   <div class="menu-note" id="build-readout">Build __BUILD__ &middot; __BUILT__</div>
 </div>
 
+<div id="node-menu" role="menu" aria-label="Item menu" hidden>
+  <span class="nm-label">Heading</span>
+  <div class="nm-formats" role="group" aria-label="Heading format">
+    <button class="nm-fmt" data-format="h1">H1</button>
+    <button class="nm-fmt" data-format="h2">H2</button>
+    <button class="nm-fmt" data-format="h3">H3</button>
+    <button class="nm-fmt" data-format="" title="Normal text">&para;</button>
+  </div>
+  <span class="nm-label">Bullet color</span>
+  <div class="nm-colors" role="group" aria-label="Bullet color">
+    <button class="nm-color" data-color="" title="Default"></button>
+    <button class="nm-color" data-color="red" title="Red" style="--nc:var(--nc-red)"></button>
+    <button class="nm-color" data-color="orange" title="Orange" style="--nc:var(--nc-orange)"></button>
+    <button class="nm-color" data-color="yellow" title="Yellow" style="--nc:var(--nc-yellow)"></button>
+    <button class="nm-color" data-color="green" title="Green" style="--nc:var(--nc-green)"></button>
+    <button class="nm-color" data-color="blue" title="Blue" style="--nc:var(--nc-blue)"></button>
+    <button class="nm-color" data-color="purple" title="Purple" style="--nc:var(--nc-purple)"></button>
+  </div>
+  <hr>
+  <button class="menu-row" id="nm-complete">Complete</button>
+  <button class="menu-row" id="nm-zoom">Zoom in</button>
+  <button class="menu-row" id="nm-note">Add note</button>
+  <button class="menu-row" id="nm-duplicate">Duplicate</button>
+  <button class="menu-row" id="nm-copy">Copy as markdown</button>
+  <hr>
+  <button class="menu-row danger" id="nm-delete">Delete</button>
+</div>
+
+<div id="fmt-bar" role="toolbar" aria-label="Text formatting" hidden>
+  <div class="fb-row">
+    <button data-fmt="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+    <button data-fmt="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+    <button data-fmt="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+    <button data-fmt="code" title="Inline code" class="fb-code">&lt;/&gt;</button>
+    <button data-fmt="link" title="Link &mdash; then type or paste the URL between the ( )">&#128279;</button>
+    <span class="fb-sep"></span>
+    <button data-hfmt="h1" title="Heading 1 (whole item)">H1</button>
+    <button data-hfmt="h2" title="Heading 2 (whole item)">H2</button>
+    <button data-hfmt="h3" title="Heading 3 (whole item)">H3</button>
+    <button data-hfmt="" title="Normal text (whole item)">&para;</button>
+  </div>
+  <div class="fb-row">
+    <span class="fb-label" title="Text color">A</span>
+    <button class="fb-swatch" data-tc="" title="Default color"></button>
+    <button class="fb-swatch" data-tc="red" style="--nc:var(--nc-red)" title="Red"></button>
+    <button class="fb-swatch" data-tc="orange" style="--nc:var(--nc-orange)" title="Orange"></button>
+    <button class="fb-swatch" data-tc="yellow" style="--nc:var(--nc-yellow)" title="Yellow"></button>
+    <button class="fb-swatch" data-tc="green" style="--nc:var(--nc-green)" title="Green"></button>
+    <button class="fb-swatch" data-tc="blue" style="--nc:var(--nc-blue)" title="Blue"></button>
+    <button class="fb-swatch" data-tc="purple" style="--nc:var(--nc-purple)" title="Purple"></button>
+  </div>
+  <div class="fb-row">
+    <span class="fb-label fb-hl" title="Highlight">A</span>
+    <button class="fb-swatch" data-th="" title="No highlight"></button>
+    <button class="fb-swatch" data-th="red" style="--nc:var(--nh-red)" title="Red highlight"></button>
+    <button class="fb-swatch" data-th="orange" style="--nc:var(--nh-orange)" title="Orange highlight"></button>
+    <button class="fb-swatch" data-th="yellow" style="--nc:var(--nh-yellow)" title="Yellow highlight"></button>
+    <button class="fb-swatch" data-th="green" style="--nc:var(--nh-green)" title="Green highlight"></button>
+    <button class="fb-swatch" data-th="blue" style="--nc:var(--nh-blue)" title="Blue highlight"></button>
+    <button class="fb-swatch" data-th="purple" style="--nc:var(--nh-purple)" title="Purple highlight"></button>
+  </div>
+</div>
+
 <div id="link-auto" role="listbox" aria-label="Link suggestions" hidden></div>
 
 <input type="file" id="import-file" accept=".json,application/json" hidden>
@@ -121,6 +184,8 @@
     <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
     <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
+    <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
+    <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
     <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
     <span><kbd>?</kbd></span><span>This help</span>
   </div>

@@ -4,7 +4,9 @@
    Collapse state is deliberately NOT undoable (it's view state, but persisted). */
 
 const ROOT_ID = 'root';
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
+const NODE_FORMATS = ['h1', 'h2', 'h3']; // '' (absent) = normal text
+const NODE_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple']; // '' (absent) = theme default
 const DOC_KEY = '37nodes:doc';
 const DOC_BACKUP_KEY = '37nodes:doc:pre-idb'; // frozen copy left behind by the one-time IndexedDB migration
 const PREFS_KEY = '37nodes:prefs';
@@ -279,6 +281,33 @@ function toggleCompleted(id) {
   emit({ type: 'node', id });
 }
 
+/* format ('h1'|'h2'|'h3'|'') and color (palette slot|'') ride the generic
+   'flag' op, so they undo exactly like completion toggles */
+function setNodeProp(id, key, allowed, val) {
+  const n = getNode(id);
+  if (!n) return;
+  val = allowed.includes(val) ? val : '';
+  if ((n[key] || '') === val) return;
+  group(() => record({ t: 'flag', id, key, a: n[key] || '', b: val }));
+  scheduleSave();
+  emit({ type: 'node', id });
+}
+const setFormat = (id, v) => setNodeProp(id, 'format', NODE_FORMATS, v);
+const setColor = (id, v) => setNodeProp(id, 'color', NODE_COLORS, v);
+
+function duplicate(id) {
+  const n = getNode(id), p = getParent(id);
+  if (!n || !p) return null;
+  // normalizeNode builds fresh objects all the way down, so it doubles as a
+  // deep copy; regenIds keeps the copy's subtree out of every id-keyed map
+  const copy = regenIds(normalizeNode(n));
+  const idx = p.children.indexOf(n);
+  group(() => record({ t: 'ins', parentId: p.id, index: idx + 1, node: copy }));
+  scheduleSave();
+  emit({ type: 'children', id: p.id });
+  return copy;
+}
+
 /* --- undo / redo ---------------------------------------------------- */
 function focusHintFor(rec) {
   for (const op of rec.ops) {
@@ -387,7 +416,7 @@ function scheduleSave() {
 function normalizeNode(n) {
   const t = nowISO();
   n = (n && typeof n === 'object') ? n : {};
-  return {
+  const out = {
     id: (typeof n.id === 'string' && n.id) ? n.id : uid(),
     title: typeof n.title === 'string' ? n.title : '',
     note: typeof n.note === 'string' ? n.note : '',
@@ -397,6 +426,10 @@ function normalizeNode(n) {
     updatedAt: typeof n.updatedAt === 'string' ? n.updatedAt : t,
     children: Array.isArray(n.children) ? n.children.map(normalizeNode) : [],
   };
+  // optional fields: present only when set, so unstyled nodes cost no bytes
+  if (NODE_FORMATS.includes(n.format)) out.format = n.format;
+  if (NODE_COLORS.includes(n.color)) out.color = n.color;
+  return out;
 }
 function regenIds(n) {
   n.id = uid();
@@ -413,7 +446,11 @@ function regenIds(n) {
    historical shape, normalizeNode enforces only the current one.
    Empty until the first breaking change. */
 const DOC_MIGRATIONS = {
-  // 1: (data) => ({ ...data, root: transform(data.root) }),  // v1 → v2, when the day comes
+  // v1 → v2: added optional per-node `format` ('h1'|'h2'|'h3') and `color`
+  // (named palette slot). Purely additive — a v1 payload is already a valid
+  // v2 payload — but the version bump makes *older* builds warn instead of
+  // silently stripping the new fields on their next save.
+  1: data => data,
 };
 
 function migrateDoc(data) {
@@ -602,7 +639,7 @@ const store = {
   setTitle, setNote, setTitleImmediate,
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
-  setCollapsed, toggleCompleted,
+  setCollapsed, toggleCompleted, setFormat, setColor, duplicate,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
   migrateDoc,

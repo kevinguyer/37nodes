@@ -111,6 +111,19 @@ function onTitleKeydown(e, el) {
     copySubtreeMarkdown(id);
     return;
   }
+  // --- item menu (headings, colors, actions) ---
+  if (mod && key === '.') {
+    e.preventDefault();
+    if (el !== focusTitleEl) openNodeMenu(id, { viaKeyboard: true });
+    return;
+  }
+  // --- inline formatting (claimed from the browser, which would insert
+  //     <b>/<i>/<u> elements into what must stay a plain-text editor) ---
+  if (mod && !e.altKey && !e.shiftKey && 'biuBIU'.includes(key)) {
+    e.preventDefault();
+    fmtShortcut(el, key.toLowerCase());
+    return;
+  }
 
   switch (key) {
     case 'Enter':
@@ -324,18 +337,21 @@ document.addEventListener('paste', e => {
 
 // enable editing just-in-time, before the browser's focus/caret placement
 document.addEventListener('mousedown', e => {
-  // tag chips and wikilinks are controls, not text: don't start editing,
-  // don't move focus (focusin would flatten them away before their click)
-  if (e.target.closest?.('.title .tag, .title .wikilink')) { e.preventDefault(); return; }
+  // tag chips, wikilinks, and external links are controls, not text: don't
+  // start editing, don't move focus (focusin would flatten them away before
+  // their click lands)
+  if (e.target.closest?.('.title .tag, .title .wikilink, .title .tlink')) { e.preventDefault(); return; }
   const t = e.target.closest?.('.title');
   if (t && t.contentEditable !== 'true') t.contentEditable = 'true';
 }, true);
 
 document.addEventListener('focusin', e => {
   const title = e.target.closest?.('.title');
-  if (title && title.querySelector('mark, .tag, .wikilink')) {
-    // editing a decorated title (search marks / tag chips): swap to plain text
-    const off = caretOffset(title);
+  if (title && title.firstElementChild) {
+    // editing a rendered title (formatting, chips, marks): swap to raw text,
+    // mapping the caret from rendered space to raw space (formatting hides
+    // its delimiters, so the two no longer line up — titleRawOffset knows)
+    const off = titleRawOffset(title, caretOffset(title));
     const id = idOfTitle(title);
     const n = id && store.getNode(id);
     if (n) { title.textContent = n.title; setCaret(title, off); }

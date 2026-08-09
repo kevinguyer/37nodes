@@ -66,6 +66,8 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `11-linkauto.js` | `[[` autocomplete in titles and note textareas |
 | `12-tour.js` | First-run guided tour (declarative steps + spotlight) |
 | `13-tagline.js` | Rotating top-bar tagline with cipher-decode reveal |
+| `14-nodemenu.js` | Per-item ≡ handle popover: heading format, bullet color, row actions |
+| `15-toolbar.js` | Floating format bar over a selection in an editing title; wrap/unwrap of inline syntax |
 
 `app.css` is CSS-variable driven: `:root` holds the token set, each
 `[data-theme=…]` block overrides it. `--motion:0` and `--glow` let a theme opt
@@ -74,7 +76,8 @@ out of animation or add CRT glow. Themes should never need new selectors.
 ## Data model
 
 ```js
-{ id, title, note, children: [], collapsed, completed, createdAt, updatedAt }
+{ id, title, note, children: [], collapsed, completed, createdAt, updatedAt,
+  format?, color? } // optional: 'h1'|'h2'|'h3'; palette slot — absent when unset
 ```
 
 One tree under `doc.root` (`id === ROOT_ID === 'root'`). `nodeIndex` is a
@@ -139,11 +142,18 @@ coalesces into a burst until `breakTyping()`. Collapse state is deliberately
 - Titles are **not** `contenteditable` at rest (focusing one of 20k editable
   roots costs ~100 ms in Chrome). `mousedown` (capture) and `activateTitle()`
   turn it on; `focusout` turns it off.
-- Title decorations — `#tag` chips, `[[wikilinks]]`, search `<mark>`s — are
-  render-time only. `focusin` flattens the title back to `store` text and
-  `focusout` rebuilds the decorations. This is why `[[ ]]` brackets stay visible
-  in rendered links: raw and rendered text must have the same length or caret
-  offsets break on the flatten.
+- Title decorations and inline formatting are render-time only. `focusin`
+  flattens the title back to `store` text (raw, delimiters visible) and
+  `focusout` rebuilds the rendered form. Two offset regimes coexist: `#tag`
+  chips, `[[wikilinks]]`, and search `<mark>`s keep raw and rendered text the
+  same length, while inline formatting (`**b**`, `{red|…}`, …) **hides its
+  delimiters** — caret positions cross the flatten via `titleSegs` (a WeakMap
+  of rendered-text-node → raw-offset segments built by `setTitleContent`) and
+  `titleRawOffset()`. Never assume a rendered title offset equals a raw one;
+  a title being edited is plain raw text, so offsets there are trivially raw.
+  `updateRow` deliberately leaves an actively-edited title's DOM alone on
+  same-text `node` events — re-rendering formatting under the caret would
+  make the next `input` store delimiter-less text (silent formatting loss).
 
 ### Search filter
 

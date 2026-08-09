@@ -34,6 +34,22 @@
   --page-max:700px;
   --motion:1;
   --glow:none;
+  /* bullet palette: mid-tone slots chosen to read on light AND dark
+     backgrounds, so themes only override them for aesthetic reasons */
+  --nc-red:#d05a4c;
+  --nc-orange:#d9862c;
+  --nc-yellow:#c2a12b;
+  --nc-green:#559e57;
+  --nc-blue:#4f86d8;
+  --nc-purple:#8d68d6;
+  /* translucent siblings of --nc-*: text highlights that keep --fg legible
+     over any theme background */
+  --nh-red:rgba(208,90,76,.30);
+  --nh-orange:rgba(217,134,44,.30);
+  --nh-yellow:rgba(194,161,43,.32);
+  --nh-green:rgba(85,158,87,.30);
+  --nh-blue:rgba(79,134,216,.30);
+  --nh-purple:rgba(141,104,214,.30);
   color-scheme:light;
 }
 html[data-theme="dark"]{
@@ -254,11 +270,25 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
   content-visibility:auto;
   contain-intrinsic-size:auto 26px;
 }
+/* The menu handle hangs 18px into the left gutter. content-visibility (above)
+   brings paint containment, which clips anything outside the .node box — so
+   the box itself is widened into the gutter and the content pushed back:
+   the two cancel at every depth and nothing else moves. */
+.node{margin-left:-18px; padding-left:18px;}
 .row{
   position:relative;
   display:flex; align-items:flex-start;
   padding:1px 0; border-radius:var(--radius);
 }
+.handle{
+  position:absolute; left:-18px; top:0;
+  width:18px; height:24px; line-height:24px;
+  color:var(--fg-faint); font-size:12px; text-align:center;
+  border-radius:var(--radius);
+  opacity:0; transition:opacity calc(120ms * var(--motion)) ease;
+}
+.row:hover > .handle{opacity:1;}
+.handle:hover{color:var(--fg-dim); background:var(--panel);}
 .row:focus-within{background:var(--accent-soft);}
 .toggle{
   flex:0 0 18px; height:24px; line-height:24px;
@@ -292,6 +322,20 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
   color:var(--accent); background:var(--accent-soft);
   border-radius:999px; padding:0 6px; cursor:pointer;
 }
+/* inline title formatting (F56) — rendered at rest, raw while editing */
+.title u{text-decoration:underline; text-underline-offset:2px;}
+.title code{
+  font-family:var(--mono); font-size:.9em;
+  background:var(--panel-2); border-radius:4px; padding:0 4px;
+}
+.title .tlink{color:var(--accent); text-decoration:underline; text-underline-offset:2px;}
+.tc-red{color:var(--nc-red);} .tc-orange{color:var(--nc-orange);}
+.tc-yellow{color:var(--nc-yellow);} .tc-green{color:var(--nc-green);}
+.tc-blue{color:var(--nc-blue);} .tc-purple{color:var(--nc-purple);}
+.th-red{background:var(--nh-red);} .th-orange{background:var(--nh-orange);}
+.th-yellow{background:var(--nh-yellow);} .th-green{background:var(--nh-green);}
+.th-blue{background:var(--nh-blue);} .th-purple{background:var(--nh-purple);}
+[class^="th-"], [class*=" th-"]{border-radius:3px; padding:0 1px;}
 .title .tag:hover{filter:brightness(1.15);}
 .title .tag.active{background:var(--accent); color:var(--bg);}
 .wikilink{color:var(--accent); text-decoration:none; cursor:pointer;}
@@ -303,6 +347,18 @@ a.wikilink:hover{text-decoration:underline; text-underline-offset:2px;}
   background:var(--panel); border:1px solid var(--line); border-radius:999px;
   user-select:none; white-space:nowrap;
 }
+/* heading formats: title-only typography, everything else stays row-shaped */
+.node[data-format] > .row > .title{font-weight:700; line-height:1.3;}
+.node[data-format="h1"] > .row > .title{font-size:20px;}
+.node[data-format="h2"] > .row > .title{font-size:17px;}
+.node[data-format="h3"] > .row > .title{font-size:15.5px;}
+/* bullet colors */
+.node[data-color="red"] > .row > .bullet .dot{background:var(--nc-red);}
+.node[data-color="orange"] > .row > .bullet .dot{background:var(--nc-orange);}
+.node[data-color="yellow"] > .row > .bullet .dot{background:var(--nc-yellow);}
+.node[data-color="green"] > .row > .bullet .dot{background:var(--nc-green);}
+.node[data-color="blue"] > .row > .bullet .dot{background:var(--nc-blue);}
+.node[data-color="purple"] > .row > .bullet .dot{background:var(--nc-purple);}
 .node.completed > .row > .title{text-decoration:line-through; color:var(--fg-dim);}
 body.hide-completed .node.completed{display:none;}
 .node.dim > .row > .title{color:var(--fg-faint);}
@@ -398,6 +454,59 @@ button.menu-row:hover{background:var(--panel);}
   color:var(--fg); outline:none;
 }
 .days-field input:focus{border-color:var(--accent);}
+
+/* ============================================================
+   Inline-format toolbar (selection in an editing title)
+   ============================================================ */
+#fmt-bar{
+  position:fixed; z-index:150; padding:5px 6px;
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.fb-row{display:flex; align-items:center; gap:3px;}
+.fb-row + .fb-row{margin-top:4px;}
+.fb-row button{
+  min-width:24px; height:22px; padding:0 5px;
+  font-size:12px; color:var(--fg-dim); border-radius:var(--radius);
+  text-align:center;
+}
+.fb-row button:hover{background:var(--panel); color:var(--fg);}
+.fb-row button.active{color:var(--accent); background:var(--accent-soft);}
+.fb-code{font-family:var(--mono); font-size:10.5px;}
+.fb-sep{width:1px; height:16px; background:var(--line); margin:0 3px;}
+.fb-label{font-size:11.5px; color:var(--fg-dim); width:16px; text-align:center; user-select:none;}
+.fb-label.fb-hl{background:var(--mark); border-radius:3px;}
+.fb-swatch{
+  width:14px; height:14px; min-width:14px; padding:0; border-radius:50%;
+  background:var(--nc, var(--bullet)); border:1px solid var(--line);
+}
+.fb-swatch:hover{transform:scale(1.25);}
+
+/* ============================================================
+   Node menu (per-item ≡ handle popover)
+   ============================================================ */
+#node-menu{
+  position:fixed; z-index:150; width:232px; padding:6px;
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+#node-menu hr{border:none; border-top:1px solid var(--line); margin:6px 4px;}
+.nm-label{display:block; font-size:11.5px; color:var(--fg-faint); padding:2px 10px 0;}
+.nm-formats{display:flex; gap:4px; padding:4px 10px 6px;}
+.nm-fmt{
+  flex:1; padding:3px 0; text-align:center; font-size:12.5px; color:var(--fg-dim);
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+}
+.nm-fmt:hover{background:var(--panel-2);}
+.nm-fmt.active{color:var(--accent); border-color:var(--accent); background:var(--accent-soft);}
+.nm-colors{display:flex; gap:9px; padding:6px 10px 6px; align-items:center;}
+.nm-color{
+  width:16px; height:16px; border-radius:50%;
+  background:var(--nc, var(--bullet)); border:1px solid var(--line);
+}
+.nm-color:hover{transform:scale(1.2);}
+.nm-color.active{box-shadow:0 0 0 2px var(--bg), 0 0 0 3.5px var(--accent);}
+.menu-row.danger{color:var(--danger);}
 
 /* ============================================================
    Dialogs
@@ -643,7 +752,70 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <hr>
   <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
   <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
-  <div class="menu-note" id="build-readout">Build 19 &middot; 2026-08-09</div>
+  <div class="menu-note" id="build-readout">Build 21 &middot; 2026-08-09</div>
+</div>
+
+<div id="node-menu" role="menu" aria-label="Item menu" hidden>
+  <span class="nm-label">Heading</span>
+  <div class="nm-formats" role="group" aria-label="Heading format">
+    <button class="nm-fmt" data-format="h1">H1</button>
+    <button class="nm-fmt" data-format="h2">H2</button>
+    <button class="nm-fmt" data-format="h3">H3</button>
+    <button class="nm-fmt" data-format="" title="Normal text">&para;</button>
+  </div>
+  <span class="nm-label">Bullet color</span>
+  <div class="nm-colors" role="group" aria-label="Bullet color">
+    <button class="nm-color" data-color="" title="Default"></button>
+    <button class="nm-color" data-color="red" title="Red" style="--nc:var(--nc-red)"></button>
+    <button class="nm-color" data-color="orange" title="Orange" style="--nc:var(--nc-orange)"></button>
+    <button class="nm-color" data-color="yellow" title="Yellow" style="--nc:var(--nc-yellow)"></button>
+    <button class="nm-color" data-color="green" title="Green" style="--nc:var(--nc-green)"></button>
+    <button class="nm-color" data-color="blue" title="Blue" style="--nc:var(--nc-blue)"></button>
+    <button class="nm-color" data-color="purple" title="Purple" style="--nc:var(--nc-purple)"></button>
+  </div>
+  <hr>
+  <button class="menu-row" id="nm-complete">Complete</button>
+  <button class="menu-row" id="nm-zoom">Zoom in</button>
+  <button class="menu-row" id="nm-note">Add note</button>
+  <button class="menu-row" id="nm-duplicate">Duplicate</button>
+  <button class="menu-row" id="nm-copy">Copy as markdown</button>
+  <hr>
+  <button class="menu-row danger" id="nm-delete">Delete</button>
+</div>
+
+<div id="fmt-bar" role="toolbar" aria-label="Text formatting" hidden>
+  <div class="fb-row">
+    <button data-fmt="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+    <button data-fmt="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+    <button data-fmt="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+    <button data-fmt="code" title="Inline code" class="fb-code">&lt;/&gt;</button>
+    <button data-fmt="link" title="Link &mdash; then type or paste the URL between the ( )">&#128279;</button>
+    <span class="fb-sep"></span>
+    <button data-hfmt="h1" title="Heading 1 (whole item)">H1</button>
+    <button data-hfmt="h2" title="Heading 2 (whole item)">H2</button>
+    <button data-hfmt="h3" title="Heading 3 (whole item)">H3</button>
+    <button data-hfmt="" title="Normal text (whole item)">&para;</button>
+  </div>
+  <div class="fb-row">
+    <span class="fb-label" title="Text color">A</span>
+    <button class="fb-swatch" data-tc="" title="Default color"></button>
+    <button class="fb-swatch" data-tc="red" style="--nc:var(--nc-red)" title="Red"></button>
+    <button class="fb-swatch" data-tc="orange" style="--nc:var(--nc-orange)" title="Orange"></button>
+    <button class="fb-swatch" data-tc="yellow" style="--nc:var(--nc-yellow)" title="Yellow"></button>
+    <button class="fb-swatch" data-tc="green" style="--nc:var(--nc-green)" title="Green"></button>
+    <button class="fb-swatch" data-tc="blue" style="--nc:var(--nc-blue)" title="Blue"></button>
+    <button class="fb-swatch" data-tc="purple" style="--nc:var(--nc-purple)" title="Purple"></button>
+  </div>
+  <div class="fb-row">
+    <span class="fb-label fb-hl" title="Highlight">A</span>
+    <button class="fb-swatch" data-th="" title="No highlight"></button>
+    <button class="fb-swatch" data-th="red" style="--nc:var(--nh-red)" title="Red highlight"></button>
+    <button class="fb-swatch" data-th="orange" style="--nc:var(--nh-orange)" title="Orange highlight"></button>
+    <button class="fb-swatch" data-th="yellow" style="--nc:var(--nh-yellow)" title="Yellow highlight"></button>
+    <button class="fb-swatch" data-th="green" style="--nc:var(--nh-green)" title="Green highlight"></button>
+    <button class="fb-swatch" data-th="blue" style="--nc:var(--nh-blue)" title="Blue highlight"></button>
+    <button class="fb-swatch" data-th="purple" style="--nc:var(--nh-purple)" title="Purple highlight"></button>
+  </div>
 </div>
 
 <div id="link-auto" role="listbox" aria-label="Link suggestions" hidden></div>
@@ -687,6 +859,8 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
     <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
+    <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
+    <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
     <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
     <span><kbd>?</kbd></span><span>This help</span>
   </div>
@@ -1025,7 +1199,9 @@ function mdRender(src) {
    Collapse state is deliberately NOT undoable (it's view state, but persisted). */
 
 const ROOT_ID = 'root';
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
+const NODE_FORMATS = ['h1', 'h2', 'h3']; // '' (absent) = normal text
+const NODE_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple']; // '' (absent) = theme default
 const DOC_KEY = '37nodes:doc';
 const DOC_BACKUP_KEY = '37nodes:doc:pre-idb'; // frozen copy left behind by the one-time IndexedDB migration
 const PREFS_KEY = '37nodes:prefs';
@@ -1300,6 +1476,33 @@ function toggleCompleted(id) {
   emit({ type: 'node', id });
 }
 
+/* format ('h1'|'h2'|'h3'|'') and color (palette slot|'') ride the generic
+   'flag' op, so they undo exactly like completion toggles */
+function setNodeProp(id, key, allowed, val) {
+  const n = getNode(id);
+  if (!n) return;
+  val = allowed.includes(val) ? val : '';
+  if ((n[key] || '') === val) return;
+  group(() => record({ t: 'flag', id, key, a: n[key] || '', b: val }));
+  scheduleSave();
+  emit({ type: 'node', id });
+}
+const setFormat = (id, v) => setNodeProp(id, 'format', NODE_FORMATS, v);
+const setColor = (id, v) => setNodeProp(id, 'color', NODE_COLORS, v);
+
+function duplicate(id) {
+  const n = getNode(id), p = getParent(id);
+  if (!n || !p) return null;
+  // normalizeNode builds fresh objects all the way down, so it doubles as a
+  // deep copy; regenIds keeps the copy's subtree out of every id-keyed map
+  const copy = regenIds(normalizeNode(n));
+  const idx = p.children.indexOf(n);
+  group(() => record({ t: 'ins', parentId: p.id, index: idx + 1, node: copy }));
+  scheduleSave();
+  emit({ type: 'children', id: p.id });
+  return copy;
+}
+
 /* --- undo / redo ---------------------------------------------------- */
 function focusHintFor(rec) {
   for (const op of rec.ops) {
@@ -1408,7 +1611,7 @@ function scheduleSave() {
 function normalizeNode(n) {
   const t = nowISO();
   n = (n && typeof n === 'object') ? n : {};
-  return {
+  const out = {
     id: (typeof n.id === 'string' && n.id) ? n.id : uid(),
     title: typeof n.title === 'string' ? n.title : '',
     note: typeof n.note === 'string' ? n.note : '',
@@ -1418,6 +1621,10 @@ function normalizeNode(n) {
     updatedAt: typeof n.updatedAt === 'string' ? n.updatedAt : t,
     children: Array.isArray(n.children) ? n.children.map(normalizeNode) : [],
   };
+  // optional fields: present only when set, so unstyled nodes cost no bytes
+  if (NODE_FORMATS.includes(n.format)) out.format = n.format;
+  if (NODE_COLORS.includes(n.color)) out.color = n.color;
+  return out;
 }
 function regenIds(n) {
   n.id = uid();
@@ -1434,7 +1641,11 @@ function regenIds(n) {
    historical shape, normalizeNode enforces only the current one.
    Empty until the first breaking change. */
 const DOC_MIGRATIONS = {
-  // 1: (data) => ({ ...data, root: transform(data.root) }),  // v1 → v2, when the day comes
+  // v1 → v2: added optional per-node `format` ('h1'|'h2'|'h3') and `color`
+  // (named palette slot). Purely additive — a v1 payload is already a valid
+  // v2 payload — but the version bump makes *older* builds warn instead of
+  // silently stripping the new fields on their next save.
+  1: data => data,
 };
 
 function migrateDoc(data) {
@@ -1623,7 +1834,7 @@ const store = {
   setTitle, setNote, setTitleImmediate,
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
-  setCollapsed, toggleCompleted,
+  setCollapsed, toggleCompleted, setFormat, setColor, duplicate,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
   migrateDoc,
@@ -1790,44 +2001,157 @@ function makeWikilink(inner) {
   return s;
 }
 
-/* title decorations: #tag chips (start-of-title or whitespace before the #,
-   so URLs like example.com/#anchor stay plain) and [[wikilinks]] */
-const DECOR_RE = /(^|\s)(#[\w-]+)|\[\[([^\[\]]+)\]\]/g;
-function decorFrag(text, activeTag) {
-  const frag = document.createDocumentFragment();
-  let last = 0;
-  DECOR_RE.lastIndex = 0;
-  for (let m; (m = DECOR_RE.exec(text)); ) {
-    if (m[2]) { // #tag
-      const start = m.index + m[1].length;
-      if (start > last) frag.append(document.createTextNode(text.slice(last, start)));
+/* --- title inline rendering ---------------------------------------------
+   Titles render an inline markdown-ish subset at rest — the note editors'
+   "edit raw, render on blur" philosophy (F17), applied to titles. Formatting
+   delimiters are HIDDEN in the rendered form, so rendered and raw offsets no
+   longer line up. Every rendered text node is therefore recorded in titleSegs
+   with the raw offset it starts at, and titleRawOffset() maps a rendered
+   caret point back to a raw one when the focusin flatten swaps the DOM to
+   raw text. Tags and [[wikilinks]] still render their text in full (F44).
+
+   Grammar (F56): `code`  [[wikilink]]  [text](https://url)  **bold**
+   __underline__  *italic*  _italic_  {red|colored}  {bg:red|highlighted}
+   #tag — earliest match wins, ties go to the order below; bold, underline,
+   italic, and color spans parse their contents recursively; code and link
+   text stay literal. Links accept http(s) only, by construction. */
+const titleSegs = new WeakMap(); // title el -> {segs:[{node, rawStart}], rawLen}
+
+const TITLE_PATTERNS = [
+  { re: /`([^`]+)`/, make(m, at, ctx) {
+      const c = document.createElement('code');
+      ctx.text(c, m[1], at + 1);
+      return c;
+    } },
+  // [[wikilink]] before [md](link): "[[x]]" must never parse as a bracket pair
+  { re: /\[\[([^\[\]]+)\]\]/, make(m, at, ctx) {
+      const a = makeWikilink(m[1]); // brackets stay visible (F44)
+      ctx.seg(a.firstChild, at);
+      return a;
+    } },
+  { re: /\[([^\[\]]+)\]\((https?:\/\/[^)\s]+)\)/, make(m, at, ctx) {
+      const a = document.createElement('a');
+      a.className = 'tlink';
+      a.href = m[2];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.title = m[2];
+      ctx.text(a, m[1], at + 1);
+      return a;
+    } },
+  { re: /\*\*([^*]+)\*\*/, make(m, at, ctx) {
+      const b = document.createElement('strong');
+      ctx.parse(b, m[1], at + 2);
+      return b;
+    } },
+  { re: /__([^_]+)__/, make(m, at, ctx) {
+      const u = document.createElement('u');
+      ctx.parse(u, m[1], at + 2);
+      return u;
+    } },
+  { re: /\*([^*]+)\*/, make(m, at, ctx) {
+      const em = document.createElement('em');
+      ctx.parse(em, m[1], at + 1);
+      return em;
+    } },
+  { re: /\b_([^_]+)_\b/, make(m, at, ctx) {
+      const em = document.createElement('em');
+      ctx.parse(em, m[1], at + 1);
+      return em;
+    } },
+  { re: /\{(bg:)?(red|orange|yellow|green|blue|purple)\|([^{}]*)\}/, make(m, at, ctx) {
       const s = document.createElement('span');
-      s.className = 'tag' + (activeTag && m[2].toLowerCase() === activeTag ? ' active' : '');
-      s.textContent = m[2];
-      s.title = 'Filter by ' + m[2];
-      frag.append(s);
-      last = start + m[2].length;
-    } else { // [[wikilink]]
-      if (m.index > last) frag.append(document.createTextNode(text.slice(last, m.index)));
-      frag.append(makeWikilink(m[3]));
-      last = m.index + m[0].length;
+      s.className = (m[1] ? 'th-' : 'tc-') + m[2];
+      ctx.parse(s, m[3], at + 1 + (m[1] ? 3 : 0) + m[2].length + 1);
+      return s;
+    } },
+  // #tag: start-of-title or whitespace before the #, so URLs stay plain
+  { re: /(^|\s)(#[\w-]+)/, isTag: true },
+];
+
+function titleParseInto(parent, text, rawBase, activeTag, S) {
+  const emitText = (container, str, at) => {
+    if (!str) return;
+    const tn = document.createTextNode(str);
+    S.segs.push({ node: tn, rawStart: at });
+    container.append(tn);
+  };
+  const ctx = {
+    text: emitText,
+    seg: (tn, at) => S.segs.push({ node: tn, rawStart: at }),
+    parse: (container, str, at) => titleParseInto(container, str, at, activeTag, S),
+  };
+  let rest = text, base = rawBase;
+  while (rest) {
+    let best = null, bestIdx = Infinity, bestPat = null;
+    for (const p of TITLE_PATTERNS) {
+      const m = rest.match(p.re);
+      if (m && m.index < bestIdx) {
+        best = m; bestIdx = m.index; bestPat = p;
+        if (bestIdx === 0) break; // earlier patterns already had their chance
+      }
     }
+    if (!best) { emitText(parent, rest, base); break; }
+    if (bestPat.isTag) {
+      const chipAt = bestIdx + best[1].length; // keep the leading space plain
+      emitText(parent, rest.slice(0, chipAt), base);
+      const s = document.createElement('span');
+      s.className = 'tag' + (activeTag && best[2].toLowerCase() === activeTag ? ' active' : '');
+      s.textContent = best[2];
+      s.title = 'Filter by ' + best[2];
+      ctx.seg(s.firstChild, base + chipAt);
+      parent.append(s);
+    } else {
+      emitText(parent, rest.slice(0, bestIdx), base);
+      parent.append(bestPat.make(best, base + bestIdx, ctx));
+    }
+    rest = rest.slice(bestIdx + best[0].length);
+    base += bestIdx + best[0].length;
   }
-  if (text.length > last) frag.append(document.createTextNode(text.slice(last)));
+}
+
+function titleFrag(el, text, activeTag) {
+  const S = { segs: [], rawLen: text.length };
+  const frag = document.createDocumentFragment();
+  titleParseInto(frag, text, 0, activeTag, S);
+  // plain single-run render: offsets are identical, skip the map
+  if (S.segs.length === 1 && S.segs[0].rawStart === 0 && S.segs[0].node.length === text.length) {
+    titleSegs.delete(el);
+  } else {
+    titleSegs.set(el, S);
+  }
   return frag; // empty text → empty frag, so the :empty placeholder still shows
 }
+
+/* rendered caret offset → raw text offset (identity when no map exists,
+   which covers plain titles and the raw-with-<mark>s search rendering) */
+function titleRawOffset(el, renderedOff) {
+  const S = titleSegs.get(el);
+  if (!S) return renderedOff;
+  let acc = 0;
+  for (const s of S.segs) {
+    const len = s.node.length;
+    if (renderedOff <= acc + len) return s.rawStart + (renderedOff - acc);
+    acc += len;
+  }
+  return S.rawLen;
+}
+
 function setTitleContent(el, n) {
   el.textContent = '';
   const f = view.filter;
   if (f && !f.tagQuery && f.matched.has(n.id) && (n.title || '').toLowerCase().includes(f.q)) {
-    el.append(highlightFrag(n.title, f.q)); // text search: marks win over chips
+    titleSegs.delete(el); // raw text + <mark>s: rendered offsets ARE raw offsets
+    el.append(highlightFrag(n.title, f.q)); // text search: marks win over formatting
   } else {
-    el.append(decorFrag(n.title || '', f && f.tagQuery ? f.q : null));
+    el.append(titleFrag(el, n.title || '', f && f.tagQuery ? f.q : null));
   }
 }
 function applyNodeState(el, n) {
   const hasKids = n.children.length > 0;
   const expanded = view.filter ? true : !n.collapsed;
+  if (n.format) el.dataset.format = n.format; else delete el.dataset.format;
+  if (n.color) el.dataset.color = n.color; else delete el.dataset.color;
   el.classList.toggle('completed', n.completed);
   el.classList.toggle('has-children', hasKids);
   el.classList.toggle('collapsed', hasKids && !expanded);
@@ -1867,6 +2191,14 @@ function renderNode(n, level) {
 
   const row = document.createElement('div');
   row.className = 'row';
+  // hover-revealed menu handle, hung in the left gutter (absolute, so rows
+  // never shift). It lives inside the .node's padding-left — see the
+  // .node margin/padding note in app.css for why it can't just overflow.
+  const handle = document.createElement('button');
+  handle.className = 'handle';
+  handle.tabIndex = -1;
+  handle.textContent = '≡';
+  handle.title = 'Item menu';
   const tg = document.createElement('button');
   tg.className = 'toggle';
   tg.tabIndex = -1;
@@ -1888,7 +2220,7 @@ function renderNode(n, level) {
   // (activateTitle) and disabled again on focusout.
   title.spellcheck = false;
   setTitleContent(title, n);
-  row.append(tg, bullet, title);
+  row.append(handle, tg, bullet, title);
   el.append(row);
 
   if (n.note) el.append(buildNoteContent(n));
@@ -2051,9 +2383,18 @@ function updateRow(id, isTypingEcho) {
   const n = store.getNode(id);
   if (!el || !n) return;
   const title = el.querySelector(':scope > .row > .title');
-  // during typing the DOM is the source of truth — don't clobber the caret;
-  // for programmatic edits (split, undo) the store wins even while focused
-  if (!(isTypingEcho && title === document.activeElement)) setTitleContent(title, n);
+  // While being edited the title is RAW text and the DOM is the source of
+  // truth: rebuild it only when the store text actually differs (programmatic
+  // edits like an Enter split — the store wins even while focused). A
+  // same-text 'node' event (completion, format, color) must not touch the
+  // DOM under the caret — rendering formatting into an editing title would
+  // hide delimiters, and the next input would store the delimiter-less text.
+  const titleEditing = title.isContentEditable && title === document.activeElement;
+  if (titleEditing) {
+    if (!isTypingEcho && title.textContent !== n.title) title.textContent = n.title;
+  } else {
+    setTitleContent(title, n);
+  }
   // note: rebuild rendered note unless its editor is focused
   let noteWrap = el.querySelector(':scope > .note');
   const editing = noteWrap && noteWrap.querySelector('.note-edit:focus');
@@ -2415,6 +2756,19 @@ function onTitleKeydown(e, el) {
     copySubtreeMarkdown(id);
     return;
   }
+  // --- item menu (headings, colors, actions) ---
+  if (mod && key === '.') {
+    e.preventDefault();
+    if (el !== focusTitleEl) openNodeMenu(id, { viaKeyboard: true });
+    return;
+  }
+  // --- inline formatting (claimed from the browser, which would insert
+  //     <b>/<i>/<u> elements into what must stay a plain-text editor) ---
+  if (mod && !e.altKey && !e.shiftKey && 'biuBIU'.includes(key)) {
+    e.preventDefault();
+    fmtShortcut(el, key.toLowerCase());
+    return;
+  }
 
   switch (key) {
     case 'Enter':
@@ -2628,18 +2982,21 @@ document.addEventListener('paste', e => {
 
 // enable editing just-in-time, before the browser's focus/caret placement
 document.addEventListener('mousedown', e => {
-  // tag chips and wikilinks are controls, not text: don't start editing,
-  // don't move focus (focusin would flatten them away before their click)
-  if (e.target.closest?.('.title .tag, .title .wikilink')) { e.preventDefault(); return; }
+  // tag chips, wikilinks, and external links are controls, not text: don't
+  // start editing, don't move focus (focusin would flatten them away before
+  // their click lands)
+  if (e.target.closest?.('.title .tag, .title .wikilink, .title .tlink')) { e.preventDefault(); return; }
   const t = e.target.closest?.('.title');
   if (t && t.contentEditable !== 'true') t.contentEditable = 'true';
 }, true);
 
 document.addEventListener('focusin', e => {
   const title = e.target.closest?.('.title');
-  if (title && title.querySelector('mark, .tag, .wikilink')) {
-    // editing a decorated title (search marks / tag chips): swap to plain text
-    const off = caretOffset(title);
+  if (title && title.firstElementChild) {
+    // editing a rendered title (formatting, chips, marks): swap to raw text,
+    // mapping the caret from rendered space to raw space (formatting hides
+    // its delimiters, so the two no longer line up — titleRawOffset knows)
+    const off = titleRawOffset(title, caretOffset(title));
     const id = idOfTitle(title);
     const n = id && store.getNode(id);
     if (n) { title.textContent = n.title; setCaret(title, off); }
@@ -4259,6 +4616,336 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 taglineReady = true;
+
+/* ===== 14 node menu =====
+   The per-item ≡ handle popover: heading format, bullet color, and one-click
+   actions. One shared panel (#node-menu), repositioned to whichever row
+   opened it. Never holds an element reference across a store mutation —
+   filtered rebuilds clear elMap — so it closes on any structural event. */
+
+const nodeMenuEl = $('#node-menu');
+let nmId = null;          // node the open menu acts on; null = closed
+let nmViaKeyboard = false;
+
+function nodeMenuOpen() { return nmId !== null; }
+
+function closeNodeMenu({ refocus = false } = {}) {
+  if (!nodeMenuOpen()) return;
+  const id = nmId;
+  nmId = null;
+  nodeMenuEl.hidden = true;
+  if (refocus && store.getNode(id)) focusNodeTitle(id, 'end');
+}
+
+function syncNodeMenu(n) {
+  for (const b of nodeMenuEl.querySelectorAll('.nm-fmt')) {
+    b.classList.toggle('active', (n.format || '') === b.dataset.format);
+  }
+  for (const b of nodeMenuEl.querySelectorAll('.nm-color')) {
+    b.classList.toggle('active', (n.color || '') === b.dataset.color);
+  }
+  $('#nm-complete').textContent = n.completed ? 'Un-complete' : 'Complete';
+  $('#nm-note').textContent = n.note ? 'Edit note' : 'Add note';
+}
+
+function openNodeMenu(id, { viaKeyboard = false } = {}) {
+  const n = store.getNode(id);
+  const el = nodeEl(id);
+  if (!n || !el) return;
+  if (nmId === id) { closeNodeMenu(); return; } // same handle again: toggle
+  nmId = id;
+  nmViaKeyboard = viaKeyboard;
+  syncNodeMenu(n);
+  // position: below the row's gutter, clamped to the viewport
+  const row = el.querySelector(':scope > .row');
+  const r = row.getBoundingClientRect();
+  nodeMenuEl.hidden = false;
+  const mw = nodeMenuEl.offsetWidth, mh = nodeMenuEl.offsetHeight;
+  nodeMenuEl.style.left = clamp(r.left - 18, 8, window.innerWidth - mw - 8) + 'px';
+  nodeMenuEl.style.top = clamp(
+    r.bottom + 2 + mh <= window.innerHeight - 8 ? r.bottom + 2 : r.top - mh - 2,
+    8, window.innerHeight - mh - 8) + 'px';
+  if (viaKeyboard) nodeMenuEl.querySelector('.nm-fmt').focus();
+}
+
+/* --- actions ---------------------------------------------------------- */
+/* Every handler re-reads the node: the id may have died since open (another
+   tab, an undo). Actions close the menu; the store-event guard below would
+   anyway, this just also covers non-emitting paths like openNoteEditor. */
+function nmNode() { return nmId !== null ? store.getNode(nmId) : null; }
+
+nodeMenuEl.addEventListener('click', e => {
+  e.stopPropagation();
+  const id = nmId;
+  const n = nmNode();
+  if (!n) { closeNodeMenu(); return; }
+  const fmt = e.target.closest('.nm-fmt');
+  if (fmt) { store.setFormat(id, fmt.dataset.format); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
+  const col = e.target.closest('.nm-color');
+  if (col) { store.setColor(id, col.dataset.color); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
+  switch (e.target.closest('button')?.id) {
+    case 'nm-complete':
+      store.toggleCompleted(id);
+      closeNodeMenu({ refocus: nmViaKeyboard });
+      break;
+    case 'nm-zoom':
+      closeNodeMenu();
+      location.hash = '#' + id;
+      break;
+    case 'nm-note':
+      closeNodeMenu();
+      openNoteEditor(id);
+      break;
+    case 'nm-duplicate': {
+      const copy = store.duplicate(id);
+      closeNodeMenu();
+      if (copy) {
+        keepInFilter(copy.id); // a copy made mid-search matches nothing yet
+        focusNodeTitle(copy.id, 'end');
+      }
+      break;
+    }
+    case 'nm-copy':
+      copySubtreeMarkdown(id);
+      closeNodeMenu({ refocus: nmViaKeyboard });
+      break;
+    case 'nm-delete': {
+      // land the caret on the previous visible row, like Ctrl+Shift+Backspace
+      const el = nodeEl(id);
+      const prevT = el && siblingTitle(el.querySelector(':scope > .row > .title'), -1);
+      const prevId = prevT && idOfTitle(prevT);
+      closeNodeMenu();
+      store.deleteSubtree(id);
+      if (prevId && store.getNode(prevId)) focusNodeTitle(prevId, 'end');
+      break;
+    }
+  }
+});
+
+/* --- open triggers ---------------------------------------------------- */
+treeEl.addEventListener('click', e => {
+  const h = e.target.closest('.handle');
+  if (!h) return;
+  e.stopPropagation();
+  const el = h.closest('.node');
+  if (el) openNodeMenu(el.dataset.id);
+});
+treeEl.addEventListener('contextmenu', e => {
+  const b = e.target.closest('.bullet, .handle');
+  if (!b) return;
+  e.preventDefault();
+  const el = b.closest('.node');
+  if (el) openNodeMenu(el.dataset.id);
+});
+
+/* --- close triggers --------------------------------------------------- */
+document.addEventListener('click', e => {
+  if (nodeMenuOpen() && !e.target.closest('#node-menu') && !e.target.closest('.handle')) closeNodeMenu();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && nodeMenuOpen()) {
+    e.preventDefault();
+    closeNodeMenu({ refocus: true });
+  }
+});
+window.addEventListener('blur', () => closeNodeMenu());
+// the panel is position:fixed; scrolling would leave it hanging mid-air
+window.addEventListener('scroll', () => closeNodeMenu(), { passive: true });
+/* any mutation can rebuild the tree (and, mid-search, clear elMap), so an
+   open menu's anchor row may no longer exist: close rather than drift */
+store.subscribe(ev => {
+  if (!nodeMenuOpen()) return;
+  if (ev.type === 'children' || ev.type === 'doc' || ev.type === 'collapse') closeNodeMenu();
+});
+
+/* ===== 15 inline-format toolbar =====
+   Floating bar over a text selection inside a title that is being edited
+   (titles are RAW text while edited, so every action here is plain string
+   surgery: wrap or unwrap delimiter pairs around the selected range). Edits
+   go through execCommand('insertText') so they ride the normal input →
+   store.setTitle pipeline; breakTyping() on both sides makes each action
+   its own undo step. Buttons preventDefault on mousedown so the title
+   keeps focus and the selection survives the click. */
+
+const fmtBarEl = $('#fmt-bar');
+let fmtBarFor = null; // the title element the bar is acting on; null = hidden
+
+/* --- selection plumbing ------------------------------------------------ */
+function fmtTitleTarget() {
+  const sel = window.getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) return null;
+  const r = sel.getRangeAt(0);
+  const start = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement;
+  const t = start && start.closest && start.closest('.title');
+  if (!t || !t.isContentEditable || !t.contains(r.endContainer)) return null;
+  return t;
+}
+function pointOffset(el, node, nodeOff) {
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  r.setEnd(node, nodeOff);
+  return r.toString().length;
+}
+function selRawRange(el) {
+  const sel = window.getSelection();
+  const r = sel.getRangeAt(0);
+  const a = pointOffset(el, r.startContainer, r.startOffset);
+  const b = pointOffset(el, r.endContainer, r.endOffset);
+  return [Math.min(a, b), Math.max(a, b)];
+}
+function setSelectionRange(el, a, b) {
+  const locate = offset => {
+    let remaining = clamp(offset, 0, el.textContent.length);
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    if (!node) return [el, 0];
+    for (;;) {
+      if (remaining <= node.length) return [node, remaining];
+      remaining -= node.length;
+      const next = walker.nextNode();
+      if (!next) return [node, node.length];
+      node = next;
+    }
+  };
+  const r = document.createRange();
+  const [sn, so] = locate(a);
+  const [en, eo] = locate(b);
+  r.setStart(sn, so);
+  r.setEnd(en, eo);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(r);
+}
+
+/* --- string surgery ---------------------------------------------------- */
+function fmtReplace(el, a, b, str, selA, selB) {
+  store.breakTyping();
+  setSelectionRange(el, a, b);
+  if (str) document.execCommand('insertText', false, str);
+  else document.execCommand('delete');
+  store.breakTyping();
+  setSelectionRange(el, selA, selB);
+}
+function fmtWrap(el, open, close) {
+  const t = el.textContent;
+  const [a, b] = selRawRange(el);
+  const inner = t.slice(a, b);
+  if (a === b) { // collapsed (shortcut path): open a pair, caret inside
+    fmtReplace(el, a, a, open + close, a + open.length, a + open.length);
+    return;
+  }
+  // selection includes the markers themselves → strip them
+  if (inner.length >= open.length + close.length && inner.startsWith(open) && inner.endsWith(close)) {
+    const mid = inner.slice(open.length, inner.length - close.length);
+    fmtReplace(el, a, b, mid, a, a + mid.length);
+    return;
+  }
+  // selection is exactly the marked text → strip the surrounding markers
+  if (t.slice(Math.max(0, a - open.length), a) === open && t.slice(b, b + close.length) === close) {
+    fmtReplace(el, a - open.length, b + close.length, inner, a - open.length, a - open.length + inner.length);
+    return;
+  }
+  fmtReplace(el, a, b, open + inner + close, a + open.length, a + open.length + inner.length);
+}
+function fmtShortcut(el, kind) {
+  if (kind === 'b') fmtWrap(el, '**', '**');
+  else if (kind === 'i') fmtWrap(el, '*', '*');
+  else if (kind === 'u') fmtWrap(el, '__', '__');
+}
+const COLOR_WRAP_RE = /^\{(bg:)?(red|orange|yellow|green|blue|purple)\|([\s\S]*)\}$/;
+const COLOR_OPEN_RE = /\{(bg:)?(red|orange|yellow|green|blue|purple)\|$/;
+function fmtColor(el, slot, bg) {
+  const t = el.textContent;
+  const [a, b] = selRawRange(el);
+  const inner = t.slice(a, b);
+  const open = '{' + (bg ? 'bg:' : '') + slot + '|';
+  // selection covers a whole span of this kind → retarget the slot, or strip
+  const wm = inner.match(COLOR_WRAP_RE);
+  if (wm && !!wm[1] === bg) {
+    const mid = wm[3];
+    const lead = slot ? open.length : 0;
+    fmtReplace(el, a, b, slot ? open + mid + '}' : mid, a + lead, a + lead + mid.length);
+    return;
+  }
+  // selection sits inside a span of this kind → retarget the slot, or strip
+  const pm = t.slice(0, a).match(COLOR_OPEN_RE);
+  if (pm && !!pm[1] === bg && t[b] === '}') {
+    const start = a - pm[0].length;
+    const lead = slot ? open.length : 0;
+    fmtReplace(el, start, b + 1, slot ? open + inner + '}' : inner, start + lead, start + lead + inner.length);
+    return;
+  }
+  if (slot && a !== b) fmtWrap(el, open, '}');
+}
+
+/* --- the bar itself ----------------------------------------------------- */
+function hideFmtBar() {
+  if (!fmtBarFor) return;
+  fmtBarFor = null;
+  fmtBarEl.hidden = true;
+}
+function fmtBarSync(titleEl) {
+  const id = idOfTitle(titleEl);
+  const n = id && store.getNode(id);
+  const fmt = (n && n.format) || '';
+  for (const btn of fmtBarEl.querySelectorAll('[data-hfmt]')) {
+    btn.classList.toggle('active', btn.dataset.hfmt === fmt);
+  }
+}
+function showFmtBar(titleEl) {
+  fmtBarFor = titleEl;
+  fmtBarSync(titleEl);
+  const rect = window.getSelection().getRangeAt(0).getBoundingClientRect();
+  fmtBarEl.hidden = false;
+  const w = fmtBarEl.offsetWidth, h = fmtBarEl.offsetHeight;
+  fmtBarEl.style.left = clamp(rect.left + rect.width / 2 - w / 2, 8, window.innerWidth - w - 8) + 'px';
+  fmtBarEl.style.top = clamp(
+    rect.top - h - 8 >= 8 ? rect.top - h - 8 : rect.bottom + 8,
+    8, window.innerHeight - h - 8) + 'px';
+}
+const fmtBarUpdate = debounce(() => {
+  const t = fmtTitleTarget();
+  if (t) showFmtBar(t); else hideFmtBar();
+}, 150);
+document.addEventListener('selectionchange', fmtBarUpdate);
+
+fmtBarEl.addEventListener('mousedown', e => e.preventDefault());
+fmtBarEl.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  const el = fmtBarFor;
+  if (!btn || !el || !el.isConnected) { hideFmtBar(); return; }
+  if (btn.dataset.fmt) {
+    switch (btn.dataset.fmt) {
+      case 'bold': fmtWrap(el, '**', '**'); break;
+      case 'italic': fmtWrap(el, '*', '*'); break;
+      case 'underline': fmtWrap(el, '__', '__'); break;
+      case 'code': fmtWrap(el, '`', '`'); break;
+      case 'link': {
+        const t = el.textContent;
+        const [a, b] = selRawRange(el);
+        const inner = t.slice(a, b);
+        // caret lands between the ( ) ready for the URL to be typed/pasted
+        const caret = a + 1 + inner.length + 2;
+        fmtReplace(el, a, b, '[' + inner + ']()', caret, caret);
+        break;
+      }
+    }
+  } else if ('hfmt' in btn.dataset) {
+    const id = idOfTitle(el);
+    if (id) store.setFormat(id, btn.dataset.hfmt); // updateRow leaves an editing title alone
+    fmtBarSync(el);
+  } else if ('tc' in btn.dataset) {
+    fmtColor(el, btn.dataset.tc, false);
+  } else if ('th' in btn.dataset) {
+    fmtColor(el, btn.dataset.th, true);
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') hideFmtBar();
+});
+window.addEventListener('scroll', () => hideFmtBar(), { passive: true });
+window.addEventListener('resize', () => hideFmtBar());
 
 })();
 </script>

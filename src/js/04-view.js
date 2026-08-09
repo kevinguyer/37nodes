@@ -154,44 +154,157 @@ function makeWikilink(inner) {
   return s;
 }
 
-/* title decorations: #tag chips (start-of-title or whitespace before the #,
-   so URLs like example.com/#anchor stay plain) and [[wikilinks]] */
-const DECOR_RE = /(^|\s)(#[\w-]+)|\[\[([^\[\]]+)\]\]/g;
-function decorFrag(text, activeTag) {
-  const frag = document.createDocumentFragment();
-  let last = 0;
-  DECOR_RE.lastIndex = 0;
-  for (let m; (m = DECOR_RE.exec(text)); ) {
-    if (m[2]) { // #tag
-      const start = m.index + m[1].length;
-      if (start > last) frag.append(document.createTextNode(text.slice(last, start)));
+/* --- title inline rendering ---------------------------------------------
+   Titles render an inline markdown-ish subset at rest — the note editors'
+   "edit raw, render on blur" philosophy (F17), applied to titles. Formatting
+   delimiters are HIDDEN in the rendered form, so rendered and raw offsets no
+   longer line up. Every rendered text node is therefore recorded in titleSegs
+   with the raw offset it starts at, and titleRawOffset() maps a rendered
+   caret point back to a raw one when the focusin flatten swaps the DOM to
+   raw text. Tags and [[wikilinks]] still render their text in full (F44).
+
+   Grammar (F56): `code`  [[wikilink]]  [text](https://url)  **bold**
+   __underline__  *italic*  _italic_  {red|colored}  {bg:red|highlighted}
+   #tag — earliest match wins, ties go to the order below; bold, underline,
+   italic, and color spans parse their contents recursively; code and link
+   text stay literal. Links accept http(s) only, by construction. */
+const titleSegs = new WeakMap(); // title el -> {segs:[{node, rawStart}], rawLen}
+
+const TITLE_PATTERNS = [
+  { re: /`([^`]+)`/, make(m, at, ctx) {
+      const c = document.createElement('code');
+      ctx.text(c, m[1], at + 1);
+      return c;
+    } },
+  // [[wikilink]] before [md](link): "[[x]]" must never parse as a bracket pair
+  { re: /\[\[([^\[\]]+)\]\]/, make(m, at, ctx) {
+      const a = makeWikilink(m[1]); // brackets stay visible (F44)
+      ctx.seg(a.firstChild, at);
+      return a;
+    } },
+  { re: /\[([^\[\]]+)\]\((https?:\/\/[^)\s]+)\)/, make(m, at, ctx) {
+      const a = document.createElement('a');
+      a.className = 'tlink';
+      a.href = m[2];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.title = m[2];
+      ctx.text(a, m[1], at + 1);
+      return a;
+    } },
+  { re: /\*\*([^*]+)\*\*/, make(m, at, ctx) {
+      const b = document.createElement('strong');
+      ctx.parse(b, m[1], at + 2);
+      return b;
+    } },
+  { re: /__([^_]+)__/, make(m, at, ctx) {
+      const u = document.createElement('u');
+      ctx.parse(u, m[1], at + 2);
+      return u;
+    } },
+  { re: /\*([^*]+)\*/, make(m, at, ctx) {
+      const em = document.createElement('em');
+      ctx.parse(em, m[1], at + 1);
+      return em;
+    } },
+  { re: /\b_([^_]+)_\b/, make(m, at, ctx) {
+      const em = document.createElement('em');
+      ctx.parse(em, m[1], at + 1);
+      return em;
+    } },
+  { re: /\{(bg:)?(red|orange|yellow|green|blue|purple)\|([^{}]*)\}/, make(m, at, ctx) {
       const s = document.createElement('span');
-      s.className = 'tag' + (activeTag && m[2].toLowerCase() === activeTag ? ' active' : '');
-      s.textContent = m[2];
-      s.title = 'Filter by ' + m[2];
-      frag.append(s);
-      last = start + m[2].length;
-    } else { // [[wikilink]]
-      if (m.index > last) frag.append(document.createTextNode(text.slice(last, m.index)));
-      frag.append(makeWikilink(m[3]));
-      last = m.index + m[0].length;
+      s.className = (m[1] ? 'th-' : 'tc-') + m[2];
+      ctx.parse(s, m[3], at + 1 + (m[1] ? 3 : 0) + m[2].length + 1);
+      return s;
+    } },
+  // #tag: start-of-title or whitespace before the #, so URLs stay plain
+  { re: /(^|\s)(#[\w-]+)/, isTag: true },
+];
+
+function titleParseInto(parent, text, rawBase, activeTag, S) {
+  const emitText = (container, str, at) => {
+    if (!str) return;
+    const tn = document.createTextNode(str);
+    S.segs.push({ node: tn, rawStart: at });
+    container.append(tn);
+  };
+  const ctx = {
+    text: emitText,
+    seg: (tn, at) => S.segs.push({ node: tn, rawStart: at }),
+    parse: (container, str, at) => titleParseInto(container, str, at, activeTag, S),
+  };
+  let rest = text, base = rawBase;
+  while (rest) {
+    let best = null, bestIdx = Infinity, bestPat = null;
+    for (const p of TITLE_PATTERNS) {
+      const m = rest.match(p.re);
+      if (m && m.index < bestIdx) {
+        best = m; bestIdx = m.index; bestPat = p;
+        if (bestIdx === 0) break; // earlier patterns already had their chance
+      }
     }
+    if (!best) { emitText(parent, rest, base); break; }
+    if (bestPat.isTag) {
+      const chipAt = bestIdx + best[1].length; // keep the leading space plain
+      emitText(parent, rest.slice(0, chipAt), base);
+      const s = document.createElement('span');
+      s.className = 'tag' + (activeTag && best[2].toLowerCase() === activeTag ? ' active' : '');
+      s.textContent = best[2];
+      s.title = 'Filter by ' + best[2];
+      ctx.seg(s.firstChild, base + chipAt);
+      parent.append(s);
+    } else {
+      emitText(parent, rest.slice(0, bestIdx), base);
+      parent.append(bestPat.make(best, base + bestIdx, ctx));
+    }
+    rest = rest.slice(bestIdx + best[0].length);
+    base += bestIdx + best[0].length;
   }
-  if (text.length > last) frag.append(document.createTextNode(text.slice(last)));
+}
+
+function titleFrag(el, text, activeTag) {
+  const S = { segs: [], rawLen: text.length };
+  const frag = document.createDocumentFragment();
+  titleParseInto(frag, text, 0, activeTag, S);
+  // plain single-run render: offsets are identical, skip the map
+  if (S.segs.length === 1 && S.segs[0].rawStart === 0 && S.segs[0].node.length === text.length) {
+    titleSegs.delete(el);
+  } else {
+    titleSegs.set(el, S);
+  }
   return frag; // empty text → empty frag, so the :empty placeholder still shows
 }
+
+/* rendered caret offset → raw text offset (identity when no map exists,
+   which covers plain titles and the raw-with-<mark>s search rendering) */
+function titleRawOffset(el, renderedOff) {
+  const S = titleSegs.get(el);
+  if (!S) return renderedOff;
+  let acc = 0;
+  for (const s of S.segs) {
+    const len = s.node.length;
+    if (renderedOff <= acc + len) return s.rawStart + (renderedOff - acc);
+    acc += len;
+  }
+  return S.rawLen;
+}
+
 function setTitleContent(el, n) {
   el.textContent = '';
   const f = view.filter;
   if (f && !f.tagQuery && f.matched.has(n.id) && (n.title || '').toLowerCase().includes(f.q)) {
-    el.append(highlightFrag(n.title, f.q)); // text search: marks win over chips
+    titleSegs.delete(el); // raw text + <mark>s: rendered offsets ARE raw offsets
+    el.append(highlightFrag(n.title, f.q)); // text search: marks win over formatting
   } else {
-    el.append(decorFrag(n.title || '', f && f.tagQuery ? f.q : null));
+    el.append(titleFrag(el, n.title || '', f && f.tagQuery ? f.q : null));
   }
 }
 function applyNodeState(el, n) {
   const hasKids = n.children.length > 0;
   const expanded = view.filter ? true : !n.collapsed;
+  if (n.format) el.dataset.format = n.format; else delete el.dataset.format;
+  if (n.color) el.dataset.color = n.color; else delete el.dataset.color;
   el.classList.toggle('completed', n.completed);
   el.classList.toggle('has-children', hasKids);
   el.classList.toggle('collapsed', hasKids && !expanded);
@@ -231,6 +344,14 @@ function renderNode(n, level) {
 
   const row = document.createElement('div');
   row.className = 'row';
+  // hover-revealed menu handle, hung in the left gutter (absolute, so rows
+  // never shift). It lives inside the .node's padding-left — see the
+  // .node margin/padding note in app.css for why it can't just overflow.
+  const handle = document.createElement('button');
+  handle.className = 'handle';
+  handle.tabIndex = -1;
+  handle.textContent = '≡';
+  handle.title = 'Item menu';
   const tg = document.createElement('button');
   tg.className = 'toggle';
   tg.tabIndex = -1;
@@ -252,7 +373,7 @@ function renderNode(n, level) {
   // (activateTitle) and disabled again on focusout.
   title.spellcheck = false;
   setTitleContent(title, n);
-  row.append(tg, bullet, title);
+  row.append(handle, tg, bullet, title);
   el.append(row);
 
   if (n.note) el.append(buildNoteContent(n));
@@ -415,9 +536,18 @@ function updateRow(id, isTypingEcho) {
   const n = store.getNode(id);
   if (!el || !n) return;
   const title = el.querySelector(':scope > .row > .title');
-  // during typing the DOM is the source of truth — don't clobber the caret;
-  // for programmatic edits (split, undo) the store wins even while focused
-  if (!(isTypingEcho && title === document.activeElement)) setTitleContent(title, n);
+  // While being edited the title is RAW text and the DOM is the source of
+  // truth: rebuild it only when the store text actually differs (programmatic
+  // edits like an Enter split — the store wins even while focused). A
+  // same-text 'node' event (completion, format, color) must not touch the
+  // DOM under the caret — rendering formatting into an editing title would
+  // hide delimiters, and the next input would store the delimiter-less text.
+  const titleEditing = title.isContentEditable && title === document.activeElement;
+  if (titleEditing) {
+    if (!isTypingEcho && title.textContent !== n.title) title.textContent = n.title;
+  } else {
+    setTitleContent(title, n);
+  }
   // note: rebuild rendered note unless its editor is focused
   let noteWrap = el.querySelector(':scope > .note');
   const editing = noteWrap && noteWrap.querySelector('.note-edit:focus');
