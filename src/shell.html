@@ -61,6 +61,7 @@
   </label>
   <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
   <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
+  <label class="menu-row menu-field" title="Show a side panel with what links to the current item, where it is mirrored, and when it was created and edited."><input type="checkbox" id="info-panel-toggle"> Info panel <kbd>Alt+I</kbd></label>
   <hr>
   <div class="menu-note" id="export-readout"></div>
   <button class="menu-row" id="export-json">Export JSON (full backup)</button>
@@ -79,6 +80,14 @@
   <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
   <div class="menu-note" id="build-readout">Build __BUILD__ &middot; __BUILT__</div>
 </div>
+
+<aside id="info-panel" aria-label="Item info" hidden>
+  <div id="ip-head">
+    <span id="ip-title"></span>
+    <button id="ip-close" title="Close (Alt+I)" aria-label="Close info panel">&#10005;</button>
+  </div>
+  <div id="ip-body"></div>
+</aside>
 
 <div id="node-menu" role="menu" aria-label="Item menu" hidden>
   <span class="nm-label">Heading</span>
@@ -188,6 +197,7 @@
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
     <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
     <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
+    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, where it&rsquo;s mirrored, when it changed</span>
     <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
     <span><kbd>?</kbd></span><span>This help</span>
   </div>

@@ -22,6 +22,7 @@
   --shadow:0 6px 28px rgba(0,0,0,.10);
   --tour-dim:rgba(12,13,16,.58);
   --page-max:700px;
+  --panel-w:290px;
   --motion:1;
   --glow:none;
   /* bullet palette: mid-tone slots chosen to read on light AND dark
@@ -470,6 +471,58 @@ button.menu-row:hover{background:var(--panel);}
   color:var(--fg); outline:none;
 }
 .days-field input:focus{border-color:var(--accent);}
+
+/* ============================================================
+   Info panel (backlinks, mirrors, metadata)
+   ============================================================ */
+/* The panel takes a strip of the window rather than floating over the text:
+   body padding shrinks the normal flow (topbar and page column re-centre
+   inside what's left). Fixed chrome is viewport-relative, so it has to be
+   pushed by hand. Below 1000px there isn't room to give away — the panel
+   becomes an overlay drawer instead. */
+body.panel-open{padding-right:var(--panel-w);}
+#info-panel[hidden]{display:none;} /* display:flex would beat the attribute */
+#info-panel{
+  position:fixed; top:0; right:0; bottom:0; width:var(--panel-w); z-index:60;
+  display:flex; flex-direction:column; overflow-y:auto;
+  background:var(--bg); border-left:1px solid var(--line);
+}
+#ip-head{
+  position:sticky; top:0; z-index:1;
+  display:flex; align-items:center; gap:8px;
+  padding:9px 12px; background:var(--bg); border-bottom:1px solid var(--line);
+}
+#ip-title{
+  flex:1; min-width:0; font-size:13.5px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#ip-close{color:var(--fg-faint); font-size:12px; padding:2px 5px; border-radius:var(--radius);}
+#ip-close:hover{background:var(--panel); color:var(--fg);}
+#ip-body{padding:8px 10px 24px;}
+.ip-label{font-size:11px; color:var(--fg-faint); margin:13px 2px 4px;}
+#ip-body > .ip-label:first-child{margin-top:2px;}
+.ip-hint{font-size:12px; color:var(--fg-faint); padding:2px 2px 4px; line-height:1.45;}
+.ip-row{display:block; width:100%; text-align:left; padding:5px 7px; border-radius:var(--radius);}
+.ip-row:hover{background:var(--panel);}
+.ip-row-main{
+  font-size:13px; color:var(--accent);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ip-row-sub{
+  font-size:11px; color:var(--fg-faint); margin-top:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ip-grid{display:grid; grid-template-columns:auto 1fr; gap:3px 10px; padding:2px 7px; font-size:12px;}
+.ip-k{color:var(--fg-dim);}
+.ip-v{text-align:right;}
+body.panel-open #banner{right:calc(16px + var(--panel-w));}
+body.panel-open #menu-panel{right:calc(14px + var(--panel-w));}
+@media (max-width:1000px){
+  body.panel-open{padding-right:0;}
+  #info-panel{box-shadow:var(--shadow);}
+  body.panel-open #banner{right:16px;}
+  body.panel-open #menu-panel{right:14px;}
+}
 
 /* ============================================================
    Inline-format toolbar (selection in an editing title)

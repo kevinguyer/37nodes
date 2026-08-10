@@ -68,6 +68,7 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `13-tagline.js` | Rotating top-bar tagline with cipher-decode reveal |
 | `14-nodemenu.js` | Per-item ≡ handle popover: heading format, bullet color, row actions |
 | `15-toolbar.js` | Floating format bar over a selection in an editing title; wrap/unwrap of inline syntax |
+| `16-panel.js` | Backlink index, right-hand info panel (backlinks/mirrors/metadata), rename-rewrite offer |
 
 `app.css` is CSS-variable driven: `:root` holds the token set, each
 `[data-theme=…]` block overrides it. `--motion:0` and `--glow` let a theme opt
@@ -169,6 +170,20 @@ coalesces into a burst until `breakTyping()`. Collapse state is deliberately
   `updateRow` deliberately leaves an actively-edited title's DOM alone on
   same-text `node` events — re-rendering formatting under the caret would
   make the next `input` store delimiter-less text (silent formatting loss).
+
+### Backlinks
+
+`16-panel.js` keeps a lazy `targetId → sources` index behind its own dirty
+flag, scanning titles **and** notes. It resolves every `[[…]]` through
+`resolveTitleLink` — the renderer's own resolver — deliberately: links match
+by title and duplicates resolve to the first in document order, so any other
+matching scheme would credit backlinks to an item the link doesn't point at.
+Mirrors own no text and never source a backlink; self-links don't count.
+
+Because links resolve by title, a rename breaks every inbound link (F44
+keeps that visible rather than silently retargeting). The rewrite offer
+therefore snapshots backlinks at `focusin` — by `focusout` the old title is
+gone from the store and those links no longer resolve to the renamed item.
 
 ### Search filter
 

@@ -777,13 +777,15 @@ const bannerActionEl = $('#banner-export');
 let bannerKind = null; // 'storage' | 'notice' | 'fsbackup' | 'multitab' | null (generic)
 let bannerActionFn = null; // custom action; null = default (export JSON)
 const bannerMutedKinds = new Set(); // kinds the user dismissed this session
-function showBanner(msg, { kind = null, action = null } = {}) {
+function showBanner(msg, { kind = null, action = null, tone = null } = {}) {
   if (kind && bannerMutedKinds.has(kind)) return;
   bannerMsgEl.textContent = msg;
   bannerKind = kind;
   bannerActionFn = action ? action.onClick : null;
   bannerActionEl.textContent = action ? action.label : 'Export now';
-  bannerEl.classList.toggle('notice', kind === 'notice');
+  // tone decides the accent; 'notice' is the calm one. A banner that isn't
+  // reporting a problem must not wear the danger stripe.
+  bannerEl.classList.toggle('notice', (tone || kind) === 'notice');
   bannerEl.hidden = false;
 }
 function hideBanner({ mute = false } = {}) {

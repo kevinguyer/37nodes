@@ -365,6 +365,8 @@ document.addEventListener('mousedown', e => {
 
 document.addEventListener('focusin', e => {
   const title = e.target.closest?.('.title');
+  // snapshot inbound links before the text changes (rename-rewrite offer)
+  if (title) renameWatchStart(title);
   if (title && title.firstElementChild) {
     // editing a rendered title (formatting, chips, marks): swap to raw text,
     // mapping the caret from rendered space to raw space (formatting hides
@@ -379,6 +381,7 @@ document.addEventListener('focusout', e => {
   const title = e.target.closest?.('.title');
   if (title) {
     store.breakTyping();
+    renameWatchEnd(title); // did this edit break links pointing here?
     if (title !== focusTitleEl) {
       title.contentEditable = 'false';
       // restore the rendered form (chips, marks, formatting) the flatten

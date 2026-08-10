@@ -32,6 +32,7 @@
   --shadow:0 6px 28px rgba(0,0,0,.10);
   --tour-dim:rgba(12,13,16,.58);
   --page-max:700px;
+  --panel-w:290px;
   --motion:1;
   --glow:none;
   /* bullet palette: mid-tone slots chosen to read on light AND dark
@@ -482,6 +483,58 @@ button.menu-row:hover{background:var(--panel);}
 .days-field input:focus{border-color:var(--accent);}
 
 /* ============================================================
+   Info panel (backlinks, mirrors, metadata)
+   ============================================================ */
+/* The panel takes a strip of the window rather than floating over the text:
+   body padding shrinks the normal flow (topbar and page column re-centre
+   inside what's left). Fixed chrome is viewport-relative, so it has to be
+   pushed by hand. Below 1000px there isn't room to give away — the panel
+   becomes an overlay drawer instead. */
+body.panel-open{padding-right:var(--panel-w);}
+#info-panel[hidden]{display:none;} /* display:flex would beat the attribute */
+#info-panel{
+  position:fixed; top:0; right:0; bottom:0; width:var(--panel-w); z-index:60;
+  display:flex; flex-direction:column; overflow-y:auto;
+  background:var(--bg); border-left:1px solid var(--line);
+}
+#ip-head{
+  position:sticky; top:0; z-index:1;
+  display:flex; align-items:center; gap:8px;
+  padding:9px 12px; background:var(--bg); border-bottom:1px solid var(--line);
+}
+#ip-title{
+  flex:1; min-width:0; font-size:13.5px; font-weight:600;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#ip-close{color:var(--fg-faint); font-size:12px; padding:2px 5px; border-radius:var(--radius);}
+#ip-close:hover{background:var(--panel); color:var(--fg);}
+#ip-body{padding:8px 10px 24px;}
+.ip-label{font-size:11px; color:var(--fg-faint); margin:13px 2px 4px;}
+#ip-body > .ip-label:first-child{margin-top:2px;}
+.ip-hint{font-size:12px; color:var(--fg-faint); padding:2px 2px 4px; line-height:1.45;}
+.ip-row{display:block; width:100%; text-align:left; padding:5px 7px; border-radius:var(--radius);}
+.ip-row:hover{background:var(--panel);}
+.ip-row-main{
+  font-size:13px; color:var(--accent);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ip-row-sub{
+  font-size:11px; color:var(--fg-faint); margin-top:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ip-grid{display:grid; grid-template-columns:auto 1fr; gap:3px 10px; padding:2px 7px; font-size:12px;}
+.ip-k{color:var(--fg-dim);}
+.ip-v{text-align:right;}
+body.panel-open #banner{right:calc(16px + var(--panel-w));}
+body.panel-open #menu-panel{right:calc(14px + var(--panel-w));}
+@media (max-width:1000px){
+  body.panel-open{padding-right:0;}
+  #info-panel{box-shadow:var(--shadow);}
+  body.panel-open #banner{right:16px;}
+  body.panel-open #menu-panel{right:14px;}
+}
+
+/* ============================================================
    Inline-format toolbar (selection in an editing title)
    ============================================================ */
 #fmt-bar{
@@ -762,6 +815,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   </label>
   <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
   <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
+  <label class="menu-row menu-field" title="Show a side panel with what links to the current item, where it is mirrored, and when it was created and edited."><input type="checkbox" id="info-panel-toggle"> Info panel <kbd>Alt+I</kbd></label>
   <hr>
   <div class="menu-note" id="export-readout"></div>
   <button class="menu-row" id="export-json">Export JSON (full backup)</button>
@@ -778,8 +832,16 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <hr>
   <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
   <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
-  <div class="menu-note" id="build-readout">Build 25 &middot; 2026-08-09</div>
+  <div class="menu-note" id="build-readout">Build 28 &middot; 2026-08-09</div>
 </div>
+
+<aside id="info-panel" aria-label="Item info" hidden>
+  <div id="ip-head">
+    <span id="ip-title"></span>
+    <button id="ip-close" title="Close (Alt+I)" aria-label="Close info panel">&#10005;</button>
+  </div>
+  <div id="ip-body"></div>
+</aside>
 
 <div id="node-menu" role="menu" aria-label="Item menu" hidden>
   <span class="nm-label">Heading</span>
@@ -889,6 +951,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
     <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
     <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
+    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, where it&rsquo;s mirrored, when it changed</span>
     <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
     <span><kbd>?</kbd></span><span>This help</span>
   </div>
@@ -2782,13 +2845,15 @@ const bannerActionEl = $('#banner-export');
 let bannerKind = null; // 'storage' | 'notice' | 'fsbackup' | 'multitab' | null (generic)
 let bannerActionFn = null; // custom action; null = default (export JSON)
 const bannerMutedKinds = new Set(); // kinds the user dismissed this session
-function showBanner(msg, { kind = null, action = null } = {}) {
+function showBanner(msg, { kind = null, action = null, tone = null } = {}) {
   if (kind && bannerMutedKinds.has(kind)) return;
   bannerMsgEl.textContent = msg;
   bannerKind = kind;
   bannerActionFn = action ? action.onClick : null;
   bannerActionEl.textContent = action ? action.label : 'Export now';
-  bannerEl.classList.toggle('notice', kind === 'notice');
+  // tone decides the accent; 'notice' is the calm one. A banner that isn't
+  // reporting a problem must not wear the danger stripe.
+  bannerEl.classList.toggle('notice', (tone || kind) === 'notice');
   bannerEl.hidden = false;
 }
 function hideBanner({ mute = false } = {}) {
@@ -3288,6 +3353,8 @@ document.addEventListener('mousedown', e => {
 
 document.addEventListener('focusin', e => {
   const title = e.target.closest?.('.title');
+  // snapshot inbound links before the text changes (rename-rewrite offer)
+  if (title) renameWatchStart(title);
   if (title && title.firstElementChild) {
     // editing a rendered title (formatting, chips, marks): swap to raw text,
     // mapping the caret from rendered space to raw space (formatting hides
@@ -3302,6 +3369,7 @@ document.addEventListener('focusout', e => {
   const title = e.target.closest?.('.title');
   if (title) {
     store.breakTyping();
+    renameWatchEnd(title); // did this edit break links pointing here?
     if (title !== focusTitleEl) {
       title.contentEditable = 'false';
       // restore the rendered form (chips, marks, formatting) the flatten
@@ -5335,6 +5403,301 @@ document.addEventListener('keydown', e => {
 });
 window.addEventListener('scroll', () => hideFmtBar(), { passive: true });
 window.addEventListener('resize', () => hideFmtBar());
+
+/* ===== 16 info panel =====
+   Backlink index + the right-hand info panel, and the rename-rewrite offer
+   that rides on top of them.
+
+   Backlinks are derived, never stored: links resolve by TITLE (F44), and a
+   duplicate title resolves to the first item in document order. So the index
+   must resolve every `[[…]]` through resolveTitleLink — the same function the
+   renderer uses — or the panel would list a backlink on an item the link
+   doesn't actually point at. Sources are titles AND notes; a mirror has no
+   text of its own, so it never sources one. */
+
+const BL_RE = /\[\[([^\[\]]+)\]\]/g;
+let blDirty = true;
+let blIndex = null; // targetId -> [{id, inTitle, inNote}]
+
+function scanLinks(text, fn) {
+  if (!text) return;
+  BL_RE.lastIndex = 0;
+  for (let m; (m = BL_RE.exec(text)); ) fn(m[1]);
+}
+function blMark(map, targetId, sourceId, where) {
+  let arr = map.get(targetId);
+  if (!arr) map.set(targetId, arr = []);
+  let e = arr.find(x => x.id === sourceId); // few sources per target: linear is fine
+  if (!e) arr.push(e = { id: sourceId, inTitle: false, inNote: false });
+  e[where] = true;
+}
+function backlinkIndex() {
+  if (blIndex && !blDirty) return blIndex;
+  const map = new Map();
+  (function walk(n) {
+    for (const c of n.children) {
+      if (!c.mirrorOf) { // a mirror shows its target's text; it owns none
+        scanLinks(c.title, t => {
+          const id = resolveTitleLink(t);
+          if (id && id !== c.id) blMark(map, id, c.id, 'inTitle'); // self-links aren't backlinks
+        });
+        scanLinks(c.note, t => {
+          const id = resolveTitleLink(t);
+          if (id && id !== c.id) blMark(map, id, c.id, 'inNote');
+        });
+      }
+      walk(c);
+    }
+  })(store.doc.root);
+  blIndex = map;
+  blDirty = false;
+  return blIndex;
+}
+function backlinksOf(id) { return backlinkIndex().get(id) || []; }
+function linksOutOf(n) {
+  if (!n || n.mirrorOf) return 0;
+  const seen = new Set();
+  const take = t => { const id = resolveTitleLink(t); if (id) seen.add(id); };
+  scanLinks(n.title, take);
+  scanLinks(n.note, take);
+  return seen.size;
+}
+
+/* --- panel ------------------------------------------------------------- */
+const ipEl = $('#info-panel');
+const ipTitleEl = $('#ip-title');
+const ipBodyEl = $('#ip-body');
+const ipToggleEl = $('#info-panel-toggle');
+let ipActiveId = null; // the item the caret last visited (content id)
+
+function panelOpen() { return !!prefs.infoPanel; }
+function setPanelOpen(on) {
+  prefs.infoPanel = !!on;
+  savePrefs();
+  document.body.classList.toggle('panel-open', prefs.infoPanel);
+  ipEl.hidden = !prefs.infoPanel;
+  ipToggleEl.checked = prefs.infoPanel;
+  if (prefs.infoPanel) renderInfoPanel();
+}
+
+function pathOf(id) {
+  const chain = store.ancestorsOf(id).slice(1); // drop the hidden root
+  if (!chain.length) return 'Top level';
+  return chain.map(a => truncate(a.title, 24) || 'Untitled').join(' › ');
+}
+function ipLabel(text) {
+  const el = document.createElement('div');
+  el.className = 'ip-label';
+  el.textContent = text;
+  return el;
+}
+function ipHint(text) {
+  const el = document.createElement('div');
+  el.className = 'ip-hint';
+  el.textContent = text;
+  return el;
+}
+function ipRow(main, sub, onClick) {
+  const b = document.createElement('button');
+  b.className = 'ip-row';
+  const m = document.createElement('div');
+  m.className = 'ip-row-main';
+  m.textContent = main;
+  b.append(m);
+  if (sub) {
+    const s = document.createElement('div');
+    s.className = 'ip-row-sub';
+    s.textContent = sub;
+    b.append(s);
+  }
+  b.addEventListener('click', onClick);
+  return b;
+}
+function ipDetail(grid, label, value) {
+  const k = document.createElement('span');
+  k.className = 'ip-k';
+  k.textContent = label;
+  const v = document.createElement('span');
+  v.className = 'ip-v';
+  v.textContent = value;
+  grid.append(k, v);
+}
+
+/* land on an item without zooming into it: reveal it where it lives, and
+   only change the zoom when it sits outside the current scope */
+function jumpToNode(id) {
+  if (!store.getNode(id)) return;
+  clearSearch(false);
+  const inScope = id !== view.focusId && store.isDescendant(id, view.focusId);
+  if (!inScope) {
+    location.hash = '';
+    applyFocusFromHash(); // sync render; the later hashchange event no-ops
+  }
+  revealNode(id);
+  // point the panel at the destination outright: focusNodeTitle may not move
+  // focus at all (the row can already hold it), and no focusin would follow
+  ipActiveId = id;
+  focusNodeTitle(id, 'end');
+  renderInfoPanel();
+}
+
+function renderInfoPanel() {
+  if (!panelOpen()) return;
+  const id = (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
+  const n = store.getNode(id);
+  ipBodyEl.textContent = '';
+  if (!n || id === ROOT_ID) {
+    ipTitleEl.textContent = 'No item selected';
+    ipBodyEl.append(ipHint('Click an item to see what links to it.'));
+    return;
+  }
+  ipTitleEl.textContent = truncate(n.title, 60) || 'Untitled';
+  ipTitleEl.title = n.title || 'Untitled';
+
+  // --- linked from ---
+  const back = backlinksOf(id);
+  ipBodyEl.append(ipLabel(back.length
+    ? `Linked from ${back.length} item${back.length === 1 ? '' : 's'}`
+    : 'Linked from'));
+  if (!back.length) {
+    ipBodyEl.append(ipHint('Nothing links here yet. Type [[ in any item to link to this one.'));
+  } else {
+    for (const s of back) {
+      const src = store.getNode(s.id);
+      if (!src) continue;
+      const where = s.inNote && !s.inTitle ? 'in a note · ' : '';
+      ipBodyEl.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
+        () => jumpToNode(s.id)));
+    }
+  }
+
+  // --- mirrors ---
+  const mirrors = store.mirrorsOf(id);
+  if (mirrors.length) {
+    ipBodyEl.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
+    for (const m of mirrors) {
+      ipBodyEl.append(ipRow('⧉ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
+    }
+  }
+
+  // --- details ---
+  ipBodyEl.append(ipLabel('Details'));
+  const grid = document.createElement('div');
+  grid.className = 'ip-grid';
+  const created = new Date(n.createdAt);
+  ipDetail(grid, 'Created', isFinite(created.getTime())
+    ? created.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    : 'unknown');
+  ipDetail(grid, 'Edited', n.updatedAt ? formatAgo(n.updatedAt) : 'unknown');
+  ipDetail(grid, 'Items inside', String(store.countNodes(n) - 1));
+  ipDetail(grid, 'Links out', String(linksOutOf(n)));
+  ipBodyEl.append(grid);
+}
+const ipRefresh = debounce(renderInfoPanel, 120);
+
+/* --- what the panel follows: the caret ---------------------------------- */
+document.addEventListener('focusin', e => {
+  const t = e.target.closest?.('.title');
+  const ta = !t && e.target.closest?.('.note-edit');
+  let id = null;
+  if (t) id = contentIdOfTitle(t);
+  else if (ta) {
+    const host = ta.closest('.node');
+    id = ta.parentElement === focusNoteEl
+      ? view.focusId
+      : host && (host.dataset.mirror || host.dataset.id);
+  }
+  if (id && id !== ipActiveId) { ipActiveId = id; ipRefresh(); }
+});
+window.addEventListener('hashchange', () => {
+  // zooming somewhere else is a change of subject: drop a tracked item that
+  // the new scope no longer contains, so the panel falls back to the zoom
+  // target. (Runs after 09's applyFocusFromHash, so view.focusId is current.)
+  if (ipActiveId && ipActiveId !== view.focusId && !store.isDescendant(ipActiveId, view.focusId)) {
+    ipActiveId = null;
+  }
+  ipRefresh();
+});
+store.subscribe(ev => {
+  if (ev.type === 'node' || ev.type === 'children' || ev.type === 'doc') {
+    blDirty = true;
+    ipRefresh();
+  }
+});
+
+/* --- rename → offer to rewrite inbound links ---------------------------- */
+/* Links resolve by title, so renaming an item breaks every link into it
+   (F44 keeps that visible rather than silently retargeting). The backlinks
+   are snapshotted when editing STARTS — by the time the edit ends the old
+   title is gone from the store and those links no longer resolve here. */
+let renameWatch = null;
+
+function renameWatchStart(titleEl) {
+  renameWatch = null;
+  const id = contentIdOfTitle(titleEl);
+  const n = id && store.getNode(id);
+  if (!n || !n.title.trim()) return; // an untitled item can't have been linked to
+  const sources = backlinksOf(id);
+  if (!sources.length) return;
+  renameWatch = { id, before: n.title, sources: sources.map(s => ({ ...s })) };
+}
+function replaceLinkText(text, from, to) {
+  const key = from.trim().toLowerCase();
+  return String(text).replace(BL_RE, (m, inner) =>
+    inner.trim().toLowerCase() === key ? '[[' + to + ']]' : m);
+}
+function renameWatchEnd(titleEl) {
+  const w = renameWatch;
+  renameWatch = null;
+  if (!w || contentIdOfTitle(titleEl) !== w.id) return;
+  const n = store.getNode(w.id);
+  if (!n || n.title === w.before) return;
+  // a title that is empty or carries brackets can't sit inside [[ ]] at all
+  if (!n.title.trim() || /[[\]]/.test(n.title)) return;
+  const live = w.sources.filter(s => store.getNode(s.id));
+  if (!live.length) return;
+  offerRenameRewrite(w.before, n.title, live);
+}
+function offerRenameRewrite(from, to, sources) {
+  const count = sources.length;
+  bannerMutedKinds.delete('rename-links'); // every rename gets its own offer
+  showBanner(
+    `${count} item${count === 1 ? '' : 's'} still link${count === 1 ? 's' : ''} to “${truncate(from, 40)}”. Update ${count === 1 ? 'it' : 'them'} to “${truncate(to, 40)}”?`,
+    {
+      kind: 'rename-links',
+      tone: 'notice',
+      action: {
+        label: 'Update links',
+        onClick: () => {
+          store.group(() => {
+            for (const s of sources) {
+              const src = store.getNode(s.id);
+              if (!src) continue;
+              if (s.inTitle) store.setTitle(s.id, replaceLinkText(src.title, from, to));
+              if (s.inNote) store.setNote(s.id, replaceLinkText(src.note, from, to));
+            }
+          });
+          hideBanner();
+        },
+      },
+    });
+}
+
+/* --- wiring -------------------------------------------------------------- */
+ipToggleEl.addEventListener('change', () => setPanelOpen(ipToggleEl.checked));
+$('#ip-close').addEventListener('click', () => setPanelOpen(false));
+document.addEventListener('keydown', e => {
+  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
+    e.preventDefault();
+    setPanelOpen(!panelOpen());
+  }
+});
+
+// state lands before boot's first render, so the column never jumps
+document.body.classList.toggle('panel-open', panelOpen());
+ipEl.hidden = !panelOpen();
+ipToggleEl.checked = panelOpen();
+bootReady.then(renderInfoPanel);
 
 })();
 </script>
