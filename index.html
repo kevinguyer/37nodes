@@ -832,7 +832,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <hr>
   <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
   <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
-  <div class="menu-note" id="build-readout">Build 28 &middot; 2026-08-09</div>
+  <div class="menu-note" id="build-readout">Build 29 &middot; 2026-08-09</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -5687,7 +5687,10 @@ function offerRenameRewrite(from, to, sources) {
 ipToggleEl.addEventListener('change', () => setPanelOpen(ipToggleEl.checked));
 $('#ip-close').addEventListener('click', () => setPanelOpen(false));
 document.addEventListener('keydown', e => {
-  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // Alt+letter reports differently across keyboard layouts (some send a dead
+  // key or an accented character as e.key), so match the physical key too
+  if (e.code === 'KeyI' || e.key === 'i' || e.key === 'I') {
     e.preventDefault();
     setPanelOpen(!panelOpen());
   }

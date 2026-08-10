@@ -281,7 +281,10 @@ function offerRenameRewrite(from, to, sources) {
 ipToggleEl.addEventListener('change', () => setPanelOpen(ipToggleEl.checked));
 $('#ip-close').addEventListener('click', () => setPanelOpen(false));
 document.addEventListener('keydown', e => {
-  if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'i' || e.key === 'I')) {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // Alt+letter reports differently across keyboard layouts (some send a dead
+  // key or an accented character as e.key), so match the physical key too
+  if (e.code === 'KeyI' || e.key === 'i' || e.key === 'I') {
     e.preventDefault();
     setPanelOpen(!panelOpen());
   }
