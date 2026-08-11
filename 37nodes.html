@@ -983,7 +983,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 41 &middot; 2026-08-11</div>
+  <div class="menu-note" id="build-readout">Build 43 &middot; 2026-08-11</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -6191,13 +6191,29 @@ function renameWatchEnd(titleEl) {
   if (!n.title.trim() || /[[\]]/.test(n.title)) return;
   const live = w.sources.filter(s => store.getNode(s.id));
   if (!live.length) return;
-  offerRenameRewrite(w.before, n.title, live);
+  offerRenameRewrite(w.before, n.title, live, w.id);
 }
-function offerRenameRewrite(from, to, sources) {
+/* Declining is only "the links break" while the old title is now unused.
+   With a duplicate in the document the index simply resolves that title to
+   the OTHER item, so the links quietly land somewhere new — the one case
+   where F44's promise (rename breaks links visibly rather than silently
+   retargeting them) does not hold on its own. Name the item they would move
+   to, by PATH: naming it by title would just repeat the title they share. */
+function renameTwin(oldTitle, renamedId) {
+  const id = resolveTitleLink(oldTitle);
+  // a case- or whitespace-only rename still resolves to the item itself
+  return id && id !== renamedId ? id : null;
+}
+function offerRenameRewrite(from, to, sources, renamedId) {
   const count = sources.length;
+  const one = count === 1;
+  const twinId = renameTwin(from, renamedId);
+  let msg = `${count} item${one ? '' : 's'} still link${one ? 's' : ''} to “${truncate(from, 40)}”. Update ${one ? 'it' : 'them'} to “${truncate(to, 40)}”?`;
+  if (twinId) {
+    msg += ` Another item is also called “${truncate(from, 40)}” (${pathOf(twinId)}) — left alone, ${one ? 'that link now points' : 'those links now point'} there instead.`;
+  }
   bannerMutedKinds.delete('rename-links'); // every rename gets its own offer
-  showBanner(
-    `${count} item${count === 1 ? '' : 's'} still link${count === 1 ? 's' : ''} to “${truncate(from, 40)}”. Update ${count === 1 ? 'it' : 'them'} to “${truncate(to, 40)}”?`,
+  showBanner(msg,
     {
       kind: 'rename-links',
       tone: 'notice',
