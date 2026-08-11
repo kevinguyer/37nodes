@@ -1,17 +1,20 @@
-/* ===== 11 [[link]] and ((mirror)) autocomplete =====
+/* ===== 11 [[link]], ((mirror)) and #tag autocomplete =====
    Obsidian-style suggester. Typing the second '[' closes the pair and opens a
    list of item titles filtered as you type; Enter/Tab completes it. Links
    resolve by title (F44), so completing one is a pure text insertion — there is
    no id to keep in sync afterwards. Works in titles (contenteditable) and in
    note editors (textarea).
    '((' (titles only, childless items) runs the same picker in mirror mode:
-   accepting converts the item into a live mirror of the picked one (F58). */
+   accepting converts the item into a live mirror of the picked one (F58).
+   '#' at a word boundary runs it over the document's tag vocabulary (F65) —
+   the one mode that stays silent when nothing matches, because a '#' is
+   ordinary punctuation and most of them are not the start of a tag. */
 
 const AC_MAX = 8;
 const acPopEl = $('#link-auto');
 let acEl = null;    // element being edited while the popup is open
-let acStart = -1;   // text index just after the opening '[[' / '(('
-let acKind = 'link'; // 'link' | 'mirror'
+let acStart = -1;   // text index just after the opening '[[' / '((' / '#'
+let acKind = 'link'; // 'link' | 'mirror' | 'tag'
 let acItems = [];   // candidate snapshot, taken when a link region is entered
 let acShown = [];   // rows currently rendered
 let acSel = 0;
@@ -28,11 +31,7 @@ function acEditable(node) {
   return (node.classList.contains('title') || node.classList.contains('note-edit')) ? node : null;
 }
 function acOwnerId(el) { // CONTENT id: text written here lands on a mirror's target
-  if (!acIsTextarea(el)) return contentIdOfTitle(el);
-  const host = el.closest('.node');
-  return el.parentElement === focusNoteEl
-    ? view.focusId
-    : (host && (host.dataset.mirror || host.dataset.id)) || null;
+  return acIsTextarea(el) ? contentIdOfNoteEditor(el) : contentIdOfTitle(el);
 }
 function acStructuralId(el) { // the row's own node: what '((' would convert
   if (acIsTextarea(el)) return null;
@@ -54,11 +53,16 @@ function acWrite(el, text, caret, atomic) {
   if (atomic) store.group(put); else put(); // atomic: completion is one undo step
 }
 
-/* --- the link/mirror region under the caret --- */
+/* --- the region under the caret --- */
+/* A pair opener wins over a '#' whenever it is still live, so typing
+   `[[Sprint #3` keeps offering titles instead of switching to tags mid-link;
+   the tag probe only gets a look once the pair region has ended. */
 function acProbe(el) {
   if (!acCollapsed(el)) return null;
-  const caret = acCaret(el);
-  const before = acText(el).slice(0, caret);
+  const before = acText(el).slice(0, acCaret(el));
+  return acProbePair(el, before) || acProbeTag(el, before);
+}
+function acProbePair(el, before) {
   const openL = before.lastIndexOf('[[');
   // mirrors are node surgery, not text: titles only, never the focus header
   const openM = (!acIsTextarea(el) && el !== focusTitleEl) ? before.lastIndexOf('((') : -1;
@@ -75,6 +79,16 @@ function acProbe(el) {
     if (!n || n.mirrorOf || n.children.length) return null;
   }
   return { start: open + 2, kind, query };
+}
+function acProbeTag(el, before) {
+  const open = before.lastIndexOf('#');
+  if (open < 0) return null;
+  // a tag only starts at a word boundary — the same rule the renderer chips
+  // by (F43) — so a URL fragment or a "no.#3" never opens the list
+  if (open > 0 && !/\s/.test(before[open - 1])) return null;
+  const query = before.slice(open + 1);
+  if (!/^[\w-]*$/.test(query)) return null; // anything else ended the tag
+  return { start: open + 1, kind: 'tag', query };
 }
 
 /* Candidates, deduped the way resolveTitleLink resolves: first in document
@@ -117,6 +131,16 @@ function acMirrorIndex(selfId) {
   return items;
 }
 
+/* tag candidates: the whole document's vocabulary, not the zoom scope's — a
+   tag is worth reusing wherever it was coined. Most-used first, because with
+   nothing typed the question is "which tags do I have", not "which are new". */
+function acTagItems() {
+  return tagsByUse(ROOT_ID).map(t => ({
+    id: t.tag, title: t.tag,
+    path: t.count + ' item' + (t.count === 1 ? '' : 's'),
+  }));
+}
+
 function acHint(text) {
   const el = document.createElement('div');
   el.className = 'pal-hint';
@@ -129,8 +153,9 @@ function acRender(query) {
   acSel = 0;
   const q = query.trim().toLowerCase();
   if (!q) {
-    acShown = acItems.slice()
-      .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+    acShown = (acKind === 'tag'
+      ? acItems.slice() // already ordered by use
+      : acItems.slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')))
       .slice(0, AC_MAX)
       .map(it => ({ ...it, spans: [] }));
   } else {
@@ -143,6 +168,8 @@ function acRender(query) {
     acShown = scored.slice(0, AC_MAX);
   }
   if (!acShown.length) {
+    // a '#' is ordinary punctuation: say nothing and let acUpdate close
+    if (acKind === 'tag') return;
     if (acKind === 'mirror') {
       acHint(q ? 'No matching item to mirror — Esc keeps the text as typed.'
                : 'Pick an item to mirror here: it will appear as a live copy.');
@@ -249,9 +276,10 @@ function acPlace(el) {
 
 /* --- open / refresh / close --- */
 function acClose() {
-  if (acPopEl.hidden) return;
-  acPopEl.hidden = true;
-  acPopEl.textContent = '';
+  if (!acPopEl.hidden) {
+    acPopEl.hidden = true;
+    acPopEl.textContent = '';
+  }
   acEl = null;
   acStart = -1;
   acShown = [];
@@ -264,14 +292,15 @@ function acUpdate() {
   if (!probe) { acClose(); return; }
   // entering a different region: take a fresh candidate snapshot
   if (el !== acEl || probe.start !== acStart || probe.kind !== acKind) {
-    acItems = probe.kind === 'mirror'
-      ? acMirrorIndex(acStructuralId(el))
+    acItems = probe.kind === 'mirror' ? acMirrorIndex(acStructuralId(el))
+      : probe.kind === 'tag' ? acTagItems()
       : acIndex(acOwnerId(el));
   }
   acEl = el;
   acStart = probe.start;
   acKind = probe.kind;
   acRender(probe.query);
+  if (probe.kind === 'tag' && !acShown.length) { acClose(); return; }
   acPlace(el);
 }
 function acAccept(i) {
@@ -283,6 +312,19 @@ function acAccept(i) {
     const id = acStructuralId(acEl);
     acClose();
     if (id && store.setMirror(id, r.id)) focusNodeTitle(id, 'end');
+    return;
+  }
+  if (acKind === 'tag') {
+    // the '#' is already typed; only the name goes in. A trailing space ends
+    // the tag so the next word can't grow it — unless one is already there.
+    const el = acEl, start = acStart;
+    const text = acText(el), caret = acCaret(el);
+    const name = r.title.slice(1);
+    const after = text.slice(caret);
+    const pad = /^\s/.test(after) ? '' : ' ';
+    acClose();
+    el.focus();
+    acWrite(el, text.slice(0, start) + name + pad + after, start + name.length + pad.length, true);
     return;
   }
   const el = acEl, start = acStart;

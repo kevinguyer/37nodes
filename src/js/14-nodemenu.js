@@ -26,6 +26,7 @@ function syncNodeMenu(n) {
   for (const b of nodeMenuEl.querySelectorAll('.nm-color')) {
     b.classList.toggle('active', (c.color || '') === b.dataset.color);
   }
+  $('#nm-star').textContent = c.starred ? 'Unstar this item' : 'Star this item';
   $('#nm-complete').textContent = c.completed ? 'Un-complete' : 'Complete';
   $('#nm-note').textContent = c.note ? 'Edit note' : 'Add note';
   $('#nm-mirror').textContent = n.mirrorOf ? 'Mirror the original again' : 'Mirror this item';
@@ -71,6 +72,10 @@ nodeMenuEl.addEventListener('click', e => {
   const col = e.target.closest('.nm-color');
   if (col) { store.setColor(cid, col.dataset.color); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
   switch (e.target.closest('button')?.id) {
+    case 'nm-star':
+      store.toggleStarred(cid);
+      closeNodeMenu({ refocus: nmViaKeyboard });
+      break;
     case 'nm-complete':
       store.toggleCompleted(cid);
       closeNodeMenu({ refocus: nmViaKeyboard });

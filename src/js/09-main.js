@@ -92,11 +92,35 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !menuPanelEl.hidden) closeMenu();
 });
+
+/* --- menu groups ---
+   View / Data / Help, each remembering whether it is open (same bargain the
+   info panel's sections strike). A fresh profile opens View — the group with
+   the settings someone actually browses — and leaves the other two shut, so
+   the menu opens short enough to fit a laptop even before it scrolls. */
+function setMenuSection(sec, open) {
+  sec.classList.toggle('open', open);
+  sec.querySelector('.menu-sec-head').setAttribute('aria-expanded', String(open));
+}
+for (const sec of $$('.menu-sec', menuPanelEl)) {
+  const key = sec.dataset.sec;
+  const saved = prefs.menuSections;
+  setMenuSection(sec, saved && key in saved ? !!saved[key] : key === 'view');
+  sec.querySelector('.menu-sec-head').addEventListener('click', () => {
+    const open = !sec.classList.contains('open');
+    setMenuSection(sec, open);
+    if (!prefs.menuSections) prefs.menuSections = {};
+    prefs.menuSections[key] = open;
+    savePrefs();
+  });
+}
 $('#export-json').addEventListener('click', () => { exportJSON(); closeMenu(); });
 $('#export-md-view').addEventListener('click', () => { exportMarkdown(view.focusId); closeMenu(); });
 $('#export-md-all').addEventListener('click', () => { exportMarkdown(ROOT_ID); closeMenu(); });
 $('#show-help').addEventListener('click', () => { closeMenu(); $('#help-dialog').showModal(); });
 $('#help-close').addEventListener('click', () => $('#help-dialog').close());
+// the shortcut list is long enough that its close button can be a scroll away
+closeOnBackdropClick($('#help-dialog'));
 $('#menu-panel').addEventListener('click', e => e.stopPropagation());
 
 /* --- banner buttons --- */

@@ -39,6 +39,18 @@ See [PRD.md](PRD.md) for the full product requirements.
 - **Link autocomplete**: typing `[[` closes the brackets for you and opens a
   fuzzy-matched list of item titles at the caret — `Enter`/`Tab` inserts the
   exact title, so links land right instead of being retyped from memory
+- **Tag autocomplete**: typing `#` offers the tags you already use, most-used
+  first, so a vocabulary stays a vocabulary instead of drifting into `#todo`,
+  `#todos` and `#to-do`. No match, no popup — a `#` is usually just a `#`
+- **Info panel** (the ◨ button in the top bar, or `Alt+I`): a side strip that
+  follows the caret, in three collapsible sections — **this item** (what links
+  here, where it's mirrored, when it changed), **starred**, and **tags**
+- **Starred items** (`Alt+S`, the ≡ menu, or the ☆ in the panel): a ★ marks the
+  item at the right edge of its row — or beside the title when you're zoomed
+  into it — and the panel keeps every starred item one click away wherever it
+  lives
+- **Tag index**: the panel lists every tag in view with a count — click one to
+  filter by it, click it again to clear
 - **Checklist progress**: parents show a subtle `3/7` count once any direct
   child is checked off
 - The jump palette opens onto your **recently edited** items — `Ctrl+K`,

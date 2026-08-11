@@ -160,15 +160,7 @@ fmtBarEl.addEventListener('click', e => {
       case 'italic': fmtWrap(el, '*', '*'); break;
       case 'underline': fmtWrap(el, '__', '__'); break;
       case 'code': fmtWrap(el, '`', '`'); break;
-      case 'link': {
-        const t = el.textContent;
-        const [a, b] = selRawRange(el);
-        const inner = t.slice(a, b);
-        // caret lands between the ( ) ready for the URL to be typed/pasted
-        const caret = a + 1 + inner.length + 2;
-        fmtReplace(el, a, b, '[' + inner + ']()', caret, caret);
-        break;
-      }
+      case 'link': openLinkDialog(el); break;
     }
   } else if ('hfmt' in btn.dataset) {
     const id = contentIdOfTitle(el); // heading lives on a mirror's target
@@ -186,3 +178,135 @@ document.addEventListener('keydown', e => {
 });
 window.addEventListener('scroll', () => hideFmtBar(), { passive: true });
 window.addEventListener('resize', () => hideFmtBar());
+
+/* --- the link prompt ----------------------------------------------------
+   The link button used to drop `[text]()` and leave: raw syntax on screen,
+   no hint about what goes where, and no way to tell an unfinished link from
+   a broken one. It now opens a small prompt showing the text that will be
+   linked and taking the address, then writes the markdown.
+
+   The prompt takes focus, which ends the title's edit session — so the
+   selection it was raised from is gone by the time Insert is pressed.
+   Everything needed is captured up front (content id, raw range, the exact
+   text that sat there) and the insertion goes through the store rather than
+   execCommand, verified against that captured text so an edit underneath
+   (another tab, an undo) can never be overwritten blind. */
+const ldEl = $('#link-dialog');
+const ldTextEl = $('#ld-text');
+const ldUrlEl = $('#ld-url');
+const ldHintEl = $('#ld-hint');
+const ldRemoveEl = $('#ld-remove');
+const ldOkEl = $('#ld-ok');
+let ldCtx = null; // {id, a, b, text, was} — null = closed
+
+/* the renderer's own link grammar (F56): http(s) only, and a ')' or a space
+   inside the URL would end the markdown early */
+const TITLE_LINK_RE = /\[([^\[\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+function linkAround(text, a, b) {
+  TITLE_LINK_RE.lastIndex = 0;
+  for (let m; (m = TITLE_LINK_RE.exec(text)); ) {
+    const s = m.index, e = s + m[0].length;
+    if (a >= s && b <= e) return { s, e, text: m[1], url: m[2] };
+  }
+  return null;
+}
+/* What gets pasted is rarely what the grammar accepts: assume https for a
+   bare domain, and percent-encode the two characters that would truncate the
+   link rather than rejecting an otherwise good URL over them. A URL that
+   names some other scheme keeps it, and so fails the test below — the one
+   place F56's http-only rule is enforced against user input. */
+function ldNormalizeUrl(raw) {
+  let u = String(raw).trim();
+  if (!u) return '';
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u.replace(/^\/+/, '');
+  return u.replace(/\s+/g, '%20').replace(/\)/g, '%29');
+}
+function ldValidUrl(u) { return /^https?:\/\/[^)\s]+$/.test(u); }
+
+function ldSync() {
+  if (!ldCtx) return;
+  const typed = ldUrlEl.value.trim();
+  const url = ldNormalizeUrl(typed);
+  const bracketed = /[[\]]/.test(ldCtx.text); // unlinkable by the grammar
+  const ok = !bracketed && ldValidUrl(url);
+  ldOkEl.disabled = !ok;
+  ldHintEl.textContent = bracketed ? 'Link text can’t contain [ or ].'
+    : !typed ? 'Type or paste the address this text should point at.'
+    : ok ? url            // show what will actually be written
+    : 'Only http:// and https:// addresses can be linked.';
+  ldHintEl.classList.toggle('bad', bracketed || (!!typed && !ok));
+}
+
+function openLinkDialog(el) {
+  const id = contentIdOfTitle(el);
+  const raw = el.textContent;
+  const [a0, b0] = selRawRange(el);
+  if (!id || a0 === b0) return;
+  // a selection sitting in or on an existing link edits that link whole,
+  // rather than nesting a second one inside it
+  const hit = linkAround(raw, a0, b0);
+  const a = hit ? hit.s : a0, b = hit ? hit.e : b0;
+  ldCtx = { id, a, b, text: hit ? hit.text : raw.slice(a0, b0), was: raw.slice(a, b) };
+  ldTextEl.textContent = ldCtx.text;
+  ldUrlEl.value = hit ? hit.url : '';
+  ldRemoveEl.hidden = !hit;
+  // anchor to the selection while it is still on screen: focusing the field
+  // ends the edit session and takes the highlight with it
+  const rect = window.getSelection().getRangeAt(0).getBoundingClientRect();
+  hideFmtBar();
+  ldEl.hidden = false;
+  const w = ldEl.offsetWidth, h = ldEl.offsetHeight, pad = 8;
+  ldEl.style.left = clamp(rect.left + rect.width / 2 - w / 2, pad, window.innerWidth - w - pad) + 'px';
+  ldEl.style.top = clamp(
+    rect.bottom + pad + h <= window.innerHeight - pad ? rect.bottom + pad : rect.top - h - pad,
+    pad, window.innerHeight - h - pad) + 'px';
+  ldSync();
+  ldUrlEl.focus();
+  ldUrlEl.select();
+}
+
+function closeLinkDialog({ restore = false } = {}) {
+  if (!ldCtx) return;
+  const ctx = ldCtx;
+  ldCtx = null;
+  ldEl.hidden = true;
+  if (restore) focusNodeTitle(ctx.id, ctx.b); // back where the selection ended
+}
+
+function ldApply(url) { // '' = unwrap, keeping the text
+  if (!ldCtx) return;
+  const ctx = ldCtx;
+  const n = store.getNode(ctx.id);
+  if (!n || n.title.slice(ctx.a, ctx.b) !== ctx.was) {
+    ldHintEl.textContent = 'This item changed while the prompt was open — nothing was written.';
+    ldHintEl.classList.add('bad');
+    return;
+  }
+  const md = url ? '[' + ctx.text + '](' + url + ')' : ctx.text;
+  ldCtx = null;
+  ldEl.hidden = true;
+  store.setTitleImmediate(ctx.id, n.title.slice(0, ctx.a) + md + n.title.slice(ctx.b));
+  focusNodeTitle(ctx.id, ctx.a + md.length); // caret just past the link
+}
+
+ldUrlEl.addEventListener('input', ldSync);
+ldEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!ldOkEl.disabled) ldApply(ldNormalizeUrl(ldUrlEl.value));
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation(); // Esc belongs to the prompt, not to search or the note
+    closeLinkDialog({ restore: true });
+  }
+});
+ldOkEl.addEventListener('click', () => ldApply(ldNormalizeUrl(ldUrlEl.value)));
+$('#ld-cancel').addEventListener('click', () => closeLinkDialog({ restore: true }));
+ldRemoveEl.addEventListener('click', () => ldApply(''));
+document.addEventListener('mousedown', e => {
+  if (ldCtx && !e.target.closest('#link-dialog')) closeLinkDialog();
+});
+// position:fixed, anchored to a selection that scrolls away underneath it
+window.addEventListener('scroll', () => closeLinkDialog(), { passive: true });
+window.addEventListener('resize', () => closeLinkDialog());

@@ -68,7 +68,8 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `13-tagline.js` | Rotating top-bar tagline with cipher-decode reveal |
 | `14-nodemenu.js` | Per-item ≡ handle popover: heading format, bullet color, row actions |
 | `15-toolbar.js` | Floating format bar over a selection in an editing title; wrap/unwrap of inline syntax |
-| `16-panel.js` | Backlink index, right-hand info panel (backlinks/mirrors/metadata), rename-rewrite offer |
+| `16-panel.js` | Backlink index, right-hand info panel (collapsible sections: item / starred / tags), rename-rewrite offer |
+| `17-stars-tags.js` | Starred index + star gestures (row ★, `Alt+S`), tag vocabulary index |
 
 `app.css` is CSS-variable driven: `:root` holds the token set, each
 `[data-theme=…]` block overrides it. `--motion:0` and `--glow` let a theme opt
@@ -79,7 +80,8 @@ out of animation or add CRT glow. Themes should never need new selectors.
 ```js
 { id, title, note, children: [], collapsed, completed, createdAt, updatedAt,
   format?, color?,  // optional: 'h1'|'h2'|'h3'; palette slot — absent when unset
-  mirrorOf? }       // optional: this node is a live mirror of another item
+  mirrorOf?,        // optional: this node is a live mirror of another item
+  starred? }        // optional: on the shortlist in the panel's Starred section
 ```
 
 A node with `mirrorOf` is a **mirror**: childless, no text of its own — all

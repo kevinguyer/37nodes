@@ -61,16 +61,21 @@ function linksOutOf(n) {
 const ipEl = $('#info-panel');
 const ipTitleEl = $('#ip-title');
 const ipBodyEl = $('#ip-body');
-const ipToggleEl = $('#info-panel-toggle');
+const ipStarEl = $('#ip-star');
+const ipBtnEl = $('#panel-btn'); // the top-bar switch, lit while the panel is out
 let ipActiveId = null; // the item the caret last visited (content id)
 
 function panelOpen() { return !!prefs.infoPanel; }
+function syncPanelBtn() {
+  ipBtnEl.classList.toggle('on', !!prefs.infoPanel);
+  ipBtnEl.setAttribute('aria-pressed', String(!!prefs.infoPanel));
+}
 function setPanelOpen(on) {
   prefs.infoPanel = !!on;
   savePrefs();
   document.body.classList.toggle('panel-open', prefs.infoPanel);
   ipEl.hidden = !prefs.infoPanel;
-  ipToggleEl.checked = prefs.infoPanel;
+  syncPanelBtn();
   if (prefs.infoPanel) renderInfoPanel();
 }
 
@@ -107,6 +112,53 @@ function ipRow(main, sub, onClick) {
   b.addEventListener('click', onClick);
   return b;
 }
+/* --- collapsible sections ---------------------------------------------
+   The panel stacks three of them: the tracked item's details, the starred
+   shortlist, and the tag vocabulary. Open/closed lives in prefs (details
+   open, the two indexes closed, on a fresh profile) and a collapsed section
+   never builds its body — only its count, which is what makes it worth
+   glancing at while shut. */
+function ipSectionOpen(key) {
+  const s = prefs.ipSections;
+  if (!s || !(key in s)) return key === 'item'; // first run: details only
+  return !!s[key];
+}
+function ipSetSectionOpen(key, on) {
+  if (!prefs.ipSections) prefs.ipSections = {};
+  prefs.ipSections[key] = on;
+  savePrefs();
+  renderInfoPanel();
+}
+function ipSection(key, label, count, build) {
+  const open = ipSectionOpen(key);
+  const sec = document.createElement('section');
+  sec.className = 'ip-sec' + (open ? ' open' : '');
+  const head = document.createElement('button');
+  head.className = 'ip-sec-head';
+  head.setAttribute('aria-expanded', String(open));
+  const caret = document.createElement('span');
+  caret.className = 'ip-caret';
+  caret.textContent = '▸';
+  const lab = document.createElement('span');
+  lab.className = 'ip-sec-title';
+  lab.textContent = label;
+  head.append(caret, lab);
+  if (count != null) {
+    const c = document.createElement('span');
+    c.className = 'ip-sec-count';
+    c.textContent = String(count);
+    head.append(c);
+  }
+  head.addEventListener('click', () => ipSetSectionOpen(key, !open));
+  sec.append(head);
+  if (open) {
+    const body = document.createElement('div');
+    body.className = 'ip-sec-body';
+    build(body);
+    sec.append(body);
+  }
+  ipBodyEl.append(sec);
+}
 function ipDetail(grid, label, value) {
   const k = document.createElement('span');
   k.className = 'ip-k';
@@ -135,32 +187,24 @@ function jumpToNode(id) {
   renderInfoPanel();
 }
 
-function renderInfoPanel() {
-  if (!panelOpen()) return;
-  const id = (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
-  const n = store.getNode(id);
-  ipBodyEl.textContent = '';
-  if (!n || id === ROOT_ID) {
-    ipTitleEl.textContent = 'No item selected';
-    ipBodyEl.append(ipHint('Click an item to see what links to it.'));
-    return;
-  }
-  ipTitleEl.textContent = truncate(n.title, 60) || 'Untitled';
-  ipTitleEl.title = n.title || 'Untitled';
+function ipTrackedId() {
+  return (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
+}
 
+function ipItemBody(body, id, n) {
   // --- linked from ---
   const back = backlinksOf(id);
-  ipBodyEl.append(ipLabel(back.length
+  body.append(ipLabel(back.length
     ? `Linked from ${back.length} item${back.length === 1 ? '' : 's'}`
     : 'Linked from'));
   if (!back.length) {
-    ipBodyEl.append(ipHint('Nothing links here yet. Type [[ in any item to link to this one.'));
+    body.append(ipHint('Nothing links here yet. Type [[ in any item to link to this one.'));
   } else {
     for (const s of back) {
       const src = store.getNode(s.id);
       if (!src) continue;
       const where = s.inNote && !s.inTitle ? 'in a note · ' : '';
-      ipBodyEl.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
+      body.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
         () => jumpToNode(s.id)));
     }
   }
@@ -168,14 +212,14 @@ function renderInfoPanel() {
   // --- mirrors ---
   const mirrors = store.mirrorsOf(id);
   if (mirrors.length) {
-    ipBodyEl.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
+    body.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
     for (const m of mirrors) {
-      ipBodyEl.append(ipRow('⧉ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
+      body.append(ipRow('⧉ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
     }
   }
 
   // --- details ---
-  ipBodyEl.append(ipLabel('Details'));
+  body.append(ipLabel('Details'));
   const grid = document.createElement('div');
   grid.className = 'ip-grid';
   const created = new Date(n.createdAt);
@@ -185,7 +229,83 @@ function renderInfoPanel() {
   ipDetail(grid, 'Edited', n.updatedAt ? formatAgo(n.updatedAt) : 'unknown');
   ipDetail(grid, 'Items inside', String(store.countNodes(n) - 1));
   ipDetail(grid, 'Links out', String(linksOutOf(n)));
-  ipBodyEl.append(grid);
+  body.append(grid);
+}
+
+/* Starred items in document order — the order they read in the outline, so
+   the list stays where you last saw it instead of reshuffling on every edit.
+   Each row jumps; the ★ beside it unstars without leaving where you are. */
+function ipStarredBody(body) {
+  const items = starredItems();
+  if (!items.length) {
+    body.append(ipHint('Nothing starred yet. Star an item with Alt+S, from its ≡ menu, or with the ☆ above.'));
+    return;
+  }
+  for (const it of items) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ip-row-wrap';
+    wrap.append(
+      ipRow(truncate(it.title, 40) || 'Untitled', pathOf(it.id), () => jumpToNode(it.id)));
+    const un = document.createElement('button');
+    un.className = 'ip-unstar';
+    un.textContent = '★';
+    un.title = 'Unstar';
+    un.addEventListener('click', () => store.toggleStarred(it.id));
+    wrap.append(un);
+    body.append(wrap);
+  }
+}
+
+/* The tag vocabulary as chips: alphabetical, so a tag keeps its place between
+   renders, with its item count riding along. Clicking one is exactly the
+   chip-click in the outline (F43) — a filter you can click off again. */
+function ipTagsBody(body) {
+  const tags = tagsAlphabetical(view.focusId);
+  if (!tags.length) {
+    body.append(ipHint(view.focusId === ROOT_ID
+      ? 'No tags yet. Type # in any item to tag it — the list of tags you already use appears as you type.'
+      : 'No tags in this part of the outline. Zoom out to see the rest.'));
+    return;
+  }
+  const cloud = document.createElement('div');
+  cloud.className = 'ip-tags';
+  const active = view.query.trim().toLowerCase();
+  for (const t of tags) {
+    const b = document.createElement('button');
+    b.className = 'ip-tag' + (active === t.tag.toLowerCase() ? ' active' : '');
+    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter`;
+    b.append(document.createTextNode(t.tag));
+    const c = document.createElement('sup');
+    c.textContent = String(t.count);
+    b.append(c);
+    b.addEventListener('click', () => toggleTagFilter(t.tag));
+    cloud.append(b);
+  }
+  body.append(cloud);
+}
+
+function renderInfoPanel() {
+  if (!panelOpen()) return;
+  const id = ipTrackedId();
+  const n = store.getNode(id);
+  const tracked = !!n && id !== ROOT_ID;
+  ipBodyEl.textContent = '';
+  ipTitleEl.textContent = tracked ? (truncate(n.title, 60) || 'Untitled') : 'No item selected';
+  ipTitleEl.title = tracked ? (n.title || 'Untitled') : '';
+  ipStarEl.hidden = !tracked;
+  if (tracked) {
+    ipStarEl.textContent = n.starred ? '★' : '☆';
+    ipStarEl.classList.toggle('on', !!n.starred);
+    ipStarEl.title = (n.starred ? 'Unstar this item' : 'Star this item') + ' (Alt+S)';
+  }
+
+  ipSection('item', 'This item', null, body => {
+    if (!tracked) { body.append(ipHint('Click an item to see what links to it.')); return; }
+    ipItemBody(body, id, n);
+  });
+  ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
+  ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
+    tagsAlphabetical(view.focusId).length, ipTagsBody);
 }
 const ipRefresh = debounce(renderInfoPanel, 120);
 
@@ -193,14 +313,7 @@ const ipRefresh = debounce(renderInfoPanel, 120);
 document.addEventListener('focusin', e => {
   const t = e.target.closest?.('.title');
   const ta = !t && e.target.closest?.('.note-edit');
-  let id = null;
-  if (t) id = contentIdOfTitle(t);
-  else if (ta) {
-    const host = ta.closest('.node');
-    id = ta.parentElement === focusNoteEl
-      ? view.focusId
-      : host && (host.dataset.mirror || host.dataset.id);
-  }
+  const id = t ? contentIdOfTitle(t) : ta ? contentIdOfNoteEditor(ta) : null;
   if (id && id !== ipActiveId) { ipActiveId = id; ipRefresh(); }
 });
 window.addEventListener('hashchange', () => {
@@ -278,8 +391,12 @@ function offerRenameRewrite(from, to, sources) {
 }
 
 /* --- wiring -------------------------------------------------------------- */
-ipToggleEl.addEventListener('change', () => setPanelOpen(ipToggleEl.checked));
+ipBtnEl.addEventListener('click', () => setPanelOpen(!panelOpen()));
 $('#ip-close').addEventListener('click', () => setPanelOpen(false));
+ipStarEl.addEventListener('click', () => {
+  const id = ipTrackedId();
+  if (id && id !== ROOT_ID) store.toggleStarred(id);
+});
 document.addEventListener('keydown', e => {
   if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
   // Alt+letter reports differently across keyboard layouts (some send a dead
@@ -293,5 +410,5 @@ document.addEventListener('keydown', e => {
 // state lands before boot's first render, so the column never jumps
 document.body.classList.toggle('panel-open', panelOpen());
 ipEl.hidden = !panelOpen();
-ipToggleEl.checked = panelOpen();
+syncPanelBtn();
 bootReady.then(renderInfoPanel);

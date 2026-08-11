@@ -115,12 +115,12 @@ function tourBuild(auto) {
     },
     {
       title: 'Tags and links',
-      body: 'A `#tag` in a title becomes a chip: click it to filter by that tag, click again to clear.\n\nType `[[` to link to another item: a list of titles appears right at the cursor, and `Enter` inserts the one you mean.',
+      body: 'A `#tag` in a title becomes a chip: click it to filter by that tag, click again to clear. Typing `#` offers the tags you already use, so a vocabulary stays one.\n\nType `[[` to link to another item: a list of titles appears right at the cursor, and `Enter` inserts the one you mean.\n\n`Alt`+`I` opens a side panel with what links to an item, your starred items (`Alt`+`S`), and every tag in view.',
       target: () => $('#tree .title .tag') || $('#tree .wikilink'), place: 'bottom', pad: 5,
     },
     {
       title: 'Make it yours',
-      body: 'The rest lives in this menu: **themes**, including a few retro terminal tributes with the glow and scanlines to match, plus hide-completed, import and export.\n\nAnd this tour, whenever you want it again.',
+      body: 'The rest lives in this menu, in three groups: **View** (themes, including a few retro terminal tributes with the glow and scanlines to match), **Data & backup** (import, export, and a mirror to a file on disk), and **Help**.\n\nAnd this tour, whenever you want it again.',
       target: () => $('#menu-panel'), place: 'left', pad: 6, menu: true,
     },
     {

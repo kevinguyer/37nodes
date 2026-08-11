@@ -188,12 +188,21 @@ a.crumb:hover{color:var(--accent);}
   color:var(--fg-faint); white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis;
 }
-@media (max-width:560px){ .tagline{display:none;} }
-#topbar-right{display:flex; align-items:center; gap:10px;}
+@media (max-width:560px){
+  .tagline{display:none;}
+  /* the bar's controls keep their places on a phone; the search box is the
+     one element with room to give, so it gives it rather than pushing the
+     panel and menu buttons off the right edge */
+  #search{width:120px;}
+  #search:focus{width:150px;}
+}
+#topbar-right{display:flex; align-items:center; gap:10px; min-width:0;}
 #save-indicator{font-size:12px; color:var(--fg-faint); min-width:52px; text-align:right;}
 #save-indicator.error{color:var(--danger); font-weight:600;}
 #search{
-  width:180px; padding:4px 12px;
+  /* an <input>'s intrinsic min-width (20 chars) would otherwise refuse to
+     shrink and push the bar's buttons off a narrow screen */
+  width:180px; min-width:110px; padding:4px 12px;
   background:var(--panel); border:1px solid var(--line); border-radius:999px;
   outline:none; font-size:13px; color:var(--fg);
   transition:width calc(160ms * var(--motion)) ease, border-color calc(160ms * var(--motion)) ease;
@@ -204,6 +213,14 @@ a.crumb:hover{color:var(--accent);}
   font-size:16px; color:var(--fg-dim); padding:2px 8px; border-radius:var(--radius);
 }
 #menu-btn:hover{background:var(--panel); color:var(--fg);}
+/* the info panel is a view the user lives in, not a setting they configure:
+   it gets its own switch in the bar, lit while the panel is out */
+#panel-btn{
+  font-size:14px; color:var(--fg-dim); padding:3px 7px; border-radius:var(--radius);
+  line-height:1;
+}
+#panel-btn:hover{background:var(--panel); color:var(--fg);}
+#panel-btn.on{color:var(--accent); background:var(--accent-soft);}
 
 /* ============================================================
    Banner (storage warnings) — a quiet corner toast, not a headline
@@ -236,11 +253,24 @@ a.crumb:hover{color:var(--accent);}
    narrower than the default column on a small window. */
 body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 #focus-head{margin-bottom:14px;}
+#focus-title-row{display:flex; align-items:flex-start; gap:8px;}
 #focus-title{
+  flex:1; min-width:0;
   font-size:24px; font-weight:700; line-height:1.3;
   outline:none; white-space:pre-wrap; word-break:break-word;
   margin:0 0 2px;
 }
+/* the zoomed item's star: a cue when set, an affordance on hover otherwise —
+   the same bargain the row's ≡ handle strikes */
+#focus-star{
+  flex:0 0 auto; margin-top:5px; padding:2px 5px; border-radius:var(--radius);
+  font-size:15px; line-height:1.3; color:var(--fg-faint); opacity:0;
+  transition:opacity calc(120ms * var(--motion)) ease;
+}
+#focus-head:hover #focus-star, #focus-star:focus-visible{opacity:1;}
+#focus-star:hover{background:var(--panel); color:var(--fg-dim);}
+#focus-star.on{opacity:1; color:var(--nc-yellow);}
+#focus-star.on:hover{color:var(--nc-yellow); filter:brightness(1.2);}
 #focus-note{font-size:13.5px; color:var(--fg-dim); min-height:0;}
 #focus-note .md{cursor:text;}
 #empty-hint{
@@ -364,6 +394,14 @@ a.wikilink:hover{text-decoration:underline; text-underline-offset:2px;}
   background:var(--panel); border:1px solid var(--line); border-radius:999px;
   user-select:none; white-space:nowrap;
 }
+/* starred: the row's rightmost chrome, and its own unstar button. It borrows
+   the yellow bullet slot so a theme re-inking the palette re-inks the star. */
+.star{
+  flex:0 0 auto; align-self:center; margin-left:6px; padding:0 2px;
+  font-size:12px; line-height:17px; color:var(--nc-yellow);
+  user-select:none;
+}
+.star:hover{filter:brightness(1.2);}
 /* heading formats: title-only typography, everything else stays row-shaped */
 .node[data-format] > .row > .title{font-weight:700; line-height:1.3;}
 .node[data-format="h1"] > .row > .title{font-size:20px;}
@@ -443,13 +481,33 @@ body.hide-completed .node.completed{display:none;}
 /* ============================================================
    Menu panel
    ============================================================ */
+/* Three groups, mostly shut: opening the menu should read as a short index,
+   not as every control the app owns. The height cap is the backstop for the
+   case the grouping is meant to prevent — open all three on a laptop and it
+   scrolls rather than running off the bottom of the screen unreachably. */
 #menu-panel{
   position:fixed; top:46px; right:14px; z-index:100;
   width:280px; padding:6px;
+  max-height:calc(100vh - 60px); overflow-y:auto; overscroll-behavior:contain;
   background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
   box-shadow:var(--shadow);
 }
-#menu-panel hr{border:none; border-top:1px solid var(--line); margin:6px 4px;}
+.menu-sec + .menu-sec{border-top:1px solid var(--line); margin-top:4px; padding-top:4px;}
+.menu-sec-head{
+  display:flex; align-items:center; gap:6px; width:100%;
+  padding:7px 10px; border-radius:var(--radius);
+  font-size:11.5px; letter-spacing:.03em; text-transform:uppercase;
+  color:var(--fg-dim); text-align:left;
+}
+.menu-sec-head:hover{background:var(--panel); color:var(--fg);}
+.menu-caret{
+  font-size:9px; color:var(--fg-faint);
+  transition:transform calc(120ms * var(--motion)) ease;
+}
+.menu-sec.open .menu-caret{transform:rotate(90deg);}
+.menu-sec-body{display:none;}
+.menu-sec.open > .menu-sec-body{display:block;}
+#build-readout{border-top:1px solid var(--line); margin-top:4px; padding-top:6px;}
 .menu-row{
   display:flex; align-items:center; gap:8px;
   width:100%; padding:7px 10px; text-align:left;
@@ -498,9 +556,49 @@ body.panel-open{padding-right:var(--panel-w);}
 }
 #ip-close{color:var(--fg-faint); font-size:12px; padding:2px 5px; border-radius:var(--radius);}
 #ip-close:hover{background:var(--panel); color:var(--fg);}
+#ip-star{color:var(--fg-faint); font-size:13px; padding:2px 4px; border-radius:var(--radius);}
+#ip-star:hover{background:var(--panel);}
+#ip-star.on{color:var(--nc-yellow);}
 #ip-body{padding:8px 10px 24px;}
 .ip-label{font-size:11px; color:var(--fg-faint); margin:13px 2px 4px;}
-#ip-body > .ip-label:first-child{margin-top:2px;}
+.ip-sec-body > .ip-label:first-child{margin-top:2px;}
+/* sections: the head is the whole hit target, the caret only a cue */
+.ip-sec + .ip-sec{border-top:1px solid var(--line); margin-top:8px;}
+.ip-sec-head{
+  display:flex; align-items:center; gap:6px; width:100%;
+  padding:7px 5px 6px; border-radius:var(--radius);
+  font-size:11.5px; letter-spacing:.03em; text-transform:uppercase;
+  color:var(--fg-dim);
+}
+.ip-sec-head:hover{background:var(--panel); color:var(--fg);}
+.ip-caret{
+  font-size:9px; color:var(--fg-faint);
+  transition:transform calc(120ms * var(--motion)) ease;
+}
+.ip-sec.open .ip-caret{transform:rotate(90deg);}
+.ip-sec-title{flex:1; min-width:0; text-align:left;}
+.ip-sec-count{
+  padding:0 6px; font-size:10.5px; line-height:16px; color:var(--fg-faint);
+  background:var(--panel); border-radius:999px;
+}
+.ip-sec-body{padding-bottom:6px;}
+/* a starred row and the button that unstars it, side by side */
+.ip-row-wrap{display:flex; align-items:center; gap:2px;}
+.ip-row-wrap > .ip-row{flex:1; min-width:0;}
+.ip-unstar{
+  flex:0 0 auto; padding:2px 5px; border-radius:var(--radius);
+  font-size:12px; color:var(--nc-yellow); opacity:.55;
+}
+.ip-row-wrap:hover .ip-unstar, .ip-unstar:focus-visible{opacity:1;}
+/* the tag vocabulary: uniform chips, count riding along */
+.ip-tags{display:flex; flex-wrap:wrap; gap:5px; padding:3px 4px 2px;}
+.ip-tag{
+  font-size:12px; line-height:19px; padding:0 8px; border-radius:999px;
+  color:var(--accent); background:var(--accent-soft);
+}
+.ip-tag sup{font-size:9px; margin-left:3px; opacity:.7; vertical-align:super;}
+.ip-tag:hover{filter:brightness(1.15);}
+.ip-tag.active{background:var(--accent); color:var(--bg);}
 .ip-hint{font-size:12px; color:var(--fg-faint); padding:2px 2px 4px; line-height:1.45;}
 .ip-row{display:block; width:100%; text-align:left; padding:5px 7px; border-radius:var(--radius);}
 .ip-row:hover{background:var(--panel);}
@@ -542,6 +640,43 @@ body.panel-open #menu-panel{right:calc(14px + var(--panel-w));}
 .fb-row button:hover{background:var(--panel); color:var(--fg);}
 .fb-row button.active{color:var(--accent); background:var(--accent-soft);}
 .fb-code{font-family:var(--mono); font-size:10.5px;}
+
+/* link prompt: what will be linked, and where to */
+#link-dialog[hidden]{display:none;}
+#link-dialog{
+  position:fixed; z-index:160; width:min(320px, calc(100vw - 16px)); padding:9px 10px;
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.ld-line{display:flex; align-items:baseline; gap:8px; margin-bottom:6px; font-size:12.5px;}
+.ld-k{flex:0 0 30px; color:var(--fg-faint); font-size:11px;}
+#ld-text{
+  flex:1; min-width:0; color:var(--fg);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#ld-url{
+  flex:1; min-width:0; padding:4px 7px; font-size:12.5px; font-family:inherit;
+  color:var(--fg); background:var(--panel);
+  border:1px solid var(--line); border-radius:var(--radius); outline:none;
+}
+#ld-url:focus{border-color:var(--accent);}
+#ld-hint{
+  font-size:11px; color:var(--fg-faint); line-height:1.4; padding:0 0 7px 38px;
+  word-break:break-all;
+}
+#ld-hint.bad{color:var(--nc-red);}
+.ld-actions{display:flex; align-items:center; gap:6px;}
+.ld-gap{flex:1;}
+.ld-actions button{
+  padding:4px 10px; font-size:12px; color:var(--fg-dim);
+  border:1px solid var(--line); border-radius:var(--radius);
+}
+.ld-actions button:hover{background:var(--panel); color:var(--fg);}
+.ld-actions button.primary{color:var(--bg); background:var(--accent); border-color:var(--accent);}
+.ld-actions button.primary:hover{filter:brightness(1.1);}
+.ld-actions button:disabled{opacity:.45; cursor:default;}
+.ld-actions button.primary:disabled:hover{filter:none;}
+#ld-remove{color:var(--fg-faint);}
 .fb-sep{width:1px; height:16px; background:var(--line); margin:0 3px;}
 .fb-label{font-size:11.5px; color:var(--fg-dim); width:16px; text-align:center; user-select:none;}
 .fb-label.fb-hl{background:var(--mark); border-radius:3px;}

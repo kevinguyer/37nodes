@@ -6,6 +6,8 @@ const applySearch = debounce(() => {
   view.query = q;
   clearFilterExempt(); // a new query gets a clean set of results
   renderAll();
+  ipRefresh(); // the query is view state, not a mutation: the panel's tag
+               // chips have no store event to ride
 }, 150);
 
 function setSearch(q) {
@@ -31,6 +33,7 @@ function clearSearch(refocusOutline = true) {
   if (view.query) {
     view.query = '';
     renderAll();
+    ipRefresh();
   }
   if (refocusOutline) {
     const first = visibleTitles()[0];

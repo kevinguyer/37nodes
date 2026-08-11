@@ -4,7 +4,7 @@
    Collapse state is deliberately NOT undoable (it's view state, but persisted). */
 
 const ROOT_ID = 'root';
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const NODE_FORMATS = ['h1', 'h2', 'h3']; // '' (absent) = normal text
 const NODE_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple']; // '' (absent) = theme default
 const DOC_KEY = '37nodes:doc';
@@ -360,6 +360,17 @@ function setNodeProp(id, key, allowed, val) {
 const setFormat = (id, v) => setNodeProp(id, 'format', NODE_FORMATS, v);
 const setColor = (id, v) => setNodeProp(id, 'color', NODE_COLORS, v);
 
+/* starring rides the same 'flag' op, so it undoes like a completion toggle.
+   Callers pass a CONTENT id: starring a mirror row stars the original, which
+   is the only node that could hold the flag anyway. */
+function toggleStarred(id) {
+  const n = getNode(id);
+  if (!n) return;
+  group(() => record({ t: 'flag', id, key: 'starred', a: !!n.starred, b: !n.starred }));
+  scheduleSave();
+  emit({ type: 'node', id });
+}
+
 /* --- mirrors ------------------------------------------------------- */
 /* A mirror is a childless node whose content (title, note, completed,
    format, color, children) all resolve through mirrorOf. */
@@ -546,6 +557,7 @@ function normalizeNode(n) {
   if (NODE_FORMATS.includes(n.format)) out.format = n.format;
   if (NODE_COLORS.includes(n.color)) out.color = n.color;
   if (typeof n.mirrorOf === 'string' && n.mirrorOf) out.mirrorOf = n.mirrorOf;
+  if (n.starred) out.starred = true;
   return out;
 }
 function regenIds(n) {
@@ -571,6 +583,8 @@ const DOC_MIGRATIONS = {
   // v2 → v3: added optional per-node `mirrorOf` (id of the mirrored item).
   // Additive again; the bump exists for the same warn-don't-strip reason.
   2: data => data,
+  // v3 → v4: added optional per-node `starred`. Additive; same reasoning.
+  3: data => data,
 };
 
 function migrateDoc(data) {
@@ -768,7 +782,7 @@ const store = {
   setTitle, setNote, setTitleImmediate,
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
-  setCollapsed, toggleCompleted, setFormat, setColor, duplicate,
+  setCollapsed, toggleCompleted, setFormat, setColor, toggleStarred, duplicate,
   mirrorContent, mirrorsOf, hasMirrors, setMirror, createMirror,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
