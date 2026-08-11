@@ -97,6 +97,10 @@ nodeMenuEl.addEventListener('click', e => {
       }
       break;
     }
+    case 'nm-move':
+      closeNodeMenu();
+      openMovePalette(id); // structural: a mirror row moves the mirror
+      break;
     case 'nm-duplicate': {
       const copy = store.duplicate(id);
       closeNodeMenu();
