@@ -157,9 +157,7 @@ palResultsEl.addEventListener('mousemove', e => {
   const row = e.target.closest('.pal-item');
   if (row && parseInt(row.dataset.idx, 10) !== palSel) palSetSel(parseInt(row.dataset.idx, 10));
 });
-palDialogEl.addEventListener('mousedown', e => {
-  if (e.target === palDialogEl) palDialogEl.close(); // backdrop click
-});
+closeOnBackdropClick(palDialogEl);
 // Ctrl+K must win even while typing in a title/note (same pattern as Ctrl+F)
 document.addEventListener('keydown', e => {
   const mod = e.ctrlKey || e.metaKey;

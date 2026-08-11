@@ -87,3 +87,19 @@ function parseOutlineText(text) {
   }
   return rootItems;
 }
+
+/* Dismiss a modal <dialog> by clicking its backdrop.
+   A modal dialog is a box painted over a backdrop that is part of the same
+   element, so a backdrop click reports the dialog as its target. Testing the
+   pointer against the box — rather than trusting `e.target === dialog` alone —
+   matters because the dialog's own padding belongs to the element too: the
+   target test by itself also fires on a click just inside the edge, which
+   reads to the user as the dialog closing itself for no reason. */
+function closeOnBackdropClick(dialogEl) {
+  dialogEl.addEventListener('mousedown', e => {
+    if (e.target !== dialogEl) return; // landed on real content inside
+    const r = dialogEl.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right
+        || e.clientY < r.top || e.clientY > r.bottom) dialogEl.close();
+  });
+}

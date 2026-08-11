@@ -25,6 +25,7 @@
   <div id="topbar-right">
     <span id="save-indicator" aria-live="polite">Saved</span>
     <input id="search" type="search" placeholder="Search  (Ctrl+F)" autocomplete="off" spellcheck="false" aria-label="Search outline">
+    <button id="panel-btn" aria-pressed="false" title="Info panel: what links here, starred items, tags (Alt+I)" aria-label="Toggle info panel">&#9704;</button>
     <button id="menu-btn" aria-haspopup="true" aria-expanded="false" title="Menu">&#9776;</button>
   </div>
 </header>
@@ -37,7 +38,10 @@
 
 <main id="page">
   <div id="focus-head" hidden>
-    <h1 id="focus-title" class="title" contenteditable="true" spellcheck="false" data-ph="Untitled"></h1>
+    <div id="focus-title-row">
+      <h1 id="focus-title" class="title" contenteditable="true" spellcheck="false" data-ph="Untitled"></h1>
+      <button id="focus-star" title="Star this item (Alt+S)" aria-label="Star this item">&#9734;</button>
+    </div>
     <div id="focus-note"></div>
   </div>
   <div id="tree" role="tree" aria-label="Outline"></div>
@@ -45,45 +49,58 @@
 </main>
 
 <div id="menu-panel" hidden>
-  <label class="menu-row menu-field">Theme
-    <select id="theme-select">
-      <option value="auto">Auto (system)</option>
-      <option value="light">Light</option>
-      <option value="dark">Dark</option>
-      <option value="eink">E-ink</option>
-      <option value="parchment">Parchment</option>
-      <option value="nordic">Nordic</option>
-      <option value="evergreen">Evergreen</option>
-      <option value="crt">Green CRT</option>
-      <option value="ibm5151">IBM 5151 sepia</option>
-      <option value="wyse60">Wyse 60 terminal</option>
-    </select>
-  </label>
-  <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
-  <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
-  <label class="menu-row menu-field" title="Show a side panel with what links to the current item, where it is mirrored, and when it was created and edited."><input type="checkbox" id="info-panel-toggle"> Info panel <kbd>Alt+I</kbd></label>
-  <hr>
-  <div class="menu-note" id="export-readout"></div>
-  <button class="menu-row" id="export-json">Export JSON (full backup)</button>
-  <button class="menu-row" id="export-md-view">Export Markdown (current view)</button>
-  <button class="menu-row" id="export-md-all">Export Markdown (everything)</button>
-  <button class="menu-row" id="import-json">Import JSON&hellip;</button>
-  <div class="menu-note" id="fsbackup-readout" hidden></div>
-  <button class="menu-row" id="fsbackup-setup" title="Continuously mirror your outline to a JSON file on disk. A live backup that survives cleared browser data." hidden>Mirror to a file on disk&hellip;</button>
-  <button class="menu-row" id="fsbackup-resume" hidden>Resume file mirroring</button>
-  <button class="menu-row" id="fsbackup-stop" hidden>Stop file mirroring</button>
-  <label class="menu-row menu-field" title="Remind me when the last JSON export is older than this. 0 turns the reminder off.">Backup reminder
-    <span class="days-field"><input type="number" id="export-warn-days" min="0" max="365"> days</span>
-  </label>
-  <hr>
-  <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
-  <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
+  <section class="menu-sec" data-sec="view">
+    <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>View</button>
+    <div class="menu-sec-body">
+      <label class="menu-row menu-field">Theme
+        <select id="theme-select">
+          <option value="auto">Auto (system)</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="eink">E-ink</option>
+          <option value="parchment">Parchment</option>
+          <option value="nordic">Nordic</option>
+          <option value="evergreen">Evergreen</option>
+          <option value="crt">Green CRT</option>
+          <option value="ibm5151">IBM 5151 sepia</option>
+          <option value="wyse60">Wyse 60 terminal</option>
+        </select>
+      </label>
+      <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
+      <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
+    </div>
+  </section>
+  <section class="menu-sec" data-sec="data">
+    <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>Data &amp; backup</button>
+    <div class="menu-sec-body">
+      <div class="menu-note" id="export-readout"></div>
+      <button class="menu-row" id="export-json">Export JSON (full backup)</button>
+      <button class="menu-row" id="export-md-view">Export Markdown (current view)</button>
+      <button class="menu-row" id="export-md-all">Export Markdown (everything)</button>
+      <button class="menu-row" id="import-json">Import JSON&hellip;</button>
+      <div class="menu-note" id="fsbackup-readout" hidden></div>
+      <button class="menu-row" id="fsbackup-setup" title="Continuously mirror your outline to a JSON file on disk. A live backup that survives cleared browser data." hidden>Mirror to a file on disk&hellip;</button>
+      <button class="menu-row" id="fsbackup-resume" hidden>Resume file mirroring</button>
+      <button class="menu-row" id="fsbackup-stop" hidden>Stop file mirroring</button>
+      <label class="menu-row menu-field" title="Remind me when the last JSON export is older than this. 0 turns the reminder off.">Backup reminder
+        <span class="days-field"><input type="number" id="export-warn-days" min="0" max="365"> days</span>
+      </label>
+    </div>
+  </section>
+  <section class="menu-sec" data-sec="help">
+    <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>Help</button>
+    <div class="menu-sec-body">
+      <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
+      <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
+    </div>
+  </section>
   <div class="menu-note" id="build-readout">Build __BUILD__ &middot; __BUILT__</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
   <div id="ip-head">
     <span id="ip-title"></span>
+    <button id="ip-star" title="Star this item (Alt+S)" aria-label="Star this item" hidden>&#9734;</button>
     <button id="ip-close" title="Close (Alt+I)" aria-label="Close info panel">&#10005;</button>
   </div>
   <div id="ip-body"></div>
@@ -108,6 +125,7 @@
     <button class="nm-color" data-color="purple" title="Purple" style="--nc:var(--nc-purple)"></button>
   </div>
   <hr>
+  <button class="menu-row" id="nm-star">Star this item</button>
   <button class="menu-row" id="nm-complete">Complete</button>
   <button class="menu-row" id="nm-zoom">Zoom in</button>
   <button class="menu-row" id="nm-note">Add note</button>
@@ -124,7 +142,7 @@
     <button data-fmt="italic" title="Italic (Ctrl+I)"><em>I</em></button>
     <button data-fmt="underline" title="Underline (Ctrl+U)"><u>U</u></button>
     <button data-fmt="code" title="Inline code" class="fb-code">&lt;/&gt;</button>
-    <button data-fmt="link" title="Link &mdash; then type or paste the URL between the ( )">&#128279;</button>
+    <button data-fmt="link" title="Link&hellip; (set the address in a prompt)">&#128279;</button>
     <span class="fb-sep"></span>
     <button data-hfmt="h1" title="Heading 1 (whole item)">H1</button>
     <button data-hfmt="h2" title="Heading 2 (whole item)">H2</button>
@@ -154,6 +172,19 @@
 </div>
 
 <div id="link-auto" role="listbox" aria-label="Link suggestions" hidden></div>
+
+<div id="link-dialog" role="dialog" aria-label="Link" hidden>
+  <div class="ld-line"><span class="ld-k">Text</span><span id="ld-text"></span></div>
+  <div class="ld-line"><span class="ld-k">URL</span>
+    <input id="ld-url" type="text" placeholder="example.com" spellcheck="false" autocomplete="off" aria-label="Link address"></div>
+  <div id="ld-hint"></div>
+  <div class="ld-actions">
+    <button id="ld-remove" hidden>Remove link</button>
+    <span class="ld-gap"></span>
+    <button id="ld-cancel">Cancel</button>
+    <button id="ld-ok" class="primary">Insert</button>
+  </div>
+</div>
 
 <input type="file" id="import-file" accept=".json,application/json" hidden>
 
@@ -194,10 +225,12 @@
     <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
     <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
     <span><kbd>((</kbd> <em>on an empty item</em></span><span>Turn the item into a live <em>mirror</em> of another item (hollow bullet); also in the ≡ menu</span>
+    <span><kbd>#</kbd></span><span>Tag an item: the tags you already use are offered as you type</span>
+    <span><kbd>Alt</kbd>+<kbd>S</kbd></span><span>Star / unstar the item &mdash; starred items are listed in the info panel</span>
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
     <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
     <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
-    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, where it&rsquo;s mirrored, when it changed</span>
+    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, your starred items, every tag you use</span>
     <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
     <span><kbd>?</kbd></span><span>This help</span>
   </div>

@@ -198,12 +198,21 @@ a.crumb:hover{color:var(--accent);}
   color:var(--fg-faint); white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis;
 }
-@media (max-width:560px){ .tagline{display:none;} }
-#topbar-right{display:flex; align-items:center; gap:10px;}
+@media (max-width:560px){
+  .tagline{display:none;}
+  /* the bar's controls keep their places on a phone; the search box is the
+     one element with room to give, so it gives it rather than pushing the
+     panel and menu buttons off the right edge */
+  #search{width:120px;}
+  #search:focus{width:150px;}
+}
+#topbar-right{display:flex; align-items:center; gap:10px; min-width:0;}
 #save-indicator{font-size:12px; color:var(--fg-faint); min-width:52px; text-align:right;}
 #save-indicator.error{color:var(--danger); font-weight:600;}
 #search{
-  width:180px; padding:4px 12px;
+  /* an <input>'s intrinsic min-width (20 chars) would otherwise refuse to
+     shrink and push the bar's buttons off a narrow screen */
+  width:180px; min-width:110px; padding:4px 12px;
   background:var(--panel); border:1px solid var(--line); border-radius:999px;
   outline:none; font-size:13px; color:var(--fg);
   transition:width calc(160ms * var(--motion)) ease, border-color calc(160ms * var(--motion)) ease;
@@ -214,6 +223,14 @@ a.crumb:hover{color:var(--accent);}
   font-size:16px; color:var(--fg-dim); padding:2px 8px; border-radius:var(--radius);
 }
 #menu-btn:hover{background:var(--panel); color:var(--fg);}
+/* the info panel is a view the user lives in, not a setting they configure:
+   it gets its own switch in the bar, lit while the panel is out */
+#panel-btn{
+  font-size:14px; color:var(--fg-dim); padding:3px 7px; border-radius:var(--radius);
+  line-height:1;
+}
+#panel-btn:hover{background:var(--panel); color:var(--fg);}
+#panel-btn.on{color:var(--accent); background:var(--accent-soft);}
 
 /* ============================================================
    Banner (storage warnings) — a quiet corner toast, not a headline
@@ -246,11 +263,24 @@ a.crumb:hover{color:var(--accent);}
    narrower than the default column on a small window. */
 body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 #focus-head{margin-bottom:14px;}
+#focus-title-row{display:flex; align-items:flex-start; gap:8px;}
 #focus-title{
+  flex:1; min-width:0;
   font-size:24px; font-weight:700; line-height:1.3;
   outline:none; white-space:pre-wrap; word-break:break-word;
   margin:0 0 2px;
 }
+/* the zoomed item's star: a cue when set, an affordance on hover otherwise —
+   the same bargain the row's ≡ handle strikes */
+#focus-star{
+  flex:0 0 auto; margin-top:5px; padding:2px 5px; border-radius:var(--radius);
+  font-size:15px; line-height:1.3; color:var(--fg-faint); opacity:0;
+  transition:opacity calc(120ms * var(--motion)) ease;
+}
+#focus-head:hover #focus-star, #focus-star:focus-visible{opacity:1;}
+#focus-star:hover{background:var(--panel); color:var(--fg-dim);}
+#focus-star.on{opacity:1; color:var(--nc-yellow);}
+#focus-star.on:hover{color:var(--nc-yellow); filter:brightness(1.2);}
 #focus-note{font-size:13.5px; color:var(--fg-dim); min-height:0;}
 #focus-note .md{cursor:text;}
 #empty-hint{
@@ -374,6 +404,14 @@ a.wikilink:hover{text-decoration:underline; text-underline-offset:2px;}
   background:var(--panel); border:1px solid var(--line); border-radius:999px;
   user-select:none; white-space:nowrap;
 }
+/* starred: the row's rightmost chrome, and its own unstar button. It borrows
+   the yellow bullet slot so a theme re-inking the palette re-inks the star. */
+.star{
+  flex:0 0 auto; align-self:center; margin-left:6px; padding:0 2px;
+  font-size:12px; line-height:17px; color:var(--nc-yellow);
+  user-select:none;
+}
+.star:hover{filter:brightness(1.2);}
 /* heading formats: title-only typography, everything else stays row-shaped */
 .node[data-format] > .row > .title{font-weight:700; line-height:1.3;}
 .node[data-format="h1"] > .row > .title{font-size:20px;}
@@ -453,13 +491,33 @@ body.hide-completed .node.completed{display:none;}
 /* ============================================================
    Menu panel
    ============================================================ */
+/* Three groups, mostly shut: opening the menu should read as a short index,
+   not as every control the app owns. The height cap is the backstop for the
+   case the grouping is meant to prevent — open all three on a laptop and it
+   scrolls rather than running off the bottom of the screen unreachably. */
 #menu-panel{
   position:fixed; top:46px; right:14px; z-index:100;
   width:280px; padding:6px;
+  max-height:calc(100vh - 60px); overflow-y:auto; overscroll-behavior:contain;
   background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
   box-shadow:var(--shadow);
 }
-#menu-panel hr{border:none; border-top:1px solid var(--line); margin:6px 4px;}
+.menu-sec + .menu-sec{border-top:1px solid var(--line); margin-top:4px; padding-top:4px;}
+.menu-sec-head{
+  display:flex; align-items:center; gap:6px; width:100%;
+  padding:7px 10px; border-radius:var(--radius);
+  font-size:11.5px; letter-spacing:.03em; text-transform:uppercase;
+  color:var(--fg-dim); text-align:left;
+}
+.menu-sec-head:hover{background:var(--panel); color:var(--fg);}
+.menu-caret{
+  font-size:9px; color:var(--fg-faint);
+  transition:transform calc(120ms * var(--motion)) ease;
+}
+.menu-sec.open .menu-caret{transform:rotate(90deg);}
+.menu-sec-body{display:none;}
+.menu-sec.open > .menu-sec-body{display:block;}
+#build-readout{border-top:1px solid var(--line); margin-top:4px; padding-top:6px;}
 .menu-row{
   display:flex; align-items:center; gap:8px;
   width:100%; padding:7px 10px; text-align:left;
@@ -508,9 +566,49 @@ body.panel-open{padding-right:var(--panel-w);}
 }
 #ip-close{color:var(--fg-faint); font-size:12px; padding:2px 5px; border-radius:var(--radius);}
 #ip-close:hover{background:var(--panel); color:var(--fg);}
+#ip-star{color:var(--fg-faint); font-size:13px; padding:2px 4px; border-radius:var(--radius);}
+#ip-star:hover{background:var(--panel);}
+#ip-star.on{color:var(--nc-yellow);}
 #ip-body{padding:8px 10px 24px;}
 .ip-label{font-size:11px; color:var(--fg-faint); margin:13px 2px 4px;}
-#ip-body > .ip-label:first-child{margin-top:2px;}
+.ip-sec-body > .ip-label:first-child{margin-top:2px;}
+/* sections: the head is the whole hit target, the caret only a cue */
+.ip-sec + .ip-sec{border-top:1px solid var(--line); margin-top:8px;}
+.ip-sec-head{
+  display:flex; align-items:center; gap:6px; width:100%;
+  padding:7px 5px 6px; border-radius:var(--radius);
+  font-size:11.5px; letter-spacing:.03em; text-transform:uppercase;
+  color:var(--fg-dim);
+}
+.ip-sec-head:hover{background:var(--panel); color:var(--fg);}
+.ip-caret{
+  font-size:9px; color:var(--fg-faint);
+  transition:transform calc(120ms * var(--motion)) ease;
+}
+.ip-sec.open .ip-caret{transform:rotate(90deg);}
+.ip-sec-title{flex:1; min-width:0; text-align:left;}
+.ip-sec-count{
+  padding:0 6px; font-size:10.5px; line-height:16px; color:var(--fg-faint);
+  background:var(--panel); border-radius:999px;
+}
+.ip-sec-body{padding-bottom:6px;}
+/* a starred row and the button that unstars it, side by side */
+.ip-row-wrap{display:flex; align-items:center; gap:2px;}
+.ip-row-wrap > .ip-row{flex:1; min-width:0;}
+.ip-unstar{
+  flex:0 0 auto; padding:2px 5px; border-radius:var(--radius);
+  font-size:12px; color:var(--nc-yellow); opacity:.55;
+}
+.ip-row-wrap:hover .ip-unstar, .ip-unstar:focus-visible{opacity:1;}
+/* the tag vocabulary: uniform chips, count riding along */
+.ip-tags{display:flex; flex-wrap:wrap; gap:5px; padding:3px 4px 2px;}
+.ip-tag{
+  font-size:12px; line-height:19px; padding:0 8px; border-radius:999px;
+  color:var(--accent); background:var(--accent-soft);
+}
+.ip-tag sup{font-size:9px; margin-left:3px; opacity:.7; vertical-align:super;}
+.ip-tag:hover{filter:brightness(1.15);}
+.ip-tag.active{background:var(--accent); color:var(--bg);}
 .ip-hint{font-size:12px; color:var(--fg-faint); padding:2px 2px 4px; line-height:1.45;}
 .ip-row{display:block; width:100%; text-align:left; padding:5px 7px; border-radius:var(--radius);}
 .ip-row:hover{background:var(--panel);}
@@ -552,6 +650,43 @@ body.panel-open #menu-panel{right:calc(14px + var(--panel-w));}
 .fb-row button:hover{background:var(--panel); color:var(--fg);}
 .fb-row button.active{color:var(--accent); background:var(--accent-soft);}
 .fb-code{font-family:var(--mono); font-size:10.5px;}
+
+/* link prompt: what will be linked, and where to */
+#link-dialog[hidden]{display:none;}
+#link-dialog{
+  position:fixed; z-index:160; width:min(320px, calc(100vw - 16px)); padding:9px 10px;
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.ld-line{display:flex; align-items:baseline; gap:8px; margin-bottom:6px; font-size:12.5px;}
+.ld-k{flex:0 0 30px; color:var(--fg-faint); font-size:11px;}
+#ld-text{
+  flex:1; min-width:0; color:var(--fg);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#ld-url{
+  flex:1; min-width:0; padding:4px 7px; font-size:12.5px; font-family:inherit;
+  color:var(--fg); background:var(--panel);
+  border:1px solid var(--line); border-radius:var(--radius); outline:none;
+}
+#ld-url:focus{border-color:var(--accent);}
+#ld-hint{
+  font-size:11px; color:var(--fg-faint); line-height:1.4; padding:0 0 7px 38px;
+  word-break:break-all;
+}
+#ld-hint.bad{color:var(--nc-red);}
+.ld-actions{display:flex; align-items:center; gap:6px;}
+.ld-gap{flex:1;}
+.ld-actions button{
+  padding:4px 10px; font-size:12px; color:var(--fg-dim);
+  border:1px solid var(--line); border-radius:var(--radius);
+}
+.ld-actions button:hover{background:var(--panel); color:var(--fg);}
+.ld-actions button.primary{color:var(--bg); background:var(--accent); border-color:var(--accent);}
+.ld-actions button.primary:hover{filter:brightness(1.1);}
+.ld-actions button:disabled{opacity:.45; cursor:default;}
+.ld-actions button.primary:disabled:hover{filter:none;}
+#ld-remove{color:var(--fg-faint);}
 .fb-sep{width:1px; height:16px; background:var(--line); margin:0 3px;}
 .fb-label{font-size:11.5px; color:var(--fg-dim); width:16px; text-align:center; user-select:none;}
 .fb-label.fb-hl{background:var(--mark); border-radius:3px;}
@@ -779,6 +914,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <div id="topbar-right">
     <span id="save-indicator" aria-live="polite">Saved</span>
     <input id="search" type="search" placeholder="Search  (Ctrl+F)" autocomplete="off" spellcheck="false" aria-label="Search outline">
+    <button id="panel-btn" aria-pressed="false" title="Info panel: what links here, starred items, tags (Alt+I)" aria-label="Toggle info panel">&#9704;</button>
     <button id="menu-btn" aria-haspopup="true" aria-expanded="false" title="Menu">&#9776;</button>
   </div>
 </header>
@@ -791,7 +927,10 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
 
 <main id="page">
   <div id="focus-head" hidden>
-    <h1 id="focus-title" class="title" contenteditable="true" spellcheck="false" data-ph="Untitled"></h1>
+    <div id="focus-title-row">
+      <h1 id="focus-title" class="title" contenteditable="true" spellcheck="false" data-ph="Untitled"></h1>
+      <button id="focus-star" title="Star this item (Alt+S)" aria-label="Star this item">&#9734;</button>
+    </div>
     <div id="focus-note"></div>
   </div>
   <div id="tree" role="tree" aria-label="Outline"></div>
@@ -799,45 +938,58 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
 </main>
 
 <div id="menu-panel" hidden>
-  <label class="menu-row menu-field">Theme
-    <select id="theme-select">
-      <option value="auto">Auto (system)</option>
-      <option value="light">Light</option>
-      <option value="dark">Dark</option>
-      <option value="eink">E-ink</option>
-      <option value="parchment">Parchment</option>
-      <option value="nordic">Nordic</option>
-      <option value="evergreen">Evergreen</option>
-      <option value="crt">Green CRT</option>
-      <option value="ibm5151">IBM 5151 sepia</option>
-      <option value="wyse60">Wyse 60 terminal</option>
-    </select>
-  </label>
-  <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
-  <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
-  <label class="menu-row menu-field" title="Show a side panel with what links to the current item, where it is mirrored, and when it was created and edited."><input type="checkbox" id="info-panel-toggle"> Info panel <kbd>Alt+I</kbd></label>
-  <hr>
-  <div class="menu-note" id="export-readout"></div>
-  <button class="menu-row" id="export-json">Export JSON (full backup)</button>
-  <button class="menu-row" id="export-md-view">Export Markdown (current view)</button>
-  <button class="menu-row" id="export-md-all">Export Markdown (everything)</button>
-  <button class="menu-row" id="import-json">Import JSON&hellip;</button>
-  <div class="menu-note" id="fsbackup-readout" hidden></div>
-  <button class="menu-row" id="fsbackup-setup" title="Continuously mirror your outline to a JSON file on disk. A live backup that survives cleared browser data." hidden>Mirror to a file on disk&hellip;</button>
-  <button class="menu-row" id="fsbackup-resume" hidden>Resume file mirroring</button>
-  <button class="menu-row" id="fsbackup-stop" hidden>Stop file mirroring</button>
-  <label class="menu-row menu-field" title="Remind me when the last JSON export is older than this. 0 turns the reminder off.">Backup reminder
-    <span class="days-field"><input type="number" id="export-warn-days" min="0" max="365"> days</span>
-  </label>
-  <hr>
-  <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
-  <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
-  <div class="menu-note" id="build-readout">Build 29 &middot; 2026-08-09</div>
+  <section class="menu-sec" data-sec="view">
+    <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>View</button>
+    <div class="menu-sec-body">
+      <label class="menu-row menu-field">Theme
+        <select id="theme-select">
+          <option value="auto">Auto (system)</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="eink">E-ink</option>
+          <option value="parchment">Parchment</option>
+          <option value="nordic">Nordic</option>
+          <option value="evergreen">Evergreen</option>
+          <option value="crt">Green CRT</option>
+          <option value="ibm5151">IBM 5151 sepia</option>
+          <option value="wyse60">Wyse 60 terminal</option>
+        </select>
+      </label>
+      <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
+      <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
+    </div>
+  </section>
+  <section class="menu-sec" data-sec="data">
+    <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>Data &amp; backup</button>
+    <div class="menu-sec-body">
+      <div class="menu-note" id="export-readout"></div>
+      <button class="menu-row" id="export-json">Export JSON (full backup)</button>
+      <button class="menu-row" id="export-md-view">Export Markdown (current view)</button>
+      <button class="menu-row" id="export-md-all">Export Markdown (everything)</button>
+      <button class="menu-row" id="import-json">Import JSON&hellip;</button>
+      <div class="menu-note" id="fsbackup-readout" hidden></div>
+      <button class="menu-row" id="fsbackup-setup" title="Continuously mirror your outline to a JSON file on disk. A live backup that survives cleared browser data." hidden>Mirror to a file on disk&hellip;</button>
+      <button class="menu-row" id="fsbackup-resume" hidden>Resume file mirroring</button>
+      <button class="menu-row" id="fsbackup-stop" hidden>Stop file mirroring</button>
+      <label class="menu-row menu-field" title="Remind me when the last JSON export is older than this. 0 turns the reminder off.">Backup reminder
+        <span class="days-field"><input type="number" id="export-warn-days" min="0" max="365"> days</span>
+      </label>
+    </div>
+  </section>
+  <section class="menu-sec" data-sec="help">
+    <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>Help</button>
+    <div class="menu-sec-body">
+      <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
+      <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
+    </div>
+  </section>
+  <div class="menu-note" id="build-readout">Build 41 &middot; 2026-08-11</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
   <div id="ip-head">
     <span id="ip-title"></span>
+    <button id="ip-star" title="Star this item (Alt+S)" aria-label="Star this item" hidden>&#9734;</button>
     <button id="ip-close" title="Close (Alt+I)" aria-label="Close info panel">&#10005;</button>
   </div>
   <div id="ip-body"></div>
@@ -862,6 +1014,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <button class="nm-color" data-color="purple" title="Purple" style="--nc:var(--nc-purple)"></button>
   </div>
   <hr>
+  <button class="menu-row" id="nm-star">Star this item</button>
   <button class="menu-row" id="nm-complete">Complete</button>
   <button class="menu-row" id="nm-zoom">Zoom in</button>
   <button class="menu-row" id="nm-note">Add note</button>
@@ -878,7 +1031,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <button data-fmt="italic" title="Italic (Ctrl+I)"><em>I</em></button>
     <button data-fmt="underline" title="Underline (Ctrl+U)"><u>U</u></button>
     <button data-fmt="code" title="Inline code" class="fb-code">&lt;/&gt;</button>
-    <button data-fmt="link" title="Link &mdash; then type or paste the URL between the ( )">&#128279;</button>
+    <button data-fmt="link" title="Link&hellip; (set the address in a prompt)">&#128279;</button>
     <span class="fb-sep"></span>
     <button data-hfmt="h1" title="Heading 1 (whole item)">H1</button>
     <button data-hfmt="h2" title="Heading 2 (whole item)">H2</button>
@@ -908,6 +1061,19 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
 </div>
 
 <div id="link-auto" role="listbox" aria-label="Link suggestions" hidden></div>
+
+<div id="link-dialog" role="dialog" aria-label="Link" hidden>
+  <div class="ld-line"><span class="ld-k">Text</span><span id="ld-text"></span></div>
+  <div class="ld-line"><span class="ld-k">URL</span>
+    <input id="ld-url" type="text" placeholder="example.com" spellcheck="false" autocomplete="off" aria-label="Link address"></div>
+  <div id="ld-hint"></div>
+  <div class="ld-actions">
+    <button id="ld-remove" hidden>Remove link</button>
+    <span class="ld-gap"></span>
+    <button id="ld-cancel">Cancel</button>
+    <button id="ld-ok" class="primary">Insert</button>
+  </div>
+</div>
 
 <input type="file" id="import-file" accept=".json,application/json" hidden>
 
@@ -948,10 +1114,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
     <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
     <span><kbd>((</kbd> <em>on an empty item</em></span><span>Turn the item into a live <em>mirror</em> of another item (hollow bullet); also in the ≡ menu</span>
+    <span><kbd>#</kbd></span><span>Tag an item: the tags you already use are offered as you type</span>
+    <span><kbd>Alt</kbd>+<kbd>S</kbd></span><span>Star / unstar the item &mdash; starred items are listed in the info panel</span>
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
     <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
     <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
-    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, where it&rsquo;s mirrored, when it changed</span>
+    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, your starred items, every tag you use</span>
     <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
     <span><kbd>?</kbd></span><span>This help</span>
   </div>
@@ -1073,6 +1241,22 @@ function parseOutlineText(text) {
     stack.push(node);
   }
   return rootItems;
+}
+
+/* Dismiss a modal <dialog> by clicking its backdrop.
+   A modal dialog is a box painted over a backdrop that is part of the same
+   element, so a backdrop click reports the dialog as its target. Testing the
+   pointer against the box — rather than trusting `e.target === dialog` alone —
+   matters because the dialog's own padding belongs to the element too: the
+   target test by itself also fires on a click just inside the edge, which
+   reads to the user as the dialog closing itself for no reason. */
+function closeOnBackdropClick(dialogEl) {
+  dialogEl.addEventListener('mousedown', e => {
+    if (e.target !== dialogEl) return; // landed on real content inside
+    const r = dialogEl.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right
+        || e.clientY < r.top || e.clientY > r.bottom) dialogEl.close();
+  });
 }
 
 /* ===== 02b idb =====
@@ -1290,7 +1474,7 @@ function mdRender(src) {
    Collapse state is deliberately NOT undoable (it's view state, but persisted). */
 
 const ROOT_ID = 'root';
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const NODE_FORMATS = ['h1', 'h2', 'h3']; // '' (absent) = normal text
 const NODE_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'purple']; // '' (absent) = theme default
 const DOC_KEY = '37nodes:doc';
@@ -1646,6 +1830,17 @@ function setNodeProp(id, key, allowed, val) {
 const setFormat = (id, v) => setNodeProp(id, 'format', NODE_FORMATS, v);
 const setColor = (id, v) => setNodeProp(id, 'color', NODE_COLORS, v);
 
+/* starring rides the same 'flag' op, so it undoes like a completion toggle.
+   Callers pass a CONTENT id: starring a mirror row stars the original, which
+   is the only node that could hold the flag anyway. */
+function toggleStarred(id) {
+  const n = getNode(id);
+  if (!n) return;
+  group(() => record({ t: 'flag', id, key: 'starred', a: !!n.starred, b: !n.starred }));
+  scheduleSave();
+  emit({ type: 'node', id });
+}
+
 /* --- mirrors ------------------------------------------------------- */
 /* A mirror is a childless node whose content (title, note, completed,
    format, color, children) all resolve through mirrorOf. */
@@ -1832,6 +2027,7 @@ function normalizeNode(n) {
   if (NODE_FORMATS.includes(n.format)) out.format = n.format;
   if (NODE_COLORS.includes(n.color)) out.color = n.color;
   if (typeof n.mirrorOf === 'string' && n.mirrorOf) out.mirrorOf = n.mirrorOf;
+  if (n.starred) out.starred = true;
   return out;
 }
 function regenIds(n) {
@@ -1857,6 +2053,8 @@ const DOC_MIGRATIONS = {
   // v2 → v3: added optional per-node `mirrorOf` (id of the mirrored item).
   // Additive again; the bump exists for the same warn-don't-strip reason.
   2: data => data,
+  // v3 → v4: added optional per-node `starred`. Additive; same reasoning.
+  3: data => data,
 };
 
 function migrateDoc(data) {
@@ -2054,7 +2252,7 @@ const store = {
   setTitle, setNote, setTitleImmediate,
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
-  setCollapsed, toggleCompleted, setFormat, setColor, duplicate,
+  setCollapsed, toggleCompleted, setFormat, setColor, toggleStarred, duplicate,
   mirrorContent, mirrorsOf, hasMirrors, setMirror, createMirror,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
@@ -2076,6 +2274,7 @@ const crumbsEl = $('#breadcrumbs');
 const focusHeadEl = $('#focus-head');
 const focusTitleEl = $('#focus-title');
 const focusNoteEl = $('#focus-note');
+const focusStarEl = $('#focus-star');
 const emptyHintEl = $('#empty-hint');
 const searchEl = $('#search');
 const saveIndicatorEl = $('#save-indicator');
@@ -2128,6 +2327,13 @@ function idOfTitle(titleEl) { // structural id: moves, deletes, collapse
 function contentIdOfTitle(titleEl) { // content id: text, notes, completion
   if (titleEl === focusTitleEl) return view.focusId;
   const el = titleEl.closest('.node');
+  return el ? (el.dataset.mirror || el.dataset.id) : null;
+}
+/* the same question for a note editor: the zoom header's note belongs to the
+   focused item, every other one to its row (resolved through a mirror) */
+function contentIdOfNoteEditor(ta) {
+  if (ta.parentElement === focusNoteEl) return view.focusId;
+  const el = ta.closest('.node');
   return el ? (el.dataset.mirror || el.dataset.id) : null;
 }
 
@@ -2422,14 +2628,29 @@ function applyNodeState(el, n, own = n) {
   }
   const f = view.filter;
   el.classList.toggle('dim', !!(f && f.anc.has(own.id) && !f.under.has(own.id)));
+  // starred: a ★ at the right edge, kept last so the row's trailing chrome
+  // has a stable order however the two badges come and go
+  const row = el.querySelector(':scope > .row');
+  let star = row.querySelector(':scope > .star');
+  if (n.starred && !star) {
+    star = document.createElement('button');
+    star.className = 'star';
+    star.tabIndex = -1;
+    star.textContent = '★';
+    star.title = 'Starred · click to unstar';
+    row.append(star);
+  } else if (!n.starred && star) {
+    star.remove();
+    star = null;
+  }
   // checklist progress: shown once any direct child is checked off
   const done = n.children.reduce((s, c) => s + (c.completed ? 1 : 0), 0);
-  let badge = el.querySelector(':scope > .row > .progress');
+  let badge = row.querySelector(':scope > .progress');
   if (done > 0) {
     if (!badge) {
       badge = document.createElement('span');
       badge.className = 'progress';
-      el.querySelector(':scope > .row').append(badge);
+      row.insertBefore(badge, star); // null star = append
     }
     badge.textContent = `${done}/${n.children.length}`;
   } else if (badge) {
@@ -2590,6 +2811,11 @@ function renderFocusHead() {
   focusHeadEl.hidden = false;
   const n = store.getNode(view.focusId);
   if (document.activeElement !== focusTitleEl) focusTitleEl.textContent = n.title;
+  // the zoomed item has no row of its own to wear the ★, so the header wears
+  // it — always when starred, on hover otherwise (the .handle bargain)
+  focusStarEl.textContent = n.starred ? '★' : '☆';
+  focusStarEl.classList.toggle('on', !!n.starred);
+  focusStarEl.title = (n.starred ? 'Unstar this item' : 'Star this item') + ' (Alt+S)';
   if (!focusNoteEl.querySelector('.note-edit:focus')) {
     focusNoteEl.textContent = '';
     if (n.note) focusNoteEl.append(mdRender(n.note));
@@ -2936,6 +3162,8 @@ const applySearch = debounce(() => {
   view.query = q;
   clearFilterExempt(); // a new query gets a clean set of results
   renderAll();
+  ipRefresh(); // the query is view state, not a mutation: the panel's tag
+               // chips have no store event to ride
 }, 150);
 
 function setSearch(q) {
@@ -2961,6 +3189,7 @@ function clearSearch(refocusOutline = true) {
   if (view.query) {
     view.query = '';
     renderAll();
+    ipRefresh();
   }
   if (refocusOutline) {
     const first = visibleTitles()[0];
@@ -3834,11 +4063,35 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !menuPanelEl.hidden) closeMenu();
 });
+
+/* --- menu groups ---
+   View / Data / Help, each remembering whether it is open (same bargain the
+   info panel's sections strike). A fresh profile opens View — the group with
+   the settings someone actually browses — and leaves the other two shut, so
+   the menu opens short enough to fit a laptop even before it scrolls. */
+function setMenuSection(sec, open) {
+  sec.classList.toggle('open', open);
+  sec.querySelector('.menu-sec-head').setAttribute('aria-expanded', String(open));
+}
+for (const sec of $$('.menu-sec', menuPanelEl)) {
+  const key = sec.dataset.sec;
+  const saved = prefs.menuSections;
+  setMenuSection(sec, saved && key in saved ? !!saved[key] : key === 'view');
+  sec.querySelector('.menu-sec-head').addEventListener('click', () => {
+    const open = !sec.classList.contains('open');
+    setMenuSection(sec, open);
+    if (!prefs.menuSections) prefs.menuSections = {};
+    prefs.menuSections[key] = open;
+    savePrefs();
+  });
+}
 $('#export-json').addEventListener('click', () => { exportJSON(); closeMenu(); });
 $('#export-md-view').addEventListener('click', () => { exportMarkdown(view.focusId); closeMenu(); });
 $('#export-md-all').addEventListener('click', () => { exportMarkdown(ROOT_ID); closeMenu(); });
 $('#show-help').addEventListener('click', () => { closeMenu(); $('#help-dialog').showModal(); });
 $('#help-close').addEventListener('click', () => $('#help-dialog').close());
+// the shortcut list is long enough that its close button can be a scroll away
+closeOnBackdropClick($('#help-dialog'));
 $('#menu-panel').addEventListener('click', e => e.stopPropagation());
 
 /* --- banner buttons --- */
@@ -4121,9 +4374,7 @@ palResultsEl.addEventListener('mousemove', e => {
   const row = e.target.closest('.pal-item');
   if (row && parseInt(row.dataset.idx, 10) !== palSel) palSetSel(parseInt(row.dataset.idx, 10));
 });
-palDialogEl.addEventListener('mousedown', e => {
-  if (e.target === palDialogEl) palDialogEl.close(); // backdrop click
-});
+closeOnBackdropClick(palDialogEl);
 // Ctrl+K must win even while typing in a title/note (same pattern as Ctrl+F)
 document.addEventListener('keydown', e => {
   const mod = e.ctrlKey || e.metaKey;
@@ -4133,20 +4384,23 @@ document.addEventListener('keydown', e => {
   }
 }, true);
 
-/* ===== 11 [[link]] and ((mirror)) autocomplete =====
+/* ===== 11 [[link]], ((mirror)) and #tag autocomplete =====
    Obsidian-style suggester. Typing the second '[' closes the pair and opens a
    list of item titles filtered as you type; Enter/Tab completes it. Links
    resolve by title (F44), so completing one is a pure text insertion — there is
    no id to keep in sync afterwards. Works in titles (contenteditable) and in
    note editors (textarea).
    '((' (titles only, childless items) runs the same picker in mirror mode:
-   accepting converts the item into a live mirror of the picked one (F58). */
+   accepting converts the item into a live mirror of the picked one (F58).
+   '#' at a word boundary runs it over the document's tag vocabulary (F65) —
+   the one mode that stays silent when nothing matches, because a '#' is
+   ordinary punctuation and most of them are not the start of a tag. */
 
 const AC_MAX = 8;
 const acPopEl = $('#link-auto');
 let acEl = null;    // element being edited while the popup is open
-let acStart = -1;   // text index just after the opening '[[' / '(('
-let acKind = 'link'; // 'link' | 'mirror'
+let acStart = -1;   // text index just after the opening '[[' / '((' / '#'
+let acKind = 'link'; // 'link' | 'mirror' | 'tag'
 let acItems = [];   // candidate snapshot, taken when a link region is entered
 let acShown = [];   // rows currently rendered
 let acSel = 0;
@@ -4163,11 +4417,7 @@ function acEditable(node) {
   return (node.classList.contains('title') || node.classList.contains('note-edit')) ? node : null;
 }
 function acOwnerId(el) { // CONTENT id: text written here lands on a mirror's target
-  if (!acIsTextarea(el)) return contentIdOfTitle(el);
-  const host = el.closest('.node');
-  return el.parentElement === focusNoteEl
-    ? view.focusId
-    : (host && (host.dataset.mirror || host.dataset.id)) || null;
+  return acIsTextarea(el) ? contentIdOfNoteEditor(el) : contentIdOfTitle(el);
 }
 function acStructuralId(el) { // the row's own node: what '((' would convert
   if (acIsTextarea(el)) return null;
@@ -4189,11 +4439,16 @@ function acWrite(el, text, caret, atomic) {
   if (atomic) store.group(put); else put(); // atomic: completion is one undo step
 }
 
-/* --- the link/mirror region under the caret --- */
+/* --- the region under the caret --- */
+/* A pair opener wins over a '#' whenever it is still live, so typing
+   `[[Sprint #3` keeps offering titles instead of switching to tags mid-link;
+   the tag probe only gets a look once the pair region has ended. */
 function acProbe(el) {
   if (!acCollapsed(el)) return null;
-  const caret = acCaret(el);
-  const before = acText(el).slice(0, caret);
+  const before = acText(el).slice(0, acCaret(el));
+  return acProbePair(el, before) || acProbeTag(el, before);
+}
+function acProbePair(el, before) {
   const openL = before.lastIndexOf('[[');
   // mirrors are node surgery, not text: titles only, never the focus header
   const openM = (!acIsTextarea(el) && el !== focusTitleEl) ? before.lastIndexOf('((') : -1;
@@ -4210,6 +4465,16 @@ function acProbe(el) {
     if (!n || n.mirrorOf || n.children.length) return null;
   }
   return { start: open + 2, kind, query };
+}
+function acProbeTag(el, before) {
+  const open = before.lastIndexOf('#');
+  if (open < 0) return null;
+  // a tag only starts at a word boundary — the same rule the renderer chips
+  // by (F43) — so a URL fragment or a "no.#3" never opens the list
+  if (open > 0 && !/\s/.test(before[open - 1])) return null;
+  const query = before.slice(open + 1);
+  if (!/^[\w-]*$/.test(query)) return null; // anything else ended the tag
+  return { start: open + 1, kind: 'tag', query };
 }
 
 /* Candidates, deduped the way resolveTitleLink resolves: first in document
@@ -4252,6 +4517,16 @@ function acMirrorIndex(selfId) {
   return items;
 }
 
+/* tag candidates: the whole document's vocabulary, not the zoom scope's — a
+   tag is worth reusing wherever it was coined. Most-used first, because with
+   nothing typed the question is "which tags do I have", not "which are new". */
+function acTagItems() {
+  return tagsByUse(ROOT_ID).map(t => ({
+    id: t.tag, title: t.tag,
+    path: t.count + ' item' + (t.count === 1 ? '' : 's'),
+  }));
+}
+
 function acHint(text) {
   const el = document.createElement('div');
   el.className = 'pal-hint';
@@ -4264,8 +4539,9 @@ function acRender(query) {
   acSel = 0;
   const q = query.trim().toLowerCase();
   if (!q) {
-    acShown = acItems.slice()
-      .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+    acShown = (acKind === 'tag'
+      ? acItems.slice() // already ordered by use
+      : acItems.slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')))
       .slice(0, AC_MAX)
       .map(it => ({ ...it, spans: [] }));
   } else {
@@ -4278,6 +4554,8 @@ function acRender(query) {
     acShown = scored.slice(0, AC_MAX);
   }
   if (!acShown.length) {
+    // a '#' is ordinary punctuation: say nothing and let acUpdate close
+    if (acKind === 'tag') return;
     if (acKind === 'mirror') {
       acHint(q ? 'No matching item to mirror — Esc keeps the text as typed.'
                : 'Pick an item to mirror here: it will appear as a live copy.');
@@ -4384,9 +4662,10 @@ function acPlace(el) {
 
 /* --- open / refresh / close --- */
 function acClose() {
-  if (acPopEl.hidden) return;
-  acPopEl.hidden = true;
-  acPopEl.textContent = '';
+  if (!acPopEl.hidden) {
+    acPopEl.hidden = true;
+    acPopEl.textContent = '';
+  }
   acEl = null;
   acStart = -1;
   acShown = [];
@@ -4399,14 +4678,15 @@ function acUpdate() {
   if (!probe) { acClose(); return; }
   // entering a different region: take a fresh candidate snapshot
   if (el !== acEl || probe.start !== acStart || probe.kind !== acKind) {
-    acItems = probe.kind === 'mirror'
-      ? acMirrorIndex(acStructuralId(el))
+    acItems = probe.kind === 'mirror' ? acMirrorIndex(acStructuralId(el))
+      : probe.kind === 'tag' ? acTagItems()
       : acIndex(acOwnerId(el));
   }
   acEl = el;
   acStart = probe.start;
   acKind = probe.kind;
   acRender(probe.query);
+  if (probe.kind === 'tag' && !acShown.length) { acClose(); return; }
   acPlace(el);
 }
 function acAccept(i) {
@@ -4418,6 +4698,19 @@ function acAccept(i) {
     const id = acStructuralId(acEl);
     acClose();
     if (id && store.setMirror(id, r.id)) focusNodeTitle(id, 'end');
+    return;
+  }
+  if (acKind === 'tag') {
+    // the '#' is already typed; only the name goes in. A trailing space ends
+    // the tag so the next word can't grow it — unless one is already there.
+    const el = acEl, start = acStart;
+    const text = acText(el), caret = acCaret(el);
+    const name = r.title.slice(1);
+    const after = text.slice(caret);
+    const pad = /^\s/.test(after) ? '' : ' ';
+    acClose();
+    el.focus();
+    acWrite(el, text.slice(0, start) + name + pad + after, start + name.length + pad.length, true);
     return;
   }
   const el = acEl, start = acStart;
@@ -4635,12 +4928,12 @@ function tourBuild(auto) {
     },
     {
       title: 'Tags and links',
-      body: 'A `#tag` in a title becomes a chip: click it to filter by that tag, click again to clear.\n\nType `[[` to link to another item: a list of titles appears right at the cursor, and `Enter` inserts the one you mean.',
+      body: 'A `#tag` in a title becomes a chip: click it to filter by that tag, click again to clear. Typing `#` offers the tags you already use, so a vocabulary stays one.\n\nType `[[` to link to another item: a list of titles appears right at the cursor, and `Enter` inserts the one you mean.\n\n`Alt`+`I` opens a side panel with what links to an item, your starred items (`Alt`+`S`), and every tag in view.',
       target: () => $('#tree .title .tag') || $('#tree .wikilink'), place: 'bottom', pad: 5,
     },
     {
       title: 'Make it yours',
-      body: 'The rest lives in this menu: **themes**, including a few retro terminal tributes with the glow and scanlines to match, plus hide-completed, import and export.\n\nAnd this tour, whenever you want it again.',
+      body: 'The rest lives in this menu, in three groups: **View** (themes, including a few retro terminal tributes with the glow and scanlines to match), **Data & backup** (import, export, and a mirror to a file on disk), and **Help**.\n\nAnd this tour, whenever you want it again.',
       target: () => $('#menu-panel'), place: 'left', pad: 6, menu: true,
     },
     {
@@ -5087,6 +5380,7 @@ function syncNodeMenu(n) {
   for (const b of nodeMenuEl.querySelectorAll('.nm-color')) {
     b.classList.toggle('active', (c.color || '') === b.dataset.color);
   }
+  $('#nm-star').textContent = c.starred ? 'Unstar this item' : 'Star this item';
   $('#nm-complete').textContent = c.completed ? 'Un-complete' : 'Complete';
   $('#nm-note').textContent = c.note ? 'Edit note' : 'Add note';
   $('#nm-mirror').textContent = n.mirrorOf ? 'Mirror the original again' : 'Mirror this item';
@@ -5132,6 +5426,10 @@ nodeMenuEl.addEventListener('click', e => {
   const col = e.target.closest('.nm-color');
   if (col) { store.setColor(cid, col.dataset.color); closeNodeMenu({ refocus: nmViaKeyboard }); return; }
   switch (e.target.closest('button')?.id) {
+    case 'nm-star':
+      store.toggleStarred(cid);
+      closeNodeMenu({ refocus: nmViaKeyboard });
+      break;
     case 'nm-complete':
       store.toggleCompleted(cid);
       closeNodeMenu({ refocus: nmViaKeyboard });
@@ -5377,15 +5675,7 @@ fmtBarEl.addEventListener('click', e => {
       case 'italic': fmtWrap(el, '*', '*'); break;
       case 'underline': fmtWrap(el, '__', '__'); break;
       case 'code': fmtWrap(el, '`', '`'); break;
-      case 'link': {
-        const t = el.textContent;
-        const [a, b] = selRawRange(el);
-        const inner = t.slice(a, b);
-        // caret lands between the ( ) ready for the URL to be typed/pasted
-        const caret = a + 1 + inner.length + 2;
-        fmtReplace(el, a, b, '[' + inner + ']()', caret, caret);
-        break;
-      }
+      case 'link': openLinkDialog(el); break;
     }
   } else if ('hfmt' in btn.dataset) {
     const id = contentIdOfTitle(el); // heading lives on a mirror's target
@@ -5403,6 +5693,138 @@ document.addEventListener('keydown', e => {
 });
 window.addEventListener('scroll', () => hideFmtBar(), { passive: true });
 window.addEventListener('resize', () => hideFmtBar());
+
+/* --- the link prompt ----------------------------------------------------
+   The link button used to drop `[text]()` and leave: raw syntax on screen,
+   no hint about what goes where, and no way to tell an unfinished link from
+   a broken one. It now opens a small prompt showing the text that will be
+   linked and taking the address, then writes the markdown.
+
+   The prompt takes focus, which ends the title's edit session — so the
+   selection it was raised from is gone by the time Insert is pressed.
+   Everything needed is captured up front (content id, raw range, the exact
+   text that sat there) and the insertion goes through the store rather than
+   execCommand, verified against that captured text so an edit underneath
+   (another tab, an undo) can never be overwritten blind. */
+const ldEl = $('#link-dialog');
+const ldTextEl = $('#ld-text');
+const ldUrlEl = $('#ld-url');
+const ldHintEl = $('#ld-hint');
+const ldRemoveEl = $('#ld-remove');
+const ldOkEl = $('#ld-ok');
+let ldCtx = null; // {id, a, b, text, was} — null = closed
+
+/* the renderer's own link grammar (F56): http(s) only, and a ')' or a space
+   inside the URL would end the markdown early */
+const TITLE_LINK_RE = /\[([^\[\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+function linkAround(text, a, b) {
+  TITLE_LINK_RE.lastIndex = 0;
+  for (let m; (m = TITLE_LINK_RE.exec(text)); ) {
+    const s = m.index, e = s + m[0].length;
+    if (a >= s && b <= e) return { s, e, text: m[1], url: m[2] };
+  }
+  return null;
+}
+/* What gets pasted is rarely what the grammar accepts: assume https for a
+   bare domain, and percent-encode the two characters that would truncate the
+   link rather than rejecting an otherwise good URL over them. A URL that
+   names some other scheme keeps it, and so fails the test below — the one
+   place F56's http-only rule is enforced against user input. */
+function ldNormalizeUrl(raw) {
+  let u = String(raw).trim();
+  if (!u) return '';
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u.replace(/^\/+/, '');
+  return u.replace(/\s+/g, '%20').replace(/\)/g, '%29');
+}
+function ldValidUrl(u) { return /^https?:\/\/[^)\s]+$/.test(u); }
+
+function ldSync() {
+  if (!ldCtx) return;
+  const typed = ldUrlEl.value.trim();
+  const url = ldNormalizeUrl(typed);
+  const bracketed = /[[\]]/.test(ldCtx.text); // unlinkable by the grammar
+  const ok = !bracketed && ldValidUrl(url);
+  ldOkEl.disabled = !ok;
+  ldHintEl.textContent = bracketed ? 'Link text can’t contain [ or ].'
+    : !typed ? 'Type or paste the address this text should point at.'
+    : ok ? url            // show what will actually be written
+    : 'Only http:// and https:// addresses can be linked.';
+  ldHintEl.classList.toggle('bad', bracketed || (!!typed && !ok));
+}
+
+function openLinkDialog(el) {
+  const id = contentIdOfTitle(el);
+  const raw = el.textContent;
+  const [a0, b0] = selRawRange(el);
+  if (!id || a0 === b0) return;
+  // a selection sitting in or on an existing link edits that link whole,
+  // rather than nesting a second one inside it
+  const hit = linkAround(raw, a0, b0);
+  const a = hit ? hit.s : a0, b = hit ? hit.e : b0;
+  ldCtx = { id, a, b, text: hit ? hit.text : raw.slice(a0, b0), was: raw.slice(a, b) };
+  ldTextEl.textContent = ldCtx.text;
+  ldUrlEl.value = hit ? hit.url : '';
+  ldRemoveEl.hidden = !hit;
+  // anchor to the selection while it is still on screen: focusing the field
+  // ends the edit session and takes the highlight with it
+  const rect = window.getSelection().getRangeAt(0).getBoundingClientRect();
+  hideFmtBar();
+  ldEl.hidden = false;
+  const w = ldEl.offsetWidth, h = ldEl.offsetHeight, pad = 8;
+  ldEl.style.left = clamp(rect.left + rect.width / 2 - w / 2, pad, window.innerWidth - w - pad) + 'px';
+  ldEl.style.top = clamp(
+    rect.bottom + pad + h <= window.innerHeight - pad ? rect.bottom + pad : rect.top - h - pad,
+    pad, window.innerHeight - h - pad) + 'px';
+  ldSync();
+  ldUrlEl.focus();
+  ldUrlEl.select();
+}
+
+function closeLinkDialog({ restore = false } = {}) {
+  if (!ldCtx) return;
+  const ctx = ldCtx;
+  ldCtx = null;
+  ldEl.hidden = true;
+  if (restore) focusNodeTitle(ctx.id, ctx.b); // back where the selection ended
+}
+
+function ldApply(url) { // '' = unwrap, keeping the text
+  if (!ldCtx) return;
+  const ctx = ldCtx;
+  const n = store.getNode(ctx.id);
+  if (!n || n.title.slice(ctx.a, ctx.b) !== ctx.was) {
+    ldHintEl.textContent = 'This item changed while the prompt was open — nothing was written.';
+    ldHintEl.classList.add('bad');
+    return;
+  }
+  const md = url ? '[' + ctx.text + '](' + url + ')' : ctx.text;
+  ldCtx = null;
+  ldEl.hidden = true;
+  store.setTitleImmediate(ctx.id, n.title.slice(0, ctx.a) + md + n.title.slice(ctx.b));
+  focusNodeTitle(ctx.id, ctx.a + md.length); // caret just past the link
+}
+
+ldUrlEl.addEventListener('input', ldSync);
+ldEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!ldOkEl.disabled) ldApply(ldNormalizeUrl(ldUrlEl.value));
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation(); // Esc belongs to the prompt, not to search or the note
+    closeLinkDialog({ restore: true });
+  }
+});
+ldOkEl.addEventListener('click', () => ldApply(ldNormalizeUrl(ldUrlEl.value)));
+$('#ld-cancel').addEventListener('click', () => closeLinkDialog({ restore: true }));
+ldRemoveEl.addEventListener('click', () => ldApply(''));
+document.addEventListener('mousedown', e => {
+  if (ldCtx && !e.target.closest('#link-dialog')) closeLinkDialog();
+});
+// position:fixed, anchored to a selection that scrolls away underneath it
+window.addEventListener('scroll', () => closeLinkDialog(), { passive: true });
+window.addEventListener('resize', () => closeLinkDialog());
 
 /* ===== 16 info panel =====
    Backlink index + the right-hand info panel, and the rename-rewrite offer
@@ -5467,16 +5889,21 @@ function linksOutOf(n) {
 const ipEl = $('#info-panel');
 const ipTitleEl = $('#ip-title');
 const ipBodyEl = $('#ip-body');
-const ipToggleEl = $('#info-panel-toggle');
+const ipStarEl = $('#ip-star');
+const ipBtnEl = $('#panel-btn'); // the top-bar switch, lit while the panel is out
 let ipActiveId = null; // the item the caret last visited (content id)
 
 function panelOpen() { return !!prefs.infoPanel; }
+function syncPanelBtn() {
+  ipBtnEl.classList.toggle('on', !!prefs.infoPanel);
+  ipBtnEl.setAttribute('aria-pressed', String(!!prefs.infoPanel));
+}
 function setPanelOpen(on) {
   prefs.infoPanel = !!on;
   savePrefs();
   document.body.classList.toggle('panel-open', prefs.infoPanel);
   ipEl.hidden = !prefs.infoPanel;
-  ipToggleEl.checked = prefs.infoPanel;
+  syncPanelBtn();
   if (prefs.infoPanel) renderInfoPanel();
 }
 
@@ -5513,6 +5940,53 @@ function ipRow(main, sub, onClick) {
   b.addEventListener('click', onClick);
   return b;
 }
+/* --- collapsible sections ---------------------------------------------
+   The panel stacks three of them: the tracked item's details, the starred
+   shortlist, and the tag vocabulary. Open/closed lives in prefs (details
+   open, the two indexes closed, on a fresh profile) and a collapsed section
+   never builds its body — only its count, which is what makes it worth
+   glancing at while shut. */
+function ipSectionOpen(key) {
+  const s = prefs.ipSections;
+  if (!s || !(key in s)) return key === 'item'; // first run: details only
+  return !!s[key];
+}
+function ipSetSectionOpen(key, on) {
+  if (!prefs.ipSections) prefs.ipSections = {};
+  prefs.ipSections[key] = on;
+  savePrefs();
+  renderInfoPanel();
+}
+function ipSection(key, label, count, build) {
+  const open = ipSectionOpen(key);
+  const sec = document.createElement('section');
+  sec.className = 'ip-sec' + (open ? ' open' : '');
+  const head = document.createElement('button');
+  head.className = 'ip-sec-head';
+  head.setAttribute('aria-expanded', String(open));
+  const caret = document.createElement('span');
+  caret.className = 'ip-caret';
+  caret.textContent = '▸';
+  const lab = document.createElement('span');
+  lab.className = 'ip-sec-title';
+  lab.textContent = label;
+  head.append(caret, lab);
+  if (count != null) {
+    const c = document.createElement('span');
+    c.className = 'ip-sec-count';
+    c.textContent = String(count);
+    head.append(c);
+  }
+  head.addEventListener('click', () => ipSetSectionOpen(key, !open));
+  sec.append(head);
+  if (open) {
+    const body = document.createElement('div');
+    body.className = 'ip-sec-body';
+    build(body);
+    sec.append(body);
+  }
+  ipBodyEl.append(sec);
+}
 function ipDetail(grid, label, value) {
   const k = document.createElement('span');
   k.className = 'ip-k';
@@ -5541,32 +6015,24 @@ function jumpToNode(id) {
   renderInfoPanel();
 }
 
-function renderInfoPanel() {
-  if (!panelOpen()) return;
-  const id = (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
-  const n = store.getNode(id);
-  ipBodyEl.textContent = '';
-  if (!n || id === ROOT_ID) {
-    ipTitleEl.textContent = 'No item selected';
-    ipBodyEl.append(ipHint('Click an item to see what links to it.'));
-    return;
-  }
-  ipTitleEl.textContent = truncate(n.title, 60) || 'Untitled';
-  ipTitleEl.title = n.title || 'Untitled';
+function ipTrackedId() {
+  return (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
+}
 
+function ipItemBody(body, id, n) {
   // --- linked from ---
   const back = backlinksOf(id);
-  ipBodyEl.append(ipLabel(back.length
+  body.append(ipLabel(back.length
     ? `Linked from ${back.length} item${back.length === 1 ? '' : 's'}`
     : 'Linked from'));
   if (!back.length) {
-    ipBodyEl.append(ipHint('Nothing links here yet. Type [[ in any item to link to this one.'));
+    body.append(ipHint('Nothing links here yet. Type [[ in any item to link to this one.'));
   } else {
     for (const s of back) {
       const src = store.getNode(s.id);
       if (!src) continue;
       const where = s.inNote && !s.inTitle ? 'in a note · ' : '';
-      ipBodyEl.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
+      body.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
         () => jumpToNode(s.id)));
     }
   }
@@ -5574,14 +6040,14 @@ function renderInfoPanel() {
   // --- mirrors ---
   const mirrors = store.mirrorsOf(id);
   if (mirrors.length) {
-    ipBodyEl.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
+    body.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
     for (const m of mirrors) {
-      ipBodyEl.append(ipRow('⧉ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
+      body.append(ipRow('⧉ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
     }
   }
 
   // --- details ---
-  ipBodyEl.append(ipLabel('Details'));
+  body.append(ipLabel('Details'));
   const grid = document.createElement('div');
   grid.className = 'ip-grid';
   const created = new Date(n.createdAt);
@@ -5591,7 +6057,83 @@ function renderInfoPanel() {
   ipDetail(grid, 'Edited', n.updatedAt ? formatAgo(n.updatedAt) : 'unknown');
   ipDetail(grid, 'Items inside', String(store.countNodes(n) - 1));
   ipDetail(grid, 'Links out', String(linksOutOf(n)));
-  ipBodyEl.append(grid);
+  body.append(grid);
+}
+
+/* Starred items in document order — the order they read in the outline, so
+   the list stays where you last saw it instead of reshuffling on every edit.
+   Each row jumps; the ★ beside it unstars without leaving where you are. */
+function ipStarredBody(body) {
+  const items = starredItems();
+  if (!items.length) {
+    body.append(ipHint('Nothing starred yet. Star an item with Alt+S, from its ≡ menu, or with the ☆ above.'));
+    return;
+  }
+  for (const it of items) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ip-row-wrap';
+    wrap.append(
+      ipRow(truncate(it.title, 40) || 'Untitled', pathOf(it.id), () => jumpToNode(it.id)));
+    const un = document.createElement('button');
+    un.className = 'ip-unstar';
+    un.textContent = '★';
+    un.title = 'Unstar';
+    un.addEventListener('click', () => store.toggleStarred(it.id));
+    wrap.append(un);
+    body.append(wrap);
+  }
+}
+
+/* The tag vocabulary as chips: alphabetical, so a tag keeps its place between
+   renders, with its item count riding along. Clicking one is exactly the
+   chip-click in the outline (F43) — a filter you can click off again. */
+function ipTagsBody(body) {
+  const tags = tagsAlphabetical(view.focusId);
+  if (!tags.length) {
+    body.append(ipHint(view.focusId === ROOT_ID
+      ? 'No tags yet. Type # in any item to tag it — the list of tags you already use appears as you type.'
+      : 'No tags in this part of the outline. Zoom out to see the rest.'));
+    return;
+  }
+  const cloud = document.createElement('div');
+  cloud.className = 'ip-tags';
+  const active = view.query.trim().toLowerCase();
+  for (const t of tags) {
+    const b = document.createElement('button');
+    b.className = 'ip-tag' + (active === t.tag.toLowerCase() ? ' active' : '');
+    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter`;
+    b.append(document.createTextNode(t.tag));
+    const c = document.createElement('sup');
+    c.textContent = String(t.count);
+    b.append(c);
+    b.addEventListener('click', () => toggleTagFilter(t.tag));
+    cloud.append(b);
+  }
+  body.append(cloud);
+}
+
+function renderInfoPanel() {
+  if (!panelOpen()) return;
+  const id = ipTrackedId();
+  const n = store.getNode(id);
+  const tracked = !!n && id !== ROOT_ID;
+  ipBodyEl.textContent = '';
+  ipTitleEl.textContent = tracked ? (truncate(n.title, 60) || 'Untitled') : 'No item selected';
+  ipTitleEl.title = tracked ? (n.title || 'Untitled') : '';
+  ipStarEl.hidden = !tracked;
+  if (tracked) {
+    ipStarEl.textContent = n.starred ? '★' : '☆';
+    ipStarEl.classList.toggle('on', !!n.starred);
+    ipStarEl.title = (n.starred ? 'Unstar this item' : 'Star this item') + ' (Alt+S)';
+  }
+
+  ipSection('item', 'This item', null, body => {
+    if (!tracked) { body.append(ipHint('Click an item to see what links to it.')); return; }
+    ipItemBody(body, id, n);
+  });
+  ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
+  ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
+    tagsAlphabetical(view.focusId).length, ipTagsBody);
 }
 const ipRefresh = debounce(renderInfoPanel, 120);
 
@@ -5599,14 +6141,7 @@ const ipRefresh = debounce(renderInfoPanel, 120);
 document.addEventListener('focusin', e => {
   const t = e.target.closest?.('.title');
   const ta = !t && e.target.closest?.('.note-edit');
-  let id = null;
-  if (t) id = contentIdOfTitle(t);
-  else if (ta) {
-    const host = ta.closest('.node');
-    id = ta.parentElement === focusNoteEl
-      ? view.focusId
-      : host && (host.dataset.mirror || host.dataset.id);
-  }
+  const id = t ? contentIdOfTitle(t) : ta ? contentIdOfNoteEditor(ta) : null;
   if (id && id !== ipActiveId) { ipActiveId = id; ipRefresh(); }
 });
 window.addEventListener('hashchange', () => {
@@ -5684,8 +6219,12 @@ function offerRenameRewrite(from, to, sources) {
 }
 
 /* --- wiring -------------------------------------------------------------- */
-ipToggleEl.addEventListener('change', () => setPanelOpen(ipToggleEl.checked));
+ipBtnEl.addEventListener('click', () => setPanelOpen(!panelOpen()));
 $('#ip-close').addEventListener('click', () => setPanelOpen(false));
+ipStarEl.addEventListener('click', () => {
+  const id = ipTrackedId();
+  if (id && id !== ROOT_ID) store.toggleStarred(id);
+});
 document.addEventListener('keydown', e => {
   if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
   // Alt+letter reports differently across keyboard layouts (some send a dead
@@ -5699,8 +6238,140 @@ document.addEventListener('keydown', e => {
 // state lands before boot's first render, so the column never jumps
 document.body.classList.toggle('panel-open', panelOpen());
 ipEl.hidden = !panelOpen();
-ipToggleEl.checked = panelOpen();
+syncPanelBtn();
 bootReady.then(renderInfoPanel);
+
+/* ===== 17 stars and tags =====
+   Two document-wide indexes and the gestures that feed them:
+
+   - **Starred** items: an explicit shortlist the user curates. `starred` is a
+     content flag like `completed`, so a star gesture on a mirror row lands on
+     the original — the only node that could hold it.
+   - The **tag vocabulary**: every `#tag` the document actually uses, with a
+     count of the items using it. Derived, never stored, and rebuilt lazily
+     behind a dirty flag — the same pattern as the backlink index in 16.
+
+   The info panel reads both; the '#' suggester in 11 reads the tag one.
+   Mirrors own no text, so they contribute no tags: the original already
+   reports the usage, and counting the mirror would double it. */
+
+let stDirty = true;
+let starCache = null;      // [node] in document order
+const tagCache = new Map(); // scope id -> Map(lowercased tag -> {tag, count})
+
+function stSync() {
+  if (!stDirty) return;
+  stDirty = false;
+  starCache = null;
+  tagCache.clear();
+}
+store.subscribe(ev => {
+  if (ev.type === 'node' || ev.type === 'children' || ev.type === 'doc') stDirty = true;
+});
+
+/* --- starred ----------------------------------------------------------- */
+function starredItems() {
+  stSync();
+  if (starCache) return starCache;
+  const out = [];
+  (function walk(n) {
+    for (const c of n.children) { if (c.starred) out.push(c); walk(c); }
+  })(store.doc.root);
+  return (starCache = out);
+}
+function isStarred(id) {
+  const n = store.getNode(id);
+  return !!(n && n.starred);
+}
+
+/* --- tags -------------------------------------------------------------- */
+/* Same word-boundary rule as the renderer's chips (F43), so the index lists
+   exactly the tokens that show up as chips and nothing else. */
+const TAG_SCAN_RE = /(^|\s)(#[\w-]+)/g;
+function scanTags(text, fn) {
+  if (!text) return;
+  TAG_SCAN_RE.lastIndex = 0;
+  for (let m; (m = TAG_SCAN_RE.exec(text)); ) fn(m[2]);
+}
+/* Scoped to a subtree because search is (F24): a tag listed for the current
+   zoom is one a click can actually find. Tags are matched case-insensitively,
+   so casings collapse onto the first spelling seen. */
+function tagIndex(scopeId) {
+  stSync();
+  const key = scopeId || ROOT_ID;
+  const hit = tagCache.get(key);
+  if (hit) return hit;
+  const map = new Map();
+  (function walk(n) {
+    for (const c of n.children) {
+      if (!c.mirrorOf) {
+        const seen = new Set(); // an item using #todo twice is still one item
+        const take = t => {
+          const k = t.toLowerCase();
+          if (seen.has(k)) return;
+          seen.add(k);
+          const e = map.get(k);
+          if (e) e.count++;
+          else map.set(k, { tag: t, count: 1 });
+        };
+        scanTags(c.title, take);
+        scanTags(c.note, take);
+      }
+      walk(c);
+    }
+  })(store.getNode(key) || store.doc.root);
+  tagCache.set(key, map);
+  return map;
+}
+function tagsAlphabetical(scopeId) {
+  return [...tagIndex(scopeId).values()]
+    .sort((a, b) => a.tag.toLowerCase().localeCompare(b.tag.toLowerCase()));
+}
+function tagsByUse(scopeId) {
+  return [...tagIndex(scopeId).values()]
+    .sort((a, b) => b.count - a.count || a.tag.toLowerCase().localeCompare(b.tag.toLowerCase()));
+}
+
+/* --- star gestures ------------------------------------------------------ */
+/* What a keyboard star acts on: the item the caret is in, falling back to the
+   one the panel is tracking (which is that same item, debounced, or the zoom
+   target when nothing has focus). */
+function starTargetId() {
+  const a = document.activeElement;
+  const t = a && a.closest?.('.title');
+  if (t) return contentIdOfTitle(t);
+  const ta = a && a.closest?.('.note-edit');
+  if (ta) return contentIdOfNoteEditor(ta);
+  const tracked = ipActiveId && store.getNode(ipActiveId) ? ipActiveId : view.focusId;
+  return tracked === ROOT_ID ? null : tracked;
+}
+
+// the ★ badge on a row is an unstar button; the row underneath must not also
+// take the click and start editing the title
+treeEl.addEventListener('click', e => {
+  const s = e.target.closest('.star');
+  if (!s) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const el = s.closest('.node');
+  if (el) store.toggleStarred(el.dataset.mirror || el.dataset.id);
+});
+
+// the zoom header stands in for the zoomed item's missing row
+focusStarEl.addEventListener('click', () => {
+  if (view.focusId !== ROOT_ID) store.toggleStarred(view.focusId);
+});
+
+document.addEventListener('keydown', e => {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // Alt+letter reports differently across keyboard layouts (some send a dead
+  // key or an accented character as e.key), so match the physical key too
+  if (e.code !== 'KeyS' && e.key !== 's' && e.key !== 'S') return;
+  const id = starTargetId();
+  if (!id) return;
+  e.preventDefault();
+  store.toggleStarred(id);
+});
 
 })();
 </script>

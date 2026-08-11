@@ -8,6 +8,7 @@ const crumbsEl = $('#breadcrumbs');
 const focusHeadEl = $('#focus-head');
 const focusTitleEl = $('#focus-title');
 const focusNoteEl = $('#focus-note');
+const focusStarEl = $('#focus-star');
 const emptyHintEl = $('#empty-hint');
 const searchEl = $('#search');
 const saveIndicatorEl = $('#save-indicator');
@@ -60,6 +61,13 @@ function idOfTitle(titleEl) { // structural id: moves, deletes, collapse
 function contentIdOfTitle(titleEl) { // content id: text, notes, completion
   if (titleEl === focusTitleEl) return view.focusId;
   const el = titleEl.closest('.node');
+  return el ? (el.dataset.mirror || el.dataset.id) : null;
+}
+/* the same question for a note editor: the zoom header's note belongs to the
+   focused item, every other one to its row (resolved through a mirror) */
+function contentIdOfNoteEditor(ta) {
+  if (ta.parentElement === focusNoteEl) return view.focusId;
+  const el = ta.closest('.node');
   return el ? (el.dataset.mirror || el.dataset.id) : null;
 }
 
@@ -354,14 +362,29 @@ function applyNodeState(el, n, own = n) {
   }
   const f = view.filter;
   el.classList.toggle('dim', !!(f && f.anc.has(own.id) && !f.under.has(own.id)));
+  // starred: a ★ at the right edge, kept last so the row's trailing chrome
+  // has a stable order however the two badges come and go
+  const row = el.querySelector(':scope > .row');
+  let star = row.querySelector(':scope > .star');
+  if (n.starred && !star) {
+    star = document.createElement('button');
+    star.className = 'star';
+    star.tabIndex = -1;
+    star.textContent = '★';
+    star.title = 'Starred · click to unstar';
+    row.append(star);
+  } else if (!n.starred && star) {
+    star.remove();
+    star = null;
+  }
   // checklist progress: shown once any direct child is checked off
   const done = n.children.reduce((s, c) => s + (c.completed ? 1 : 0), 0);
-  let badge = el.querySelector(':scope > .row > .progress');
+  let badge = row.querySelector(':scope > .progress');
   if (done > 0) {
     if (!badge) {
       badge = document.createElement('span');
       badge.className = 'progress';
-      el.querySelector(':scope > .row').append(badge);
+      row.insertBefore(badge, star); // null star = append
     }
     badge.textContent = `${done}/${n.children.length}`;
   } else if (badge) {
@@ -522,6 +545,11 @@ function renderFocusHead() {
   focusHeadEl.hidden = false;
   const n = store.getNode(view.focusId);
   if (document.activeElement !== focusTitleEl) focusTitleEl.textContent = n.title;
+  // the zoomed item has no row of its own to wear the ★, so the header wears
+  // it — always when starred, on hover otherwise (the .handle bargain)
+  focusStarEl.textContent = n.starred ? '★' : '☆';
+  focusStarEl.classList.toggle('on', !!n.starred);
+  focusStarEl.title = (n.starred ? 'Unstar this item' : 'Star this item') + ' (Alt+S)';
   if (!focusNoteEl.querySelector('.note-edit:focus')) {
     focusNoteEl.textContent = '';
     if (n.note) focusNoteEl.append(mdRender(n.note));
