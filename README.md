@@ -31,6 +31,9 @@ See [PRD.md](PRD.md) for the full product requirements.
 - Live **search/filter** with match highlighting (`Ctrl+F`)
 - **Jump palette** (`Ctrl+K`): fuzzy-match any item's title and zoom straight
   to it from anywhere
+- **Move to…** (`Alt+M`, or the ≡ menu): the same fuzzy search, but the item
+  you pick is the *destination* — the current item (and everything under it)
+  is filed inside it, in one undo step, with the cursor following it there
 - **#tags**: `#word` tokens in titles render as clickable chips — click one to
   filter by that exact tag, click it again to clear
 - **[[Internal links]]**: `[[Some title]]` in a title or note links to the item
