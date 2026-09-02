@@ -6,6 +6,10 @@ dependencies and no network**. It must keep working when double-clicked from
 no framework, no CDN, no fetch.
 
 - `README.md` — user-facing feature tour.
+- `FEEDBACK.md` — the user-feedback queue: bug reports and feature requests
+  with ids (`BUG-n`, `FR-n`), status, sizing, and the decision each one
+  needs. Check it before starting new work; move an item to Done when it
+  ships and gets its F-number in the PRD.
 - `PRD.md` — **the behavioural spec**, numbered `F1…F52`. It is the source of
   truth for what the app does and why. When you add or change behaviour, add or
   amend an F-item in the matching section.
