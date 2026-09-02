@@ -89,6 +89,7 @@ At any time the view has a **focus node** (default: root). Only the focus node's
 - **F13.** `Ctrl+Z` / `Ctrl+Shift+Z` — undo/redo (see F26).
 - **F14.** `Ctrl+F` (capture, don't let the browser take it) focuses the search box; `Esc` clears search and returns focus to the outline.
 - **F15.** A `?` shortcut (when not editing) or menu item shows a keyboard-reference overlay.
+- **F68.** `Ctrl+Home` / `Ctrl+End` (in a title) land the caret on the **first / last item on screen** in the current view — the same visible-title order `↑`/`↓` walk, so hidden completed rows and collapsed subtrees are skipped. The zoom header is the list's heading rather than a row in it and is passed over, unless the list is empty, in which case it is the only place left to land. `Shift` variants are left to the browser (select to the start / end of the line), and the keys keep their native meaning inside a note editor.
 
 Mac equivalents (`Cmd` for `Ctrl`) are supported throughout.
 

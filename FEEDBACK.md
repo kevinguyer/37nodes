@@ -104,7 +104,7 @@ so. Revisit only if he has a real use for it.
 | FR-6 | "Mirror to…" command | Approved | S–M | Low | Yes; rides on the Move-to picker |
 | FR-7 | Multi-line (multi-item) selection | Discuss | XL | Medium | Yes, but as its own release, scoped to sibling ranges |
 | FR-8 | On a mirror, show every other place it appears | Discuss | S | Low | Yes; confirm what he is seeing today |
-| FR-9 | Ctrl+Home / Ctrl+End: first / last item in view | Approved | S | Low | Yes |
+| FR-9 | Ctrl+Home / Ctrl+End: first / last item in view | Done (build 48, F68) | S | Low | Yes |
 | FR-10 | Panel section for the zoomed-into item as well as the selected one | Approved | S–M | Low | Yes |
 | FR-11 | Keep the caret on the item you zoomed out of (and into) | Approved | S | Low | Yes, for every zoom path |
 | FR-12 | Keep collapse state while a tag filter is active | Discuss | M | Medium | Yes, with a different rule than asked for; touches a documented invariant |
@@ -293,3 +293,4 @@ reason to special-case.
 | 2026-09-02 | File created from the first user batch; BUG-1 and BUG-2 reproduced on build 46. |
 | 2026-09-02 | BUG-2 fixed: every zoom ends the edit in progress first, and the header always re-renders when the zoomed item changes. |
 | 2026-09-02 | BUG-1 fixed: the reconciler drops a re-homed row unless a destination instance will actually claim it. |
+| 2026-09-02 | FR-9 shipped: Ctrl+Home / Ctrl+End. |
