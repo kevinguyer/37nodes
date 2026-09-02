@@ -19,7 +19,7 @@ Source: first batch from a heavy daily user, received 2026-09-02.
 
 | ID | Title | Status | Size | Priority |
 |---|---|---|---|---|
-| BUG-1 | "Move to…" leaves a ghost copy of the moved item in its old list | Approved | S | High |
+| BUG-1 | "Move to…" leaves a ghost copy of the moved item in its old list | Done (build 47, F67) | S | High |
 | BUG-2 | Jumping (Ctrl+K) while the caret is in the zoom header leaves the old title in the header | Done (build 46, F41) | S | **Highest** — can corrupt a title |
 | BUG-3 | Cannot link to an item whose title itself contains a `[[link]]` | Declined (by design) | — | — |
 
@@ -292,3 +292,4 @@ reason to special-case.
 |---|---|
 | 2026-09-02 | File created from the first user batch; BUG-1 and BUG-2 reproduced on build 46. |
 | 2026-09-02 | BUG-2 fixed: every zoom ends the edit in progress first, and the header always re-renders when the zoomed item changes. |
+| 2026-09-02 | BUG-1 fixed: the reconciler drops a re-homed row unless a destination instance will actually claim it. |

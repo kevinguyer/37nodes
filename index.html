@@ -983,7 +983,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 46 &middot; 2026-09-02</div>
+  <div class="menu-note" id="build-readout">Build 47 &middot; 2026-09-02</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -2883,11 +2883,33 @@ function reconcileChildren(container, parentNode, level, suffix = '') {
     if (valid.has(cid)) continue;
     const n = store.getNode(cid);
     const sp = n && store.getParent(cid);
-    // if the node still exists under another parent, that parent's own
-    // 'children' event (emitted in the same action) will re-home this element
-    if (n && sp && sp.id !== parentNode.id) continue;
+    // A node that still exists under another parent is left for that
+    // parent's own 'children' event (emitted in the same action) to re-home,
+    // subtree intact — but only when that event will actually claim it. A
+    // collapsed or unrendered destination clears or never touches its
+    // container, and the orphan would sit here as a dead row until the next
+    // rebuild (BUG-1: "Move to…" into a collapsed item).
+    if (n && sp && sp.id !== parentNode.id && willReconcile(sp.id, suffixOf(el))) continue;
     el.remove();
   }
+}
+/* Will the 'children' event for parent `pid` reconcile a container whose
+   rows carry `suffix`? Elements are claimed by exact instance id, so the
+   destination needs a live, expanded instance rendering under that same
+   suffix — the zoom root (suffix '') or a row that is neither collapsed nor
+   a loop stub. Anything else leaves the element unclaimed. */
+function willReconcile(pid, suffix) {
+  if (pid === view.focusId) return suffix === '';
+  const p = store.getNode(pid);
+  if (!p) return false;
+  for (const el of nodeInstances(pid)) {
+    const own = store.getNode(el.dataset.id);
+    if (!own || own.collapsed) continue;
+    if (own.mirrorOf && mirrorExpansionLoop(own, p, suffixOf(el))) continue;
+    const s = own.mirrorOf ? suffixOf(el) + '@' + own.id : suffixOf(el);
+    if (s === suffix) return true;
+  }
+  return false;
 }
 function renderChildrenOf(id) {
   computeFilter(); // structure may have changed what matches show
