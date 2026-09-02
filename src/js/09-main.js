@@ -69,6 +69,13 @@ function parseHash() {
 function applyFocusFromHash() {
   const id = parseHash() || ROOT_ID;
   if (id !== view.focusId) {
+    // Changing scope ends whatever edit is in progress, BEFORE the scope
+    // changes: focusout flushes the typing burst, closes a note editor, and
+    // runs the rename-link offer against the item that was actually edited.
+    // Left focused, the zoom header would carry the old item's text into
+    // the new one (its editor is bound to view.focusId, not to a node).
+    const a = document.activeElement;
+    if (a && (a.closest?.('.title') || a.closest?.('.note-edit'))) a.blur();
     view.focusId = id;
     store.setSavedFocus(id);
     renderAll();
