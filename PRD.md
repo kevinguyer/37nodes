@@ -85,7 +85,7 @@ At any time the view has a **focus node** (default: root). Only the focus node's
 
 - **F10.** `↑`/`↓` move the caret across visible nodes (screen order) when at a title's first/last line boundary; `←`/`→` traverse across node boundaries at title edges.
 - **F11.** A caret/focus model: exactly one node is "active" at a time; all shortcuts act on it.
-- **F12.** `Alt+←` zooms out one level; `Alt+→` (or clicking a bullet) zooms into the active node; `Alt+Shift+←` zooms all the way out to the master node and lands the caret on the first item.
+- **F12.** `Alt+←` zooms out one level; `Alt+→` (or clicking a bullet) zooms into the active node; `Alt+Shift+←` zooms all the way out to the master node and lands the caret on the first item. **The caret survives every zoom** (shortcuts, bullets, breadcrumbs, wikilinks): after the new scope renders it returns to the item it was on if that item is still on screen; otherwise to the item that was zoomed into — zooming out leaves you on the row you came from, revealed if it now sits under something collapsed; otherwise to the zoom header (zooming in puts the caret at the end of the zoomed title); and at the top, with nothing to return to, the first item.
 - **F13.** `Ctrl+Z` / `Ctrl+Shift+Z` — undo/redo (see F26).
 - **F14.** `Ctrl+F` (capture, don't let the browser take it) focuses the search box; `Esc` clears search and returns focus to the outline.
 - **F15.** A `?` shortcut (when not editing) or menu item shows a keyboard-reference overlay.
