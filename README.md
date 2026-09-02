@@ -47,7 +47,8 @@ See [PRD.md](PRD.md) for the full product requirements.
   `#todos` and `#to-do`. No match, no popup — a `#` is usually just a `#`
 - **Info panel** (the ◨ button in the top bar, or `Alt+I`): a side strip that
   follows the caret, in three collapsible sections — **this item** (what links
-  here, where it's mirrored, when it changed), **starred**, and **tags**
+  here, where it's mirrored, when it changed), **starred**, and **tags**. Drag
+  its left edge to make it wider; double-click the edge to reset
 - **Starred items** (`Alt+S`, the ≡ menu, or the ☆ in the panel): a ★ marks the
   item at the right edge of its row — or beside the title when you're zoomed
   into it — and the panel keeps every starred item one click away wherever it

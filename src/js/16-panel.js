@@ -423,6 +423,51 @@ document.addEventListener('keydown', e => {
   }
 });
 
+/* --- resizable: drag the panel's left edge; double-click resets ----------
+   The width is one CSS variable (--panel-w) that the panel, the body
+   padding and the fixed chrome all key off, so resizing is writing that
+   variable. The pref holds a number; absent means the stylesheet default. */
+const IP_W_MIN = 220;
+const ipResizeEl = $('#ip-resize');
+function ipMaxWidth() { // never let the panel squeeze the outline out
+  // a window that reports no width yet (hidden tab, pre-layout) constrains
+  // nothing: clamping the saved width against it would shrink it to the
+  // minimum on every such load
+  const vw = window.innerWidth || Infinity;
+  return Math.max(IP_W_MIN, Math.min(640, vw - 360));
+}
+function applyPanelWidth(w) {
+  if (w) document.documentElement.style.setProperty('--panel-w', clamp(w, IP_W_MIN, ipMaxWidth()) + 'px');
+  else document.documentElement.style.removeProperty('--panel-w');
+}
+ipResizeEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  ipResizeEl.setPointerCapture(e.pointerId);
+  document.body.classList.add('ip-resizing');
+  let w = null;
+  const move = ev => {
+    w = clamp(Math.round(window.innerWidth - ev.clientX), IP_W_MIN, ipMaxWidth());
+    applyPanelWidth(w);
+  };
+  const up = () => {
+    ipResizeEl.removeEventListener('pointermove', move);
+    ipResizeEl.removeEventListener('pointerup', up);
+    ipResizeEl.removeEventListener('pointercancel', up);
+    document.body.classList.remove('ip-resizing');
+    if (w) { prefs.panelWidth = w; savePrefs(); }
+  };
+  ipResizeEl.addEventListener('pointermove', move);
+  ipResizeEl.addEventListener('pointerup', up);
+  ipResizeEl.addEventListener('pointercancel', up);
+});
+ipResizeEl.addEventListener('dblclick', () => {
+  delete prefs.panelWidth;
+  savePrefs();
+  applyPanelWidth(null);
+});
+applyPanelWidth(prefs.panelWidth);
+
 // state lands before boot's first render, so the column never jumps
 document.body.classList.toggle('panel-open', panelOpen());
 ipEl.hidden = !panelOpen();

@@ -97,7 +97,7 @@ so. Revisit only if he has a real use for it.
 | ID | Title | Status | Size | Risk | Recommendation |
 |---|---|---|---|---|---|
 | FR-1 | Filter by several tags at once | Discuss | S–M | Low | Yes; decide AND vs OR and the chip gesture |
-| FR-2 | Resizable side panel | Approved | S | Low | Yes |
+| FR-2 | Resizable side panel | Done (build 51, F61) | S | Low | Yes |
 | FR-3 | Richer backlinks view (context, collapsible children) | Discuss | M–L | Low | Yes in two phases; need a concrete picture of phase 2 |
 | FR-4 | Option: don't jump after "Move to…" | Discuss | S | Low | Yes; decide pref vs modifier key |
 | FR-5 | Hide completed items in the backlinks list | Discuss | S | Low | Yes; propose following the existing Hide-completed toggle |
@@ -295,3 +295,4 @@ reason to special-case.
 | 2026-09-02 | BUG-1 fixed: the reconciler drops a re-homed row unless a destination instance will actually claim it. |
 | 2026-09-02 | FR-9 shipped: Ctrl+Home / Ctrl+End. |
 | 2026-09-02 | FR-11 shipped: the caret survives every zoom. |
+| 2026-09-02 | FR-2 shipped: drag the panel's left edge; double-click resets. |

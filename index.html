@@ -555,6 +555,17 @@ body.panel-open{padding-right:var(--panel-w);}
   display:flex; flex-direction:column; overflow-y:auto;
   background:var(--bg); border-left:1px solid var(--line);
 }
+/* the resize grip rides the panel's left edge. Fixed and placed off the
+   same --panel-w the panel is, rather than absolute inside it: the panel
+   scrolls, and an absolute child would scroll away with the content */
+#ip-resize{
+  position:fixed; top:0; bottom:0; width:7px; right:calc(var(--panel-w) - 3px);
+  z-index:61; cursor:col-resize;
+  transition:background calc(120ms * var(--motion)) ease;
+}
+#ip-resize:hover, body.ip-resizing #ip-resize{background:var(--accent-soft);}
+body.ip-resizing{cursor:col-resize; user-select:none;}
+body.ip-resizing #info-panel, body.ip-resizing #page{pointer-events:none;}
 #ip-head{
   position:sticky; top:0; z-index:1;
   display:flex; align-items:center; gap:8px;
@@ -983,10 +994,11 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 49 &middot; 2026-09-02</div>
+  <div class="menu-note" id="build-readout">Build 51 &middot; 2026-09-02</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
+  <div id="ip-resize" role="separator" aria-orientation="vertical" title="Drag to resize the panel &middot; double-click to reset"></div>
   <div id="ip-head">
     <span id="ip-title"></span>
     <button id="ip-star" title="Star this item (Alt+S)" aria-label="Star this item" hidden>&#9734;</button>
@@ -6458,6 +6470,51 @@ document.addEventListener('keydown', e => {
     setPanelOpen(!panelOpen());
   }
 });
+
+/* --- resizable: drag the panel's left edge; double-click resets ----------
+   The width is one CSS variable (--panel-w) that the panel, the body
+   padding and the fixed chrome all key off, so resizing is writing that
+   variable. The pref holds a number; absent means the stylesheet default. */
+const IP_W_MIN = 220;
+const ipResizeEl = $('#ip-resize');
+function ipMaxWidth() { // never let the panel squeeze the outline out
+  // a window that reports no width yet (hidden tab, pre-layout) constrains
+  // nothing: clamping the saved width against it would shrink it to the
+  // minimum on every such load
+  const vw = window.innerWidth || Infinity;
+  return Math.max(IP_W_MIN, Math.min(640, vw - 360));
+}
+function applyPanelWidth(w) {
+  if (w) document.documentElement.style.setProperty('--panel-w', clamp(w, IP_W_MIN, ipMaxWidth()) + 'px');
+  else document.documentElement.style.removeProperty('--panel-w');
+}
+ipResizeEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  ipResizeEl.setPointerCapture(e.pointerId);
+  document.body.classList.add('ip-resizing');
+  let w = null;
+  const move = ev => {
+    w = clamp(Math.round(window.innerWidth - ev.clientX), IP_W_MIN, ipMaxWidth());
+    applyPanelWidth(w);
+  };
+  const up = () => {
+    ipResizeEl.removeEventListener('pointermove', move);
+    ipResizeEl.removeEventListener('pointerup', up);
+    ipResizeEl.removeEventListener('pointercancel', up);
+    document.body.classList.remove('ip-resizing');
+    if (w) { prefs.panelWidth = w; savePrefs(); }
+  };
+  ipResizeEl.addEventListener('pointermove', move);
+  ipResizeEl.addEventListener('pointerup', up);
+  ipResizeEl.addEventListener('pointercancel', up);
+});
+ipResizeEl.addEventListener('dblclick', () => {
+  delete prefs.panelWidth;
+  savePrefs();
+  applyPanelWidth(null);
+});
+applyPanelWidth(prefs.panelWidth);
 
 // state lands before boot's first render, so the column never jumps
 document.body.classList.toggle('panel-open', panelOpen());
