@@ -603,6 +603,13 @@ body.ip-resizing #info-panel, body.ip-resizing #page{pointer-events:none;}
   background:var(--panel); border-radius:999px;
 }
 .ip-sec-body{padding-bottom:6px;}
+/* the zoomed-into section names its item first: the panel header already
+   belongs to the tracked one */
+.ip-zoom-title{
+  font-size:13px; font-weight:600; padding:3px 5px 0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ip-zoom-title + .ip-label{margin-top:7px;}
 /* a starred row and the button that unstars it, side by side */
 .ip-row-wrap{display:flex; align-items:center; gap:2px;}
 .ip-row-wrap > .ip-row{flex:1; min-width:0;}
@@ -994,7 +1001,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 51 &middot; 2026-09-02</div>
+  <div class="menu-note" id="build-readout">Build 52 &middot; 2026-09-02</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -6168,7 +6175,7 @@ function ipRow(main, sub, onClick) {
    glancing at while shut. */
 function ipSectionOpen(key) {
   const s = prefs.ipSections;
-  if (!s || !(key in s)) return key === 'item'; // first run: details only
+  if (!s || !(key in s)) return key === 'item' || key === 'zoom'; // first run: item details only
   return !!s[key];
 }
 function ipSetSectionOpen(key, on) {
@@ -6351,6 +6358,22 @@ function renderInfoPanel() {
     if (!tracked) { body.append(ipHint('Click an item to see what links to it.')); return; }
     ipItemBody(body, id, n);
   });
+  // The zoomed-into item gets the same treatment while the caret is on
+  // something else inside it: its links and mirrors are the ones you came
+  // here for, and the caret is rarely on the heading itself. Shut, the
+  // header carries what those lists would hold.
+  const fid = view.focusId;
+  const fn = store.getNode(fid);
+  if (fid !== ROOT_ID && fn && id !== fid) {
+    ipSection('zoom', 'Zoomed into', backlinksOf(fid).length + store.mirrorsOf(fid).length, body => {
+      const t = document.createElement('div');
+      t.className = 'ip-zoom-title';
+      t.textContent = truncate(fn.title, 60) || 'Untitled';
+      t.title = fn.title || 'Untitled';
+      body.append(t);
+      ipItemBody(body, fid, fn);
+    });
+  }
   ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
   ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
     tagsAlphabetical(view.focusId).length, ipTagsBody);

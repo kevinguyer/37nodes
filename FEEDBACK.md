@@ -105,7 +105,7 @@ so. Revisit only if he has a real use for it.
 | FR-7 | Multi-line (multi-item) selection | Discuss | XL | Medium | Yes, but as its own release, scoped to sibling ranges |
 | FR-8 | On a mirror, show every other place it appears | Discuss | S | Low | Yes; confirm what he is seeing today |
 | FR-9 | Ctrl+Home / Ctrl+End: first / last item in view | Done (build 48, F68) | S | Low | Yes |
-| FR-10 | Panel section for the zoomed-into item as well as the selected one | Approved | S–M | Low | Yes |
+| FR-10 | Panel section for the zoomed-into item as well as the selected one | Done (build 52, F61) | S–M | Low | Yes |
 | FR-11 | Keep the caret on the item you zoomed out of (and into) | Done (build 49, F12) | S | Low | Yes, for every zoom path |
 | FR-12 | Keep collapse state while a tag filter is active | Discuss | M | Medium | Yes, with a different rule than asked for; touches a documented invariant |
 
@@ -296,3 +296,4 @@ reason to special-case.
 | 2026-09-02 | FR-9 shipped: Ctrl+Home / Ctrl+End. |
 | 2026-09-02 | FR-11 shipped: the caret survives every zoom. |
 | 2026-09-02 | FR-2 shipped: drag the panel's left edge; double-click resets. |
+| 2026-09-02 | FR-10 shipped: a "Zoomed into" panel section while the caret is elsewhere in the zoomed item. |

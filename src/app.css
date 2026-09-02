@@ -593,6 +593,13 @@ body.ip-resizing #info-panel, body.ip-resizing #page{pointer-events:none;}
   background:var(--panel); border-radius:999px;
 }
 .ip-sec-body{padding-bottom:6px;}
+/* the zoomed-into section names its item first: the panel header already
+   belongs to the tracked one */
+.ip-zoom-title{
+  font-size:13px; font-weight:600; padding:3px 5px 0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ip-zoom-title + .ip-label{margin-top:7px;}
 /* a starred row and the button that unstars it, side by side */
 .ip-row-wrap{display:flex; align-items:center; gap:2px;}
 .ip-row-wrap > .ip-row{flex:1; min-width:0;}
