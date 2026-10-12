@@ -116,7 +116,7 @@ mechanism that keeps it current.
 
 | ID | Title | Status | Size | Risk | Recommendation |
 |---|---|---|---|---|---|
-| FR-1 | Filter by several tags at once | Discuss | S–M | Low | Yes; decide AND vs OR and the chip gesture |
+| FR-1 | Filter by several tags at once | Approved (as part of FR-18) | S–M | Low | AND, `Shift`+click chip; specified in F75/F77 |
 | FR-2 | Resizable side panel | Done (build 51, F61) | S | Low | Yes |
 | FR-3 | Richer backlinks view (context, collapsible children) | Discuss | M–L | Low | Yes in two phases; need a concrete picture of phase 2 |
 | FR-4 | Option: don't jump after "Move to…" | Discuss | S | Low | Yes; decide pref vs modifier key |
@@ -133,8 +133,8 @@ mechanism that keeps it current.
 | FR-15 | Jump palette: `Parent/Log` path syntax to disambiguate | Done (build 60, F70) | S–M | Low | Palette-only; shared matcher untouched |
 | FR-16 | One-key filter to items linked to/from the selected item | Discuss | M | Medium | Yes, but as an operator of FR-18's grammar, not a one-off |
 | FR-17 | Saved searches | Approved | M | Medium | Stored **in the document** and carried by export/import (decided 2026-10-12); after FR-18 |
-| FR-18 | Chained / multi-term search with operators | Approved | M–L | Medium | Same-item AND **and** scoped `>` (decided 2026-10-12); grammar into the PRD before code |
-| FR-19 | Filter by starred / unstarred | Discuss | S | Low | Yes; first operator of FR-18 |
+| FR-18 | Chained / multi-term search with operators | In design (spec: PRD F75–F77) | M–L | Medium | Same-item AND **and** scoped `>` (decided 2026-10-12); grammar into the PRD before code |
+| FR-19 | Filter by starred / unstarred | Approved (as part of FR-18) | S | Low | `is:starred` / `-is:starred`; specified in F75 |
 | FR-20 | Distinct glyph for mirrors (diamond) | Discuss | S | Low | Yes, CSS only; confirm what he sees today |
 | FR-21 | Tag counts exclude completed items; hide zero-count tags | Done (build 60, F71) | S | Low | Panel only; follows the global toggle |
 | FR-22 | Starred / backlink click zooms into the item | Discuss | S | Low | Yes, as a pref; decide leaf behaviour |
@@ -448,6 +448,21 @@ tokens with one evaluator each. Quoted phrases for literal spaces.
   the previous filter changes.
 - **Not "some day".** Everything else in the search cluster depends on it.
 - **Decided 2026-10-12:** both — same-item AND *and* the scoped `>` operator.
+- **Spec drafted 2026-10-12** as PRD F75–F77, awaiting review before any code.
+  Shape: whitespace-separated terms (word, `"phrase"`, `#tag`, `is:starred`,
+  `is:done`), each negatable with `-`, all ANDed per item; a standalone `>`
+  chains scope groups down the ancestors (`acme > launch > #urgent`).
+- **One deliberate behaviour change:** `foo bar` stops being one literal
+  substring and becomes two ANDed words; quotes restore the phrase. This is
+  the price of making multi-term search work without a mode switch, and it
+  needs a What's-new line when it ships.
+- **FR-16 and FR-17 fall out of it cheaply.** "Filter to links of this item"
+  becomes the operator `links:"Item title"` — title-resolved exactly like a
+  `[[link]]` (F44), so it is human-readable, savable and needs no ids; the
+  gesture just writes it into the search box. A saved search (FR-17) is the
+  query string and nothing more.
+- **Known interaction:** `is:done` finds nothing while Hide completed is on
+  (F51: hidden completed items are never results). The help page should say so.
 
 ### FR-19 — filter by starred
 
