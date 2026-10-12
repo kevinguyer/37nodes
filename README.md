@@ -30,7 +30,8 @@ See [PRD.md](PRD.md) for the full product requirements.
 - Full **keyboard operation** — press `?` in the app for the reference
 - Live **search/filter** with match highlighting (`Ctrl+F`)
 - **Jump palette** (`Ctrl+K`): fuzzy-match any item's title and zoom straight
-  to it from anywhere
+  to it from anywhere. Type `Parent/Child` to pick between same-named items,
+  and with **Hide completed** on (`Alt+C`) finished items are left out
 - **Move to…** (`Alt+M`, or the ≡ menu): the same fuzzy search, but the item
   you pick is the *destination* — the current item (and everything under it)
   is filed inside it, in one undo step, with the cursor following it there

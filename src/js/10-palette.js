@@ -16,15 +16,24 @@ let palSel = 0;
 let palMode = 'jump'; // 'jump' | 'move'
 let palMoveId = null; // in move mode: the node being moved
 
+/* `up` is the index of the parent's entry (-1 at the top): the ancestor chain
+   for `Parent/Child` matching (F70) without a copied array per item. With Hide
+   completed on (F69) completed items and everything under them are left out —
+   the CSS hides the subtree, so a jump into one would land on nothing. */
 function paletteIndex() {
   const items = [];
-  (function walk(n, path) {
+  const skipDone = completedRowsHidden();
+  (function walk(n, path, up) {
     for (const c of n.children) {
-      items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      if (skipDone) {
+        const t = c.mirrorOf ? (store.getNode(c.mirrorOf) || c) : c;
+        if (t.completed) continue;
+      }
+      const at = items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt, up }) - 1;
       const label = truncate(c.title, 30) || 'Untitled';
-      walk(c, path ? `${path} › ${label}` : label);
+      walk(c, path ? `${path} › ${label}` : label, at);
     }
-  })(store.doc.root, '');
+  })(store.doc.root, '', -1);
   return items;
 }
 
@@ -38,15 +47,16 @@ function paletteIndex() {
    'Top level' has to be synthesised: the walk starts AT the root and so can
    never offer it, leaving no way to file something back out to the top. */
 function moveIndex(selfId) {
-  const items = [{ id: ROOT_ID, title: 'Top level', path: '', top: true }];
-  (function walk(n, path) {
+  const items = [{ id: ROOT_ID, title: 'Top level', path: '', top: true, up: -1 }];
+  (function walk(n, path, up) {
     for (const c of n.children) {
       if (c.id === selfId) continue; // the node itself, and all of its subtree
-      if (!c.mirrorOf) items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      let at = up;
+      if (!c.mirrorOf) at = items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt, up }) - 1;
       const label = truncate(c.title, 30) || 'Untitled';
-      walk(c, path ? `${path} › ${label}` : label);
+      walk(c, path ? `${path} › ${label}` : label, at);
     }
-  })(store.doc.root, '');
+  })(store.doc.root, '', -1);
   return items;
 }
 
@@ -97,6 +107,60 @@ function palHint(text) {
   el.textContent = text;
   palResultsEl.append(el);
 }
+/* --- scoring ------------------------------------------------------------- */
+function palScoreFlat(q) {
+  const scored = [];
+  for (let i = 0; i < palItems.length; i++) {
+    const m = fuzzyMatch(q, palItems[i].title);
+    if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
+  }
+  return scored;
+}
+
+/* `Parent/Log` (F70): everything before the last separator names ancestors,
+   outer to inner, each a substring of that ancestor's title; the last segment
+   fuzzy-matches the title. `/`, `>` and `›` (what the result path itself
+   shows) all separate. A query that finds nothing this way falls back to a
+   literal search (caller), so a title that really contains "/" is still
+   reachable. A trailing separator — `Parent/` — lists what lives under a
+   match. The shared fuzzyMatch is left alone: the [[link]] picker uses it and
+   must keep treating "/" literally. */
+function palScorePath(q) {
+  const segs = q.split(/[\/>›]/).map(s => s.trim());
+  if (segs.length < 2) return [];
+  const tail = segs.pop();
+  const heads = segs.filter(Boolean);
+  if (!heads.length) return [];
+  const scored = [];
+  for (let i = 0; i < palItems.length; i++) {
+    const it = palItems[i];
+    if (it.top) continue;
+    let m = { score: 0, spans: [] };
+    if (tail) { m = fuzzyMatch(tail, it.title); if (!m) continue; }
+    else if (!it.title) continue;
+    // ancestors outermost-first
+    const chain = [];
+    for (let u = it.up; u >= 0; u = palItems[u].up) chain.push(palItems[u].title);
+    chain.reverse();
+    let pos = 0, bonus = 0, ok = true;
+    for (const h of heads) {
+      // ancestors must contain the segment outright: subsequence matching is
+      // right for finding a title, but loose enough to match any long
+      // ancestor, which defeats the point of naming one
+      let hit = -1;
+      for (; pos < chain.length; pos++) {
+        const at = chain[pos].toLowerCase().indexOf(h);
+        if (at >= 0) { hit = at; pos++; break; }
+      }
+      if (hit < 0) { ok = false; break; }
+      bonus += hit === 0 ? 40 : 20; // a prefix of the ancestor reads as intended
+    }
+    if (!ok) continue;
+    scored.push({ id: it.id, title: it.title, path: it.path, score: m.score + bonus / 10, spans: m.spans, ord: i });
+  }
+  return scored;
+}
+
 function renderPalette() {
   const q = palInputEl.value.trim().toLowerCase();
   palResultsEl.textContent = '';
@@ -116,11 +180,8 @@ function renderPalette() {
       ? 'Pick where it should live — it becomes the last item inside.'
       : palShown.length ? 'Recently edited' : 'Type to jump to any item by title.');
   } else {
-    const scored = [];
-    for (let i = 0; i < palItems.length; i++) {
-      const m = fuzzyMatch(q, palItems[i].title);
-      if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
-    }
+    let scored = palScorePath(q);
+    if (!scored.length) scored = palScoreFlat(q);
     scored.sort((a, b) => b.score - a.score || a.title.length - b.title.length || a.ord - b.ord);
     palShown = scored.slice(0, 50);
     if (!palShown.length) {

@@ -59,30 +59,48 @@ function tagIndex(scopeId) {
   const hit = tagCache.get(key);
   if (hit) return hit;
   const map = new Map();
-  (function walk(n) {
+  // `done` is true for a completed item and everything beneath it: the
+  // hide-completed rule takes the whole subtree off screen, so those uses
+  // count toward `count` (the vocabulary) but not `live` (what is visible).
+  (function walk(n, done) {
     for (const c of n.children) {
+      const here = done || !!c.completed;
       if (!c.mirrorOf) {
         const seen = new Set(); // an item using #todo twice is still one item
         const take = t => {
           const k = t.toLowerCase();
           if (seen.has(k)) return;
           seen.add(k);
-          const e = map.get(k);
-          if (e) e.count++;
-          else map.set(k, { tag: t, count: 1 });
+          let e = map.get(k);
+          if (!e) map.set(k, e = { tag: t, count: 0, live: 0 });
+          e.count++;
+          if (!here) e.live++;
         };
         scanTags(c.title, take);
         scanTags(c.note, take);
       }
-      walk(c);
+      walk(c, here);
     }
-  })(store.getNode(key) || store.doc.root);
+  })(store.getNode(key) || store.doc.root, false);
   tagCache.set(key, map);
   return map;
 }
 function tagsAlphabetical(scopeId) {
   return [...tagIndex(scopeId).values()]
     .sort((a, b) => a.tag.toLowerCase().localeCompare(b.tag.toLowerCase()));
+}
+/* What the panel lists (F71). With Hide completed on, a tag is counted by its
+   uses on items you can see, and one with none drops out — except the tag the
+   outline is currently filtered by, which must stay to be clicked off. Only
+   the panel narrows: tagsByUse feeds the `#` suggester, and a tag used only on
+   finished items is still one worth reusing. */
+function tagsForPanel(scopeId) {
+  const all = tagsAlphabetical(scopeId);
+  if (!completedRowsHidden()) return all;
+  const active = view.query.trim().toLowerCase();
+  return all
+    .filter(t => t.live > 0 || t.tag.toLowerCase() === active)
+    .map(t => ({ ...t, count: t.live }));
 }
 function tagsByUse(scopeId) {
   return [...tagIndex(scopeId).values()]

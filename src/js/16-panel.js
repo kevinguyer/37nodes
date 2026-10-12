@@ -48,6 +48,21 @@ function backlinkIndex() {
   return blIndex;
 }
 function backlinksOf(id) { return backlinkIndex().get(id) || []; }
+
+/* With Hide completed on (F69) the panel does not list a source the outline
+   cannot show: a click on it would jump to a row that is not there. A source
+   is hidden when it, or anything above it, is completed — the CSS removes the
+   whole subtree. A mirror's completion is its original's. */
+function sourceHidden(id) {
+  if (!completedRowsHidden()) return false;
+  const done = x => { const c = store.mirrorContent(x) || x; return !!c.completed; };
+  const n = store.getNode(id);
+  if (!n) return false;
+  if (done(n)) return true;
+  return store.ancestorsOf(id).some(a => a.id !== ROOT_ID && done(a));
+}
+function shownBacklinks(id) { return backlinksOf(id).filter(s => !sourceHidden(s.id)); }
+function shownMirrors(id) { return store.mirrorsOf(id).filter(m => !sourceHidden(m.id)); }
 function linksOutOf(n) {
   if (!n || n.mirrorOf) return 0;
   const seen = new Set();
@@ -193,7 +208,7 @@ function ipTrackedId() {
 
 function ipItemBody(body, id, n) {
   // --- linked from ---
-  const back = backlinksOf(id);
+  const back = shownBacklinks(id);
   body.append(ipLabel(back.length
     ? `Linked from ${back.length} item${back.length === 1 ? '' : 's'}`
     : 'Linked from'));
@@ -210,7 +225,7 @@ function ipItemBody(body, id, n) {
   }
 
   // --- mirrors ---
-  const mirrors = store.mirrorsOf(id);
+  const mirrors = shownMirrors(id);
   if (mirrors.length) {
     body.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
     for (const m of mirrors) {
@@ -260,7 +275,7 @@ function ipStarredBody(body) {
    renders, with its item count riding along. Clicking one is exactly the
    chip-click in the outline (F43) — a filter you can click off again. */
 function ipTagsBody(body) {
-  const tags = tagsAlphabetical(view.focusId);
+  const tags = tagsForPanel(view.focusId);
   if (!tags.length) {
     body.append(ipHint(view.focusId === ROOT_ID
       ? 'No tags yet. Type # in any item to tag it — the list of tags you already use appears as you type.'
@@ -310,7 +325,7 @@ function renderInfoPanel() {
   const fid = view.focusId;
   const fn = store.getNode(fid);
   if (fid !== ROOT_ID && fn && id !== fid) {
-    ipSection('zoom', 'Zoomed into', backlinksOf(fid).length + store.mirrorsOf(fid).length, body => {
+    ipSection('zoom', 'Zoomed into', shownBacklinks(fid).length + shownMirrors(fid).length, body => {
       const t = document.createElement('div');
       t.className = 'ip-zoom-title';
       t.textContent = truncate(fn.title, 60) || 'Untitled';
@@ -321,7 +336,7 @@ function renderInfoPanel() {
   }
   ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
   ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
-    tagsAlphabetical(view.focusId).length, ipTagsBody);
+    tagsForPanel(view.focusId).length, ipTagsBody);
 }
 const ipRefresh = debounce(renderInfoPanel, 120);
 

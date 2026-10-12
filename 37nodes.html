@@ -973,7 +973,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
           <option value="wyse60">Wyse 60 terminal</option>
         </select>
       </label>
-      <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
+      <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed <kbd>Alt+C</kbd></label>
       <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
     </div>
   </section>
@@ -1001,7 +1001,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 52 &middot; 2026-09-02</div>
+  <div class="menu-note" id="build-readout">Build 60 &middot; 2026-10-12</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -1132,7 +1132,8 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd></span><span>Delete item and everything under it</span>
     <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span>Undo / redo</span>
     <span><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>Search</span>
-    <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
+    <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match) &mdash; type <em>Parent/Child</em> to pick between items with the same name</span>
+    <span><kbd>Alt</kbd>+<kbd>C</kbd></span><span>Show / hide completed items</span>
     <span><kbd>Alt</kbd>+<kbd>M</kbd></span><span>Move this item into another one &mdash; same fuzzy search, picks the destination</span>
     <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
     <span><kbd>((</kbd> <em>on an empty item</em></span><span>Turn the item into a live <em>mirror</em> of another item (hollow bullet); also in the ≡ menu</span>
@@ -4086,13 +4087,28 @@ themeSelectEl.addEventListener('change', () => {
   applyTheme();
 });
 const hideCompletedEl = $('#hide-completed');
-hideCompletedEl.addEventListener('change', () => {
-  prefs.hideCompleted = hideCompletedEl.checked;
+/* The one switch (F69): the ☰ checkbox and Alt+C both land here. Everything
+   that cares about completed items — search, the jump palette, the panel's
+   tag counts — reads completedRowsHidden(), so there is no second setting. */
+function setHideCompleted(on) {
+  prefs.hideCompleted = !!on;
+  hideCompletedEl.checked = !!on;
   savePrefs();
   document.body.classList.toggle('hide-completed', prefs.hideCompleted);
   // hiding completed rows changes what can be a search result, so results
   // computed under the old setting have to be recomputed
   if (view.query) renderAll();
+  // toggling emits no store event, so the panel's derived counts need a nudge
+  renderInfoPanel();
+}
+hideCompletedEl.addEventListener('change', () => setHideCompleted(hideCompletedEl.checked));
+document.addEventListener('keydown', e => {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // match the physical key too: Alt+letter reports oddly on some layouts
+  if (e.code !== 'KeyC' && e.key !== 'c' && e.key !== 'C') return;
+  if (e.defaultPrevented) return;
+  e.preventDefault();
+  setHideCompleted(!completedRowsHidden());
 });
 const wideLayoutEl = $('#wide-layout');
 wideLayoutEl.addEventListener('change', () => {
@@ -4348,15 +4364,24 @@ let palSel = 0;
 let palMode = 'jump'; // 'jump' | 'move'
 let palMoveId = null; // in move mode: the node being moved
 
+/* `up` is the index of the parent's entry (-1 at the top): the ancestor chain
+   for `Parent/Child` matching (F70) without a copied array per item. With Hide
+   completed on (F69) completed items and everything under them are left out —
+   the CSS hides the subtree, so a jump into one would land on nothing. */
 function paletteIndex() {
   const items = [];
-  (function walk(n, path) {
+  const skipDone = completedRowsHidden();
+  (function walk(n, path, up) {
     for (const c of n.children) {
-      items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      if (skipDone) {
+        const t = c.mirrorOf ? (store.getNode(c.mirrorOf) || c) : c;
+        if (t.completed) continue;
+      }
+      const at = items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt, up }) - 1;
       const label = truncate(c.title, 30) || 'Untitled';
-      walk(c, path ? `${path} › ${label}` : label);
+      walk(c, path ? `${path} › ${label}` : label, at);
     }
-  })(store.doc.root, '');
+  })(store.doc.root, '', -1);
   return items;
 }
 
@@ -4370,15 +4395,16 @@ function paletteIndex() {
    'Top level' has to be synthesised: the walk starts AT the root and so can
    never offer it, leaving no way to file something back out to the top. */
 function moveIndex(selfId) {
-  const items = [{ id: ROOT_ID, title: 'Top level', path: '', top: true }];
-  (function walk(n, path) {
+  const items = [{ id: ROOT_ID, title: 'Top level', path: '', top: true, up: -1 }];
+  (function walk(n, path, up) {
     for (const c of n.children) {
       if (c.id === selfId) continue; // the node itself, and all of its subtree
-      if (!c.mirrorOf) items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      let at = up;
+      if (!c.mirrorOf) at = items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt, up }) - 1;
       const label = truncate(c.title, 30) || 'Untitled';
-      walk(c, path ? `${path} › ${label}` : label);
+      walk(c, path ? `${path} › ${label}` : label, at);
     }
-  })(store.doc.root, '');
+  })(store.doc.root, '', -1);
   return items;
 }
 
@@ -4429,6 +4455,60 @@ function palHint(text) {
   el.textContent = text;
   palResultsEl.append(el);
 }
+/* --- scoring ------------------------------------------------------------- */
+function palScoreFlat(q) {
+  const scored = [];
+  for (let i = 0; i < palItems.length; i++) {
+    const m = fuzzyMatch(q, palItems[i].title);
+    if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
+  }
+  return scored;
+}
+
+/* `Parent/Log` (F70): everything before the last separator names ancestors,
+   outer to inner, each a substring of that ancestor's title; the last segment
+   fuzzy-matches the title. `/`, `>` and `›` (what the result path itself
+   shows) all separate. A query that finds nothing this way falls back to a
+   literal search (caller), so a title that really contains "/" is still
+   reachable. A trailing separator — `Parent/` — lists what lives under a
+   match. The shared fuzzyMatch is left alone: the [[link]] picker uses it and
+   must keep treating "/" literally. */
+function palScorePath(q) {
+  const segs = q.split(/[\/>›]/).map(s => s.trim());
+  if (segs.length < 2) return [];
+  const tail = segs.pop();
+  const heads = segs.filter(Boolean);
+  if (!heads.length) return [];
+  const scored = [];
+  for (let i = 0; i < palItems.length; i++) {
+    const it = palItems[i];
+    if (it.top) continue;
+    let m = { score: 0, spans: [] };
+    if (tail) { m = fuzzyMatch(tail, it.title); if (!m) continue; }
+    else if (!it.title) continue;
+    // ancestors outermost-first
+    const chain = [];
+    for (let u = it.up; u >= 0; u = palItems[u].up) chain.push(palItems[u].title);
+    chain.reverse();
+    let pos = 0, bonus = 0, ok = true;
+    for (const h of heads) {
+      // ancestors must contain the segment outright: subsequence matching is
+      // right for finding a title, but loose enough to match any long
+      // ancestor, which defeats the point of naming one
+      let hit = -1;
+      for (; pos < chain.length; pos++) {
+        const at = chain[pos].toLowerCase().indexOf(h);
+        if (at >= 0) { hit = at; pos++; break; }
+      }
+      if (hit < 0) { ok = false; break; }
+      bonus += hit === 0 ? 40 : 20; // a prefix of the ancestor reads as intended
+    }
+    if (!ok) continue;
+    scored.push({ id: it.id, title: it.title, path: it.path, score: m.score + bonus / 10, spans: m.spans, ord: i });
+  }
+  return scored;
+}
+
 function renderPalette() {
   const q = palInputEl.value.trim().toLowerCase();
   palResultsEl.textContent = '';
@@ -4448,11 +4528,8 @@ function renderPalette() {
       ? 'Pick where it should live — it becomes the last item inside.'
       : palShown.length ? 'Recently edited' : 'Type to jump to any item by title.');
   } else {
-    const scored = [];
-    for (let i = 0; i < palItems.length; i++) {
-      const m = fuzzyMatch(q, palItems[i].title);
-      if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
-    }
+    let scored = palScorePath(q);
+    if (!scored.length) scored = palScoreFlat(q);
     scored.sort((a, b) => b.score - a.score || a.title.length - b.title.length || a.ord - b.ord);
     palShown = scored.slice(0, 50);
     if (!palShown.length) {
@@ -6103,6 +6180,21 @@ function backlinkIndex() {
   return blIndex;
 }
 function backlinksOf(id) { return backlinkIndex().get(id) || []; }
+
+/* With Hide completed on (F69) the panel does not list a source the outline
+   cannot show: a click on it would jump to a row that is not there. A source
+   is hidden when it, or anything above it, is completed — the CSS removes the
+   whole subtree. A mirror's completion is its original's. */
+function sourceHidden(id) {
+  if (!completedRowsHidden()) return false;
+  const done = x => { const c = store.mirrorContent(x) || x; return !!c.completed; };
+  const n = store.getNode(id);
+  if (!n) return false;
+  if (done(n)) return true;
+  return store.ancestorsOf(id).some(a => a.id !== ROOT_ID && done(a));
+}
+function shownBacklinks(id) { return backlinksOf(id).filter(s => !sourceHidden(s.id)); }
+function shownMirrors(id) { return store.mirrorsOf(id).filter(m => !sourceHidden(m.id)); }
 function linksOutOf(n) {
   if (!n || n.mirrorOf) return 0;
   const seen = new Set();
@@ -6248,7 +6340,7 @@ function ipTrackedId() {
 
 function ipItemBody(body, id, n) {
   // --- linked from ---
-  const back = backlinksOf(id);
+  const back = shownBacklinks(id);
   body.append(ipLabel(back.length
     ? `Linked from ${back.length} item${back.length === 1 ? '' : 's'}`
     : 'Linked from'));
@@ -6265,7 +6357,7 @@ function ipItemBody(body, id, n) {
   }
 
   // --- mirrors ---
-  const mirrors = store.mirrorsOf(id);
+  const mirrors = shownMirrors(id);
   if (mirrors.length) {
     body.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
     for (const m of mirrors) {
@@ -6315,7 +6407,7 @@ function ipStarredBody(body) {
    renders, with its item count riding along. Clicking one is exactly the
    chip-click in the outline (F43) — a filter you can click off again. */
 function ipTagsBody(body) {
-  const tags = tagsAlphabetical(view.focusId);
+  const tags = tagsForPanel(view.focusId);
   if (!tags.length) {
     body.append(ipHint(view.focusId === ROOT_ID
       ? 'No tags yet. Type # in any item to tag it — the list of tags you already use appears as you type.'
@@ -6365,7 +6457,7 @@ function renderInfoPanel() {
   const fid = view.focusId;
   const fn = store.getNode(fid);
   if (fid !== ROOT_ID && fn && id !== fid) {
-    ipSection('zoom', 'Zoomed into', backlinksOf(fid).length + store.mirrorsOf(fid).length, body => {
+    ipSection('zoom', 'Zoomed into', shownBacklinks(fid).length + shownMirrors(fid).length, body => {
       const t = document.createElement('div');
       t.className = 'ip-zoom-title';
       t.textContent = truncate(fn.title, 60) || 'Untitled';
@@ -6376,7 +6468,7 @@ function renderInfoPanel() {
   }
   ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
   ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
-    tagsAlphabetical(view.focusId).length, ipTagsBody);
+    tagsForPanel(view.focusId).length, ipTagsBody);
 }
 const ipRefresh = debounce(renderInfoPanel, 120);
 
@@ -6606,30 +6698,48 @@ function tagIndex(scopeId) {
   const hit = tagCache.get(key);
   if (hit) return hit;
   const map = new Map();
-  (function walk(n) {
+  // `done` is true for a completed item and everything beneath it: the
+  // hide-completed rule takes the whole subtree off screen, so those uses
+  // count toward `count` (the vocabulary) but not `live` (what is visible).
+  (function walk(n, done) {
     for (const c of n.children) {
+      const here = done || !!c.completed;
       if (!c.mirrorOf) {
         const seen = new Set(); // an item using #todo twice is still one item
         const take = t => {
           const k = t.toLowerCase();
           if (seen.has(k)) return;
           seen.add(k);
-          const e = map.get(k);
-          if (e) e.count++;
-          else map.set(k, { tag: t, count: 1 });
+          let e = map.get(k);
+          if (!e) map.set(k, e = { tag: t, count: 0, live: 0 });
+          e.count++;
+          if (!here) e.live++;
         };
         scanTags(c.title, take);
         scanTags(c.note, take);
       }
-      walk(c);
+      walk(c, here);
     }
-  })(store.getNode(key) || store.doc.root);
+  })(store.getNode(key) || store.doc.root, false);
   tagCache.set(key, map);
   return map;
 }
 function tagsAlphabetical(scopeId) {
   return [...tagIndex(scopeId).values()]
     .sort((a, b) => a.tag.toLowerCase().localeCompare(b.tag.toLowerCase()));
+}
+/* What the panel lists (F71). With Hide completed on, a tag is counted by its
+   uses on items you can see, and one with none drops out — except the tag the
+   outline is currently filtered by, which must stay to be clicked off. Only
+   the panel narrows: tagsByUse feeds the `#` suggester, and a tag used only on
+   finished items is still one worth reusing. */
+function tagsForPanel(scopeId) {
+  const all = tagsAlphabetical(scopeId);
+  if (!completedRowsHidden()) return all;
+  const active = view.query.trim().toLowerCase();
+  return all
+    .filter(t => t.live > 0 || t.tag.toLowerCase() === active)
+    .map(t => ({ ...t, count: t.live }));
 }
 function tagsByUse(scopeId) {
   return [...tagIndex(scopeId).values()]

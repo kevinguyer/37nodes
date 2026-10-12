@@ -46,13 +46,28 @@ themeSelectEl.addEventListener('change', () => {
   applyTheme();
 });
 const hideCompletedEl = $('#hide-completed');
-hideCompletedEl.addEventListener('change', () => {
-  prefs.hideCompleted = hideCompletedEl.checked;
+/* The one switch (F69): the ☰ checkbox and Alt+C both land here. Everything
+   that cares about completed items — search, the jump palette, the panel's
+   tag counts — reads completedRowsHidden(), so there is no second setting. */
+function setHideCompleted(on) {
+  prefs.hideCompleted = !!on;
+  hideCompletedEl.checked = !!on;
   savePrefs();
   document.body.classList.toggle('hide-completed', prefs.hideCompleted);
   // hiding completed rows changes what can be a search result, so results
   // computed under the old setting have to be recomputed
   if (view.query) renderAll();
+  // toggling emits no store event, so the panel's derived counts need a nudge
+  renderInfoPanel();
+}
+hideCompletedEl.addEventListener('change', () => setHideCompleted(hideCompletedEl.checked));
+document.addEventListener('keydown', e => {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // match the physical key too: Alt+letter reports oddly on some layouts
+  if (e.code !== 'KeyC' && e.key !== 'c' && e.key !== 'C') return;
+  if (e.defaultPrevented) return;
+  e.preventDefault();
+  setHideCompleted(!completedRowsHidden());
 });
 const wideLayoutEl = $('#wide-layout');
 wideLayoutEl.addEventListener('change', () => {
