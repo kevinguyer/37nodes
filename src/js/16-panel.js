@@ -120,7 +120,7 @@ function ipRow(main, sub, onClick) {
    glancing at while shut. */
 function ipSectionOpen(key) {
   const s = prefs.ipSections;
-  if (!s || !(key in s)) return key === 'item'; // first run: details only
+  if (!s || !(key in s)) return key === 'item' || key === 'zoom'; // first run: item details only
   return !!s[key];
 }
 function ipSetSectionOpen(key, on) {
@@ -303,6 +303,22 @@ function renderInfoPanel() {
     if (!tracked) { body.append(ipHint('Click an item to see what links to it.')); return; }
     ipItemBody(body, id, n);
   });
+  // The zoomed-into item gets the same treatment while the caret is on
+  // something else inside it: its links and mirrors are the ones you came
+  // here for, and the caret is rarely on the heading itself. Shut, the
+  // header carries what those lists would hold.
+  const fid = view.focusId;
+  const fn = store.getNode(fid);
+  if (fid !== ROOT_ID && fn && id !== fid) {
+    ipSection('zoom', 'Zoomed into', backlinksOf(fid).length + store.mirrorsOf(fid).length, body => {
+      const t = document.createElement('div');
+      t.className = 'ip-zoom-title';
+      t.textContent = truncate(fn.title, 60) || 'Untitled';
+      t.title = fn.title || 'Untitled';
+      body.append(t);
+      ipItemBody(body, fid, fn);
+    });
+  }
   ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
   ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
     tagsAlphabetical(view.focusId).length, ipTagsBody);
@@ -422,6 +438,51 @@ document.addEventListener('keydown', e => {
     setPanelOpen(!panelOpen());
   }
 });
+
+/* --- resizable: drag the panel's left edge; double-click resets ----------
+   The width is one CSS variable (--panel-w) that the panel, the body
+   padding and the fixed chrome all key off, so resizing is writing that
+   variable. The pref holds a number; absent means the stylesheet default. */
+const IP_W_MIN = 220;
+const ipResizeEl = $('#ip-resize');
+function ipMaxWidth() { // never let the panel squeeze the outline out
+  // a window that reports no width yet (hidden tab, pre-layout) constrains
+  // nothing: clamping the saved width against it would shrink it to the
+  // minimum on every such load
+  const vw = window.innerWidth || Infinity;
+  return Math.max(IP_W_MIN, Math.min(640, vw - 360));
+}
+function applyPanelWidth(w) {
+  if (w) document.documentElement.style.setProperty('--panel-w', clamp(w, IP_W_MIN, ipMaxWidth()) + 'px');
+  else document.documentElement.style.removeProperty('--panel-w');
+}
+ipResizeEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  ipResizeEl.setPointerCapture(e.pointerId);
+  document.body.classList.add('ip-resizing');
+  let w = null;
+  const move = ev => {
+    w = clamp(Math.round(window.innerWidth - ev.clientX), IP_W_MIN, ipMaxWidth());
+    applyPanelWidth(w);
+  };
+  const up = () => {
+    ipResizeEl.removeEventListener('pointermove', move);
+    ipResizeEl.removeEventListener('pointerup', up);
+    ipResizeEl.removeEventListener('pointercancel', up);
+    document.body.classList.remove('ip-resizing');
+    if (w) { prefs.panelWidth = w; savePrefs(); }
+  };
+  ipResizeEl.addEventListener('pointermove', move);
+  ipResizeEl.addEventListener('pointerup', up);
+  ipResizeEl.addEventListener('pointercancel', up);
+});
+ipResizeEl.addEventListener('dblclick', () => {
+  delete prefs.panelWidth;
+  savePrefs();
+  applyPanelWidth(null);
+});
+applyPanelWidth(prefs.panelWidth);
 
 // state lands before boot's first render, so the column never jumps
 document.body.classList.toggle('panel-open', panelOpen());

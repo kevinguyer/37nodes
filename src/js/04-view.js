@@ -540,17 +540,27 @@ function renderCrumbs() {
     crumbsEl.append(a);
   });
 }
+/* The header is skipped while it holds the caret so a repaint mid-typing
+   can't yank the text out from under it — but only while it still shows the
+   SAME item. A zoom that lands while the header is focused (a Ctrl+K jump
+   from a childless item, whose caret has nowhere to sit but the header) must
+   replace the text regardless: the header edits view.focusId, so a stale
+   title left in a focused header would store the OLD item's title into the
+   NEW item on the next keystroke. */
+let focusHeadShownId = null; // the item the header's DOM currently shows
 function renderFocusHead() {
+  const changed = focusHeadShownId !== view.focusId;
+  focusHeadShownId = view.focusId;
   if (view.focusId === ROOT_ID) { focusHeadEl.hidden = true; return; }
   focusHeadEl.hidden = false;
   const n = store.getNode(view.focusId);
-  if (document.activeElement !== focusTitleEl) focusTitleEl.textContent = n.title;
+  if (changed || document.activeElement !== focusTitleEl) focusTitleEl.textContent = n.title;
   // the zoomed item has no row of its own to wear the ★, so the header wears
   // it — always when starred, on hover otherwise (the .handle bargain)
   focusStarEl.textContent = n.starred ? '★' : '☆';
   focusStarEl.classList.toggle('on', !!n.starred);
   focusStarEl.title = (n.starred ? 'Unstar this item' : 'Star this item') + ' (Alt+S)';
-  if (!focusNoteEl.querySelector('.note-edit:focus')) {
+  if (changed || !focusNoteEl.querySelector('.note-edit:focus')) {
     focusNoteEl.textContent = '';
     if (n.note) focusNoteEl.append(mdRender(n.note));
   }
@@ -605,11 +615,33 @@ function reconcileChildren(container, parentNode, level, suffix = '') {
     if (valid.has(cid)) continue;
     const n = store.getNode(cid);
     const sp = n && store.getParent(cid);
-    // if the node still exists under another parent, that parent's own
-    // 'children' event (emitted in the same action) will re-home this element
-    if (n && sp && sp.id !== parentNode.id) continue;
+    // A node that still exists under another parent is left for that
+    // parent's own 'children' event (emitted in the same action) to re-home,
+    // subtree intact — but only when that event will actually claim it. A
+    // collapsed or unrendered destination clears or never touches its
+    // container, and the orphan would sit here as a dead row until the next
+    // rebuild (BUG-1: "Move to…" into a collapsed item).
+    if (n && sp && sp.id !== parentNode.id && willReconcile(sp.id, suffixOf(el))) continue;
     el.remove();
   }
+}
+/* Will the 'children' event for parent `pid` reconcile a container whose
+   rows carry `suffix`? Elements are claimed by exact instance id, so the
+   destination needs a live, expanded instance rendering under that same
+   suffix — the zoom root (suffix '') or a row that is neither collapsed nor
+   a loop stub. Anything else leaves the element unclaimed. */
+function willReconcile(pid, suffix) {
+  if (pid === view.focusId) return suffix === '';
+  const p = store.getNode(pid);
+  if (!p) return false;
+  for (const el of nodeInstances(pid)) {
+    const own = store.getNode(el.dataset.id);
+    if (!own || own.collapsed) continue;
+    if (own.mirrorOf && mirrorExpansionLoop(own, p, suffixOf(el))) continue;
+    const s = own.mirrorOf ? suffixOf(el) + '@' + own.id : suffixOf(el);
+    if (s === suffix) return true;
+  }
+  return false;
 }
 function renderChildrenOf(id) {
   computeFilter(); // structure may have changed what matches show

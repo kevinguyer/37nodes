@@ -555,6 +555,17 @@ body.panel-open{padding-right:var(--panel-w);}
   display:flex; flex-direction:column; overflow-y:auto;
   background:var(--bg); border-left:1px solid var(--line);
 }
+/* the resize grip rides the panel's left edge. Fixed and placed off the
+   same --panel-w the panel is, rather than absolute inside it: the panel
+   scrolls, and an absolute child would scroll away with the content */
+#ip-resize{
+  position:fixed; top:0; bottom:0; width:7px; right:calc(var(--panel-w) - 3px);
+  z-index:61; cursor:col-resize;
+  transition:background calc(120ms * var(--motion)) ease;
+}
+#ip-resize:hover, body.ip-resizing #ip-resize{background:var(--accent-soft);}
+body.ip-resizing{cursor:col-resize; user-select:none;}
+body.ip-resizing #info-panel, body.ip-resizing #page{pointer-events:none;}
 #ip-head{
   position:sticky; top:0; z-index:1;
   display:flex; align-items:center; gap:8px;
@@ -592,6 +603,13 @@ body.panel-open{padding-right:var(--panel-w);}
   background:var(--panel); border-radius:999px;
 }
 .ip-sec-body{padding-bottom:6px;}
+/* the zoomed-into section names its item first: the panel header already
+   belongs to the tracked one */
+.ip-zoom-title{
+  font-size:13px; font-weight:600; padding:3px 5px 0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ip-zoom-title + .ip-label{margin-top:7px;}
 /* a starred row and the button that unstars it, side by side */
 .ip-row-wrap{display:flex; align-items:center; gap:2px;}
 .ip-row-wrap > .ip-row{flex:1; min-width:0;}
@@ -983,10 +1001,11 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 45 &middot; 2026-08-11</div>
+  <div class="menu-note" id="build-readout">Build 52 &middot; 2026-09-02</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
+  <div id="ip-resize" role="separator" aria-orientation="vertical" title="Drag to resize the panel &middot; double-click to reset"></div>
   <div id="ip-head">
     <span id="ip-title"></span>
     <button id="ip-star" title="Star this item (Alt+S)" aria-label="Star this item" hidden>&#9734;</button>
@@ -1108,6 +1127,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <span><kbd>Alt</kbd>+<kbd>&rarr;</kbd> / <kbd>Alt</kbd>+<kbd>&larr;</kbd></span><span>Zoom in / zoom out</span>
     <span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd></span><span>Zoom all the way out to the top</span>
     <span><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>Move between items</span>
+    <span><kbd>Ctrl</kbd>+<kbd>Home</kbd> / <kbd>Ctrl</kbd>+<kbd>End</kbd></span><span>First / last item in view</span>
     <span><kbd>Backspace</kbd> <em>on empty item</em></span><span>Delete item (children are kept)</span>
     <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd></span><span>Delete item and everything under it</span>
     <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span>Undo / redo</span>
@@ -2808,17 +2828,27 @@ function renderCrumbs() {
     crumbsEl.append(a);
   });
 }
+/* The header is skipped while it holds the caret so a repaint mid-typing
+   can't yank the text out from under it — but only while it still shows the
+   SAME item. A zoom that lands while the header is focused (a Ctrl+K jump
+   from a childless item, whose caret has nowhere to sit but the header) must
+   replace the text regardless: the header edits view.focusId, so a stale
+   title left in a focused header would store the OLD item's title into the
+   NEW item on the next keystroke. */
+let focusHeadShownId = null; // the item the header's DOM currently shows
 function renderFocusHead() {
+  const changed = focusHeadShownId !== view.focusId;
+  focusHeadShownId = view.focusId;
   if (view.focusId === ROOT_ID) { focusHeadEl.hidden = true; return; }
   focusHeadEl.hidden = false;
   const n = store.getNode(view.focusId);
-  if (document.activeElement !== focusTitleEl) focusTitleEl.textContent = n.title;
+  if (changed || document.activeElement !== focusTitleEl) focusTitleEl.textContent = n.title;
   // the zoomed item has no row of its own to wear the ★, so the header wears
   // it — always when starred, on hover otherwise (the .handle bargain)
   focusStarEl.textContent = n.starred ? '★' : '☆';
   focusStarEl.classList.toggle('on', !!n.starred);
   focusStarEl.title = (n.starred ? 'Unstar this item' : 'Star this item') + ' (Alt+S)';
-  if (!focusNoteEl.querySelector('.note-edit:focus')) {
+  if (changed || !focusNoteEl.querySelector('.note-edit:focus')) {
     focusNoteEl.textContent = '';
     if (n.note) focusNoteEl.append(mdRender(n.note));
   }
@@ -2873,11 +2903,33 @@ function reconcileChildren(container, parentNode, level, suffix = '') {
     if (valid.has(cid)) continue;
     const n = store.getNode(cid);
     const sp = n && store.getParent(cid);
-    // if the node still exists under another parent, that parent's own
-    // 'children' event (emitted in the same action) will re-home this element
-    if (n && sp && sp.id !== parentNode.id) continue;
+    // A node that still exists under another parent is left for that
+    // parent's own 'children' event (emitted in the same action) to re-home,
+    // subtree intact — but only when that event will actually claim it. A
+    // collapsed or unrendered destination clears or never touches its
+    // container, and the orphan would sit here as a dead row until the next
+    // rebuild (BUG-1: "Move to…" into a collapsed item).
+    if (n && sp && sp.id !== parentNode.id && willReconcile(sp.id, suffixOf(el))) continue;
     el.remove();
   }
+}
+/* Will the 'children' event for parent `pid` reconcile a container whose
+   rows carry `suffix`? Elements are claimed by exact instance id, so the
+   destination needs a live, expanded instance rendering under that same
+   suffix — the zoom root (suffix '') or a row that is neither collapsed nor
+   a loop stub. Anything else leaves the element unclaimed. */
+function willReconcile(pid, suffix) {
+  if (pid === view.focusId) return suffix === '';
+  const p = store.getNode(pid);
+  if (!p) return false;
+  for (const el of nodeInstances(pid)) {
+    const own = store.getNode(el.dataset.id);
+    if (!own || own.collapsed) continue;
+    if (own.mirrorOf && mirrorExpansionLoop(own, p, suffixOf(el))) continue;
+    const s = own.mirrorOf ? suffixOf(el) + '@' + own.id : suffixOf(el);
+    if (s === suffix) return true;
+  }
+  return false;
 }
 function renderChildrenOf(id) {
   computeFilter(); // structure may have changed what matches show
@@ -3441,6 +3493,21 @@ function onTitleKeydown(e, el) {
         navRelative(el, 1, 0);
       }
       return;
+
+    case 'Home':
+    case 'End': {
+      // Ctrl+Home / Ctrl+End: first / last item of the list on screen (F68).
+      // The zoom header is the list's heading, not a row in it, so it is
+      // skipped unless the list is empty; Shift stays with the browser
+      // (select to start / end of the line).
+      if (!mod || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      const rows = visibleTitles().filter(t => t !== focusTitleEl);
+      const t = key === 'Home' ? rows[0] : rows[rows.length - 1];
+      if (t) activateTitle(t, key === 'Home' ? 0 : 'end');
+      else if (!focusHeadEl.hidden) activateTitle(focusTitleEl, key === 'Home' ? 0 : 'end');
+      return;
+    }
 
     case 'Escape':
       if (view.query) { e.preventDefault(); clearSearch(); }
@@ -4042,12 +4109,58 @@ function parseHash() {
 function applyFocusFromHash() {
   const id = parseHash() || ROOT_ID;
   if (id !== view.focusId) {
+    // Changing scope ends whatever edit is in progress, BEFORE the scope
+    // changes: focusout flushes the typing burst, closes a note editor, and
+    // runs the rename-link offer against the item that was actually edited.
+    // Left focused, the zoom header would carry the old item's text into
+    // the new one (its editor is bound to view.focusId, not to a node).
+    const caretId = caretItemId();
+    const oldFocusId = view.focusId;
+    const a = document.activeElement;
+    if (a && (a.closest?.('.title') || a.closest?.('.note-edit'))) a.blur();
     view.focusId = id;
     store.setSavedFocus(id);
     renderAll();
+    landAfterZoom(caretId, oldFocusId);
   }
 }
 window.addEventListener('hashchange', applyFocusFromHash);
+
+/* the item whose title or note holds the caret, by structural id (the zoom
+   header's title and note belong to the zoomed item) */
+function caretItemId() {
+  const a = document.activeElement;
+  const t = a && a.closest?.('.title');
+  if (t) return idOfTitle(t);
+  const ta = a && a.closest?.('.note-edit');
+  if (!ta) return null;
+  if (ta.parentElement === focusNoteEl) return view.focusId;
+  const host = ta.closest('.node');
+  return host ? host.dataset.id : null;
+}
+
+/* Where the caret goes once a zoom has rendered (F12): the item it was on,
+   if the new scope still shows it; else the item that was zoomed into, now
+   a row of its parent — the zoom-out case, revealed if it sits under
+   something collapsed; else the zoom header; else, at the top, the first
+   item. A rebuild would otherwise drop focus on the floor on every zoom. */
+function landAfterZoom(caretId, oldFocusId) {
+  const f = view.focusId;
+  const land = (id, reveal) => {
+    if (!id || id === ROOT_ID || !store.getNode(id)) return false;
+    if (id === f) { focusNodeTitle(id, 'end'); return true; }
+    if (!store.isDescendant(id, f)) return false;
+    if (!nodeEl(id) && !reveal) return false;
+    focusNodeTitle(id, 'end');
+    // a title hidden by hide-completed can't take focus: report that
+    const a = document.activeElement;
+    return !!(a && a.closest?.('.node')?.dataset.id === id);
+  };
+  if (land(caretId, false) || land(oldFocusId, true)) return;
+  if (f !== ROOT_ID) { focusNodeTitle(f, 'end'); return; }
+  const first = visibleTitles()[0];
+  if (first) activateTitle(first, 0);
+}
 
 /* --- menu panel --- */
 const menuPanelEl = $('#menu-panel');
@@ -6062,7 +6175,7 @@ function ipRow(main, sub, onClick) {
    glancing at while shut. */
 function ipSectionOpen(key) {
   const s = prefs.ipSections;
-  if (!s || !(key in s)) return key === 'item'; // first run: details only
+  if (!s || !(key in s)) return key === 'item' || key === 'zoom'; // first run: item details only
   return !!s[key];
 }
 function ipSetSectionOpen(key, on) {
@@ -6245,6 +6358,22 @@ function renderInfoPanel() {
     if (!tracked) { body.append(ipHint('Click an item to see what links to it.')); return; }
     ipItemBody(body, id, n);
   });
+  // The zoomed-into item gets the same treatment while the caret is on
+  // something else inside it: its links and mirrors are the ones you came
+  // here for, and the caret is rarely on the heading itself. Shut, the
+  // header carries what those lists would hold.
+  const fid = view.focusId;
+  const fn = store.getNode(fid);
+  if (fid !== ROOT_ID && fn && id !== fid) {
+    ipSection('zoom', 'Zoomed into', backlinksOf(fid).length + store.mirrorsOf(fid).length, body => {
+      const t = document.createElement('div');
+      t.className = 'ip-zoom-title';
+      t.textContent = truncate(fn.title, 60) || 'Untitled';
+      t.title = fn.title || 'Untitled';
+      body.append(t);
+      ipItemBody(body, fid, fn);
+    });
+  }
   ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
   ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
     tagsAlphabetical(view.focusId).length, ipTagsBody);
@@ -6364,6 +6493,51 @@ document.addEventListener('keydown', e => {
     setPanelOpen(!panelOpen());
   }
 });
+
+/* --- resizable: drag the panel's left edge; double-click resets ----------
+   The width is one CSS variable (--panel-w) that the panel, the body
+   padding and the fixed chrome all key off, so resizing is writing that
+   variable. The pref holds a number; absent means the stylesheet default. */
+const IP_W_MIN = 220;
+const ipResizeEl = $('#ip-resize');
+function ipMaxWidth() { // never let the panel squeeze the outline out
+  // a window that reports no width yet (hidden tab, pre-layout) constrains
+  // nothing: clamping the saved width against it would shrink it to the
+  // minimum on every such load
+  const vw = window.innerWidth || Infinity;
+  return Math.max(IP_W_MIN, Math.min(640, vw - 360));
+}
+function applyPanelWidth(w) {
+  if (w) document.documentElement.style.setProperty('--panel-w', clamp(w, IP_W_MIN, ipMaxWidth()) + 'px');
+  else document.documentElement.style.removeProperty('--panel-w');
+}
+ipResizeEl.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  ipResizeEl.setPointerCapture(e.pointerId);
+  document.body.classList.add('ip-resizing');
+  let w = null;
+  const move = ev => {
+    w = clamp(Math.round(window.innerWidth - ev.clientX), IP_W_MIN, ipMaxWidth());
+    applyPanelWidth(w);
+  };
+  const up = () => {
+    ipResizeEl.removeEventListener('pointermove', move);
+    ipResizeEl.removeEventListener('pointerup', up);
+    ipResizeEl.removeEventListener('pointercancel', up);
+    document.body.classList.remove('ip-resizing');
+    if (w) { prefs.panelWidth = w; savePrefs(); }
+  };
+  ipResizeEl.addEventListener('pointermove', move);
+  ipResizeEl.addEventListener('pointerup', up);
+  ipResizeEl.addEventListener('pointercancel', up);
+});
+ipResizeEl.addEventListener('dblclick', () => {
+  delete prefs.panelWidth;
+  savePrefs();
+  applyPanelWidth(null);
+});
+applyPanelWidth(prefs.panelWidth);
 
 // state lands before boot's first render, so the column never jumps
 document.body.classList.toggle('panel-open', panelOpen());

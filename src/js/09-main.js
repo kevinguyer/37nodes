@@ -69,12 +69,58 @@ function parseHash() {
 function applyFocusFromHash() {
   const id = parseHash() || ROOT_ID;
   if (id !== view.focusId) {
+    // Changing scope ends whatever edit is in progress, BEFORE the scope
+    // changes: focusout flushes the typing burst, closes a note editor, and
+    // runs the rename-link offer against the item that was actually edited.
+    // Left focused, the zoom header would carry the old item's text into
+    // the new one (its editor is bound to view.focusId, not to a node).
+    const caretId = caretItemId();
+    const oldFocusId = view.focusId;
+    const a = document.activeElement;
+    if (a && (a.closest?.('.title') || a.closest?.('.note-edit'))) a.blur();
     view.focusId = id;
     store.setSavedFocus(id);
     renderAll();
+    landAfterZoom(caretId, oldFocusId);
   }
 }
 window.addEventListener('hashchange', applyFocusFromHash);
+
+/* the item whose title or note holds the caret, by structural id (the zoom
+   header's title and note belong to the zoomed item) */
+function caretItemId() {
+  const a = document.activeElement;
+  const t = a && a.closest?.('.title');
+  if (t) return idOfTitle(t);
+  const ta = a && a.closest?.('.note-edit');
+  if (!ta) return null;
+  if (ta.parentElement === focusNoteEl) return view.focusId;
+  const host = ta.closest('.node');
+  return host ? host.dataset.id : null;
+}
+
+/* Where the caret goes once a zoom has rendered (F12): the item it was on,
+   if the new scope still shows it; else the item that was zoomed into, now
+   a row of its parent — the zoom-out case, revealed if it sits under
+   something collapsed; else the zoom header; else, at the top, the first
+   item. A rebuild would otherwise drop focus on the floor on every zoom. */
+function landAfterZoom(caretId, oldFocusId) {
+  const f = view.focusId;
+  const land = (id, reveal) => {
+    if (!id || id === ROOT_ID || !store.getNode(id)) return false;
+    if (id === f) { focusNodeTitle(id, 'end'); return true; }
+    if (!store.isDescendant(id, f)) return false;
+    if (!nodeEl(id) && !reveal) return false;
+    focusNodeTitle(id, 'end');
+    // a title hidden by hide-completed can't take focus: report that
+    const a = document.activeElement;
+    return !!(a && a.closest?.('.node')?.dataset.id === id);
+  };
+  if (land(caretId, false) || land(oldFocusId, true)) return;
+  if (f !== ROOT_ID) { focusNodeTitle(f, 'end'); return; }
+  const first = visibleTitles()[0];
+  if (first) activateTitle(first, 0);
+}
 
 /* --- menu panel --- */
 const menuPanelEl = $('#menu-panel');

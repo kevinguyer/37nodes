@@ -223,6 +223,21 @@ function onTitleKeydown(e, el) {
       }
       return;
 
+    case 'Home':
+    case 'End': {
+      // Ctrl+Home / Ctrl+End: first / last item of the list on screen (F68).
+      // The zoom header is the list's heading, not a row in it, so it is
+      // skipped unless the list is empty; Shift stays with the browser
+      // (select to start / end of the line).
+      if (!mod || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      const rows = visibleTitles().filter(t => t !== focusTitleEl);
+      const t = key === 'Home' ? rows[0] : rows[rows.length - 1];
+      if (t) activateTitle(t, key === 'Home' ? 0 : 'end');
+      else if (!focusHeadEl.hidden) activateTitle(focusTitleEl, key === 'Home' ? 0 : 'end');
+      return;
+    }
+
     case 'Escape':
       if (view.query) { e.preventDefault(); clearSearch(); }
       return;
