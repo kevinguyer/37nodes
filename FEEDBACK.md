@@ -94,6 +94,24 @@ so. Revisit only if he has a real use for it.
 
 ---
 
+## Documentation
+
+| ID | Title | Status | Size | Risk |
+|---|---|---|---|---|
+| DOC-1 | In-app Help Center with a What's new list | Done (build 61, F72, F73) | M | Low |
+
+### DOC-1 — Help Center
+
+**Raised 2026-10-12** by the maintainer, as features outgrew the single `?`
+shortcut dialog and the feature list no longer fit in a README. Decisions:
+in-app only (the single-file, no-network model stays whole); What's new
+included; `?` opens the shortcut reference, and the ☰ menu row (now **Help…**)
+opens the overview. Authoring is markdown in `src/help/`, with the shortcut
+table as data in `18-help.js`. The "definition of done" in `CLAUDE.md` is the
+mechanism that keeps it current.
+
+---
+
 ## Feature requests
 
 | ID | Title | Status | Size | Risk | Recommendation |
@@ -529,3 +547,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-12 | Second user batch triaged: FR-13…FR-22 added; his collapse-state request merged into FR-12 (amended with a session-local override). FR-16/17/19 sequenced behind FR-18's grammar. |
 | 2026-10-12 | Decisions: one global Hide-completed switch (FR-13); FR-18 does AND and scoped `>`; FR-17 saved searches live in the document and ride export/import. |
 | 2026-10-12 | FR-13 shipped (`Alt+C`), FR-5, FR-14, FR-15 (`Parent/Log`), FR-21 shipped. FR-20 and FR-22 held for answers on what he sees. |
+| 2026-10-12 | DOC-1 shipped: the Help Center (overview, topics, keyboard reference, What's new). |

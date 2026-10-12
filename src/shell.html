@@ -91,7 +91,7 @@
     <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>Help</button>
     <div class="menu-sec-body">
       <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
-      <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
+      <button class="menu-row" id="show-help">Help&hellip; <span class="menu-pill" id="help-new-pill" hidden>New</span></button>
     </div>
   </section>
   <div class="menu-note" id="build-readout">Build __BUILD__ &middot; __BUILT__</div>
@@ -206,41 +206,18 @@
   <div id="palette-results" role="listbox" aria-label="Matching items"></div>
 </dialog>
 
-<dialog id="help-dialog">
-  <h2 class="help-brand"><svg width="28" height="23" aria-hidden="true"><use href="#logo-mark"/></svg>37nodes</h2>
-  <p class="dialog-tagline">Infinite depth. Zero chaos.</p>
-  <h3 class="help-subhead">Keyboard shortcuts</h3>
-  <div id="help-grid">
-    <span><kbd>Enter</kbd></span><span>New item (splits at cursor)</span>
-    <span><kbd>Shift</kbd>+<kbd>Enter</kbd></span><span>Add / edit the item's note</span>
-    <span><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></span><span>Indent / outdent</span>
-    <span><kbd>Alt</kbd>+<kbd>&uarr;</kbd> / <kbd>Alt</kbd>+<kbd>&darr;</kbd></span><span>Move item up / down</span>
-    <span><kbd>Ctrl</kbd>+<kbd>&uarr;</kbd> / <kbd>Ctrl</kbd>+<kbd>&darr;</kbd></span><span>Collapse / expand</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span><span>Complete / un-complete</span>
-    <span><kbd>Alt</kbd>+<kbd>&rarr;</kbd> / <kbd>Alt</kbd>+<kbd>&larr;</kbd></span><span>Zoom in / zoom out</span>
-    <span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd></span><span>Zoom all the way out to the top</span>
-    <span><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>Move between items</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Home</kbd> / <kbd>Ctrl</kbd>+<kbd>End</kbd></span><span>First / last item in view</span>
-    <span><kbd>Backspace</kbd> <em>on empty item</em></span><span>Delete item (children are kept)</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd></span><span>Delete item and everything under it</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span>Undo / redo</span>
-    <span><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>Search</span>
-    <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match) &mdash; type <em>Parent/Child</em> to pick between items with the same name</span>
-    <span><kbd>Alt</kbd>+<kbd>C</kbd></span><span>Show / hide completed items</span>
-    <span><kbd>Alt</kbd>+<kbd>M</kbd></span><span>Move this item into another one &mdash; same fuzzy search, picks the destination</span>
-    <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
-    <span><kbd>((</kbd> <em>on an empty item</em></span><span>Turn the item into a live <em>mirror</em> of another item (hollow bullet); also in the ≡ menu</span>
-    <span><kbd>#</kbd></span><span>Tag an item: the tags you already use are offered as you type</span>
-    <span><kbd>Alt</kbd>+<kbd>S</kbd></span><span>Star / unstar the item &mdash; starred items are listed in the info panel</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
-    <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
-    <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
-    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, your starred items, every tag you use</span>
-    <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
-    <span><kbd>?</kbd></span><span>This help</span>
+<dialog id="help-dialog" aria-label="Help">
+  <div class="hc-head">
+    <h2 class="help-brand"><svg width="28" height="23" aria-hidden="true"><use href="#logo-mark"/></svg>37nodes Help</h2>
+    <p class="dialog-tagline">Infinite depth. Zero chaos.</p>
   </div>
-  <p class="help-note">On macOS, use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>.</p>
-  <p class="help-note">Your outline lives in this browser's built-in database (IndexedDB). Browsers can evict site data under disk pressure or when clearing it manually. <strong>Export JSON</strong> from the menu is your real backup.</p>
+  <div id="hc">
+    <nav id="hc-nav" aria-label="Help topics">
+      <input id="hc-search" type="search" placeholder="Search help  ( / )" autocomplete="off" spellcheck="false" aria-label="Search help">
+      <div id="hc-topics"></div>
+    </nav>
+    <div id="hc-main" tabindex="-1"><div id="hc-content"></div></div>
+  </div>
   <div class="dialog-actions"><button id="help-tour">Take the tour</button><button id="help-close">Close</button></div>
 </dialog>
 

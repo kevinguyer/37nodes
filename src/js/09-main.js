@@ -178,10 +178,7 @@ for (const sec of $$('.menu-sec', menuPanelEl)) {
 $('#export-json').addEventListener('click', () => { exportJSON(); closeMenu(); });
 $('#export-md-view').addEventListener('click', () => { exportMarkdown(view.focusId); closeMenu(); });
 $('#export-md-all').addEventListener('click', () => { exportMarkdown(ROOT_ID); closeMenu(); });
-$('#show-help').addEventListener('click', () => { closeMenu(); $('#help-dialog').showModal(); });
-$('#help-close').addEventListener('click', () => $('#help-dialog').close());
-// the shortcut list is long enough that its close button can be a scroll away
-closeOnBackdropClick($('#help-dialog'));
+// the Help Center's own wiring (open, close, backdrop click) lives in 18-help.js
 $('#menu-panel').addEventListener('click', e => e.stopPropagation());
 
 /* --- banner buttons --- */

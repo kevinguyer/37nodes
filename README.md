@@ -19,7 +19,7 @@ See [PRD.md](PRD.md) for the full product requirements.
 
 - A **guided tour** on first run — a spotlight walkthrough of the real UI,
   about a minute long, re-launchable any time from **☰ → Take the guided
-  tour** (or the help dialog). `←`/`→` step, `Esc` leaves.
+  tour** (or the Help Center). `←`/`→` step, `Esc` leaves.
 - The top-bar **tagline rotates every minute**, each new line arriving as a
   cipher decode that scrambles, slows and settles. Add your own to the
   `TAGLINES` list in `src/js/13-tagline.js`.
@@ -27,6 +27,9 @@ See [PRD.md](PRD.md) for the full product requirements.
   **markdown note** (edit raw, renders when you click away)
 - **Zoom** into any node (click its bullet) with breadcrumbs back out; zoom is
   in the URL hash, so browser back/forward navigate your zoom history
+- A **Help Center** (☰ → Help…): topic pages, search, a keyboard reference
+  (`?` opens it right there) and a **What's new** list that lights a dot on ☰
+  until you've read it. Content is plain markdown in `src/help/`
 - Full **keyboard operation** — press `?` in the app for the reference
 - Live **search/filter** with match highlighting (`Ctrl+F`)
 - **Jump palette** (`Ctrl+K`): fuzzy-match any item's title and zoom straight
@@ -126,6 +129,7 @@ src/js/10-palette.js   Ctrl+K fuzzy jump palette
 src/js/11-linkauto.js  [[link]] autocomplete
 src/js/12-tour.js   first-run guided tour (spotlight + callout card)
 src/js/13-tagline.js   rotating top-bar tagline, cipher-decode reveal
+src/js/18-help.js   Help Center (content in src/help/*.md, bundled at build)
 ```
 
 The logo is one traced `<path>` inside the `#logo-mark` symbol in

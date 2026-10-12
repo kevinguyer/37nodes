@@ -762,12 +762,76 @@ dialog h2{margin:0 0 10px; font-size:17px;}
 }
 .dialog-actions button:hover{background:var(--panel-2);}
 .dialog-actions button.danger{color:var(--danger); border-color:var(--danger);}
-#help-grid{
-  display:grid; grid-template-columns:auto 1fr; gap:6px 18px;
-  font-size:13px; margin:12px 0;
-}
-#help-grid em{color:var(--fg-dim); font-style:italic; font-size:12px;}
 .help-note{font-size:12.5px; color:var(--fg-dim); margin:10px 0 0;}
+
+/* ---------- help center (F72) ---------- */
+#help-dialog{max-width:920px; width:min(920px, calc(100vw - 32px)); padding:0;}
+#help-dialog[open]{display:flex; flex-direction:column; height:min(680px, 88vh);}
+.hc-head{display:flex; align-items:center; gap:14px; padding:14px 20px 10px; border-bottom:1px solid var(--line);}
+.hc-head h2{margin:0;}
+.hc-head .dialog-tagline{margin:0 0 0 auto;}
+#help-dialog .dialog-actions{margin:0; padding:10px 20px; border-top:1px solid var(--line);}
+#hc{flex:1; min-height:0; display:flex;}
+#hc-nav{
+  width:228px; flex:none; display:flex; flex-direction:column; gap:8px;
+  padding:12px 10px; border-right:1px solid var(--line); overflow:auto;
+}
+#hc-search{
+  width:100%; box-sizing:border-box; padding:5px 11px; font-size:13px;
+  background:var(--panel); border:1px solid var(--line); border-radius:999px; outline:none;
+}
+#hc-search:focus{border-color:var(--accent);}
+#hc-search::placeholder{color:var(--fg-faint);}
+#hc-topics{display:flex; flex-direction:column; gap:1px;}
+.hc-topic{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  text-align:left; padding:6px 10px; border-radius:var(--radius);
+  font-size:13.5px; color:var(--fg-dim);
+}
+.hc-topic:hover{background:var(--panel); color:var(--fg);}
+.hc-topic.on{background:var(--accent-soft); color:var(--fg);}
+.hc-pill, .menu-pill{
+  font-size:10.5px; line-height:1; padding:2px 6px; border-radius:999px;
+  background:var(--accent); color:var(--bg); font-weight:600;
+}
+.menu-pill{margin-left:auto;}
+.hc-empty{font-size:13px; color:var(--fg-dim); padding:6px 10px;}
+#hc-main{flex:1; min-width:0; overflow:auto; padding:18px 26px 26px; outline:none;}
+#hc-content h1{font-size:20px; margin:0 0 6px;}
+#hc-content h2{font-size:15px; margin:20px 0 6px;}
+.hc-lede{margin:0 0 16px; color:var(--fg-dim); font-size:14px;}
+.hc-md{font-size:14px; line-height:1.6; color:var(--fg);}
+.hc-md h1{font-size:20px; margin:0 0 6px;}
+.hc-md h2{font-size:15px; margin:20px 0 6px;}
+.hc-md p{margin:0 0 10px;}
+.hc-md ul, .hc-md ol{margin:0 0 10px; padding-left:22px;}
+.hc-md li{margin:3px 0;}
+.hc-md > h1 + p{color:var(--fg-dim); font-size:14.5px;}
+.hc-release h2{display:flex; align-items:center; gap:8px;}
+.hc-pill-new{font-size:10.5px;}
+.hc-cards{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px;}
+.hc-card{
+  display:flex; flex-direction:column; gap:4px; text-align:left;
+  padding:12px 14px; border:1px solid var(--line); border-radius:calc(var(--radius) * 1.5);
+  background:var(--panel);
+}
+.hc-card:hover{border-color:var(--accent); background:var(--panel-2);}
+.hc-card-title{font-size:14px; font-weight:600; color:var(--fg);}
+.hc-card-sum{font-size:12.5px; color:var(--fg-dim); line-height:1.45;}
+.hc-keys{border-collapse:collapse; width:100%; font-size:13.5px;}
+.hc-keys td{padding:6px 10px 6px 0; vertical-align:top; border-bottom:1px solid var(--line);}
+.hc-keys td:first-child{white-space:nowrap; width:1%; padding-right:20px;}
+.hc-combo{white-space:nowrap;}
+#menu-btn{position:relative;}
+#menu-btn.has-news::after{
+  content:""; position:absolute; top:2px; right:3px; width:7px; height:7px;
+  border-radius:50%; background:var(--accent);
+}
+@media (max-width:640px){
+  #hc{flex-direction:column;}
+  #hc-nav{width:auto; flex:none; max-height:34%; border-right:0; border-bottom:1px solid var(--line);}
+  .hc-head .dialog-tagline{display:none;}
+}
 
 /* ---------- jump palette (Ctrl+K) ---------- */
 #palette-dialog{margin-top:10vh; max-width:560px; padding:10px;}
@@ -998,10 +1062,10 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>Help</button>
     <div class="menu-sec-body">
       <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
-      <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
+      <button class="menu-row" id="show-help">Help&hellip; <span class="menu-pill" id="help-new-pill" hidden>New</span></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 60 &middot; 2026-10-12</div>
+  <div class="menu-note" id="build-readout">Build 61 &middot; 2026-10-12</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -1113,41 +1177,18 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <div id="palette-results" role="listbox" aria-label="Matching items"></div>
 </dialog>
 
-<dialog id="help-dialog">
-  <h2 class="help-brand"><svg width="28" height="23" aria-hidden="true"><use href="#logo-mark"/></svg>37nodes</h2>
-  <p class="dialog-tagline">Infinite depth. Zero chaos.</p>
-  <h3 class="help-subhead">Keyboard shortcuts</h3>
-  <div id="help-grid">
-    <span><kbd>Enter</kbd></span><span>New item (splits at cursor)</span>
-    <span><kbd>Shift</kbd>+<kbd>Enter</kbd></span><span>Add / edit the item's note</span>
-    <span><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></span><span>Indent / outdent</span>
-    <span><kbd>Alt</kbd>+<kbd>&uarr;</kbd> / <kbd>Alt</kbd>+<kbd>&darr;</kbd></span><span>Move item up / down</span>
-    <span><kbd>Ctrl</kbd>+<kbd>&uarr;</kbd> / <kbd>Ctrl</kbd>+<kbd>&darr;</kbd></span><span>Collapse / expand</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span><span>Complete / un-complete</span>
-    <span><kbd>Alt</kbd>+<kbd>&rarr;</kbd> / <kbd>Alt</kbd>+<kbd>&larr;</kbd></span><span>Zoom in / zoom out</span>
-    <span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd></span><span>Zoom all the way out to the top</span>
-    <span><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>Move between items</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Home</kbd> / <kbd>Ctrl</kbd>+<kbd>End</kbd></span><span>First / last item in view</span>
-    <span><kbd>Backspace</kbd> <em>on empty item</em></span><span>Delete item (children are kept)</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd></span><span>Delete item and everything under it</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span>Undo / redo</span>
-    <span><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>Search</span>
-    <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match) &mdash; type <em>Parent/Child</em> to pick between items with the same name</span>
-    <span><kbd>Alt</kbd>+<kbd>C</kbd></span><span>Show / hide completed items</span>
-    <span><kbd>Alt</kbd>+<kbd>M</kbd></span><span>Move this item into another one &mdash; same fuzzy search, picks the destination</span>
-    <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
-    <span><kbd>((</kbd> <em>on an empty item</em></span><span>Turn the item into a live <em>mirror</em> of another item (hollow bullet); also in the ≡ menu</span>
-    <span><kbd>#</kbd></span><span>Tag an item: the tags you already use are offered as you type</span>
-    <span><kbd>Alt</kbd>+<kbd>S</kbd></span><span>Star / unstar the item &mdash; starred items are listed in the info panel</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
-    <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
-    <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
-    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, your starred items, every tag you use</span>
-    <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
-    <span><kbd>?</kbd></span><span>This help</span>
+<dialog id="help-dialog" aria-label="Help">
+  <div class="hc-head">
+    <h2 class="help-brand"><svg width="28" height="23" aria-hidden="true"><use href="#logo-mark"/></svg>37nodes Help</h2>
+    <p class="dialog-tagline">Infinite depth. Zero chaos.</p>
   </div>
-  <p class="help-note">On macOS, use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>.</p>
-  <p class="help-note">Your outline lives in this browser's built-in database (IndexedDB). Browsers can evict site data under disk pressure or when clearing it manually. <strong>Export JSON</strong> from the menu is your real backup.</p>
+  <div id="hc">
+    <nav id="hc-nav" aria-label="Help topics">
+      <input id="hc-search" type="search" placeholder="Search help  ( / )" autocomplete="off" spellcheck="false" aria-label="Search help">
+      <div id="hc-topics"></div>
+    </nav>
+    <div id="hc-main" tabindex="-1"><div id="hc-content"></div></div>
+  </div>
   <div class="dialog-actions"><button id="help-tour">Take the tour</button><button id="help-close">Close</button></div>
 </dialog>
 
@@ -3603,7 +3644,7 @@ document.addEventListener('keydown', e => {
   }
   const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
   if (!inField) {
-    if (e.key === '?' && !mod) { e.preventDefault(); $('#help-dialog').showModal(); return; }
+    if (e.key === '?' && !mod) { e.preventDefault(); openHelp('keys'); return; }
     if (mod && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault();
       const fid = e.shiftKey ? store.redo() : store.undo();
@@ -4219,10 +4260,7 @@ for (const sec of $$('.menu-sec', menuPanelEl)) {
 $('#export-json').addEventListener('click', () => { exportJSON(); closeMenu(); });
 $('#export-md-view').addEventListener('click', () => { exportMarkdown(view.focusId); closeMenu(); });
 $('#export-md-all').addEventListener('click', () => { exportMarkdown(ROOT_ID); closeMenu(); });
-$('#show-help').addEventListener('click', () => { closeMenu(); $('#help-dialog').showModal(); });
-$('#help-close').addEventListener('click', () => $('#help-dialog').close());
-// the shortcut list is long enough that its close button can be a scroll away
-closeOnBackdropClick($('#help-dialog'));
+// the Help Center's own wiring (open, close, backdrop click) lives in 18-help.js
 $('#menu-panel').addEventListener('click', e => e.stopPropagation());
 
 /* --- banner buttons --- */
@@ -6785,6 +6823,380 @@ document.addEventListener('keydown', e => {
   if (!id) return;
   e.preventDefault();
   store.toggleStarred(id);
+});
+
+/* ===== 18 help center =====
+   The in-app manual (F72): an overview, topic pages, a keyboard reference, and
+   a "what's new" list, all inside the one file.
+
+   Authoring: topics are src/help/NN-slug.md and the release list is
+   src/help/whatsnew.md; build.ps1 bundles them into HELP_DATA below. They are
+   rendered with the same DOM-only markdown renderer as notes (02), so help
+   text is as XSS-safe as user text. Two help-only conventions are layered on
+   top, after rendering:
+     - a `code` span that is a key combo (`Alt+C`, `Enter`) becomes a <kbd>
+     - a link to `#help/<topic>` navigates inside the dialog
+   Keep `[[` and `((` inside code spans in the .md files: bare, the renderer
+   would try to resolve them as wikilinks against the user's own document.
+
+   Shortcuts are the one thing not authored as prose: HELP_KEYS is a table, so
+   the reference stays one scannable list and search can filter its rows.
+   "What's new" tracks the newest entry the user has opened in
+   prefs.whatsNewSeen, and lights a dot on the ☰ button until they do. */
+
+// the build puts the real data (plus a comma) at the marker; unbuilt, the default stands
+const HELP_DATA = [{topics:[{id:"start",md:"# Getting started\n\nAn outline is a list where every item can hold its own list, as deep as you like. Everything stays in this browser; nothing is sent anywhere.\n\n## The basics\n\n- Click an item's text and type. There is no edit mode: the outline is always editable.\n- `Enter` makes a new item below. `Tab` indents it under the item above; `Shift+Tab` brings it back out.\n- Click a bullet to **zoom** into that item and make it the whole page. The breadcrumbs at the top lead back out.\n- `Shift+Enter` adds a **note** under an item: longer text that supports markdown.\n- `Ctrl+Z` undoes, about 200 steps back, including structural changes.\n\n## Find your way around\n\n- `Ctrl+K` jumps to any item by typing a few letters of its title.\n- `Ctrl+F` searches everything in view.\n- `Alt+I` opens the **info panel**: what links to the current item, your starred items, and every tag you use.\n- The **☰ menu** holds themes, export and import, and these help pages.\n\n## Where to go next\n\n- [Editing and structure](#help/editing) covers moving, completing and formatting items.\n- [Finding and moving around](#help/navigating) covers zoom, the jump palette and **Move to…**.\n- [Keyboard shortcuts](#help/keys) is the full list, also reachable any time with `?`.\n"},{id:"editing",md:"# Editing and structure\n\nEverything you do to an item's text and place in the outline.\n\n## Titles and notes\n\nA title is one line. A note is free-form markdown under it: `Shift+Enter` opens it, and it renders when you click away. Notes support bold, italic, `code`, links, lists, quotes and headings.\n\nPasting several lines at once turns them into structure: indentation becomes nesting, and `-`, `*` and `1.` list markers are stripped.\n\n## Moving things\n\n- `Tab` / `Shift+Tab` indent and outdent, bringing the item's children with it.\n- `Alt+↑` / `Alt+↓` move an item up or down among its siblings.\n- Drag an item by its **bullet** to reorder it, or drop it onto another item to nest it inside.\n- `Alt+M` files the item inside another one you pick by name. See [Finding and moving around](#help/navigating).\n\n## Completing, collapsing, deleting\n\n- `Ctrl+Enter` marks an item done. Completed items are struck through; a parent shows a `done/total` count of its children once any are checked.\n- `Alt+C` hides or shows completed items everywhere. It is one switch: search, the jump palette and the panel all follow it.\n- `Ctrl+↑` / `Ctrl+↓` collapse and expand. A ringed bullet means something is folded inside.\n- `Backspace` on an empty item deletes it and keeps its children. `Ctrl+Shift+Backspace` deletes the item *and everything under it*; undo is the safety net.\n\n## Making things stand out\n\nSelect text in a title and a small bar appears: bold, italic, underline, code, link, text colour and highlight. `Ctrl+B`, `Ctrl+I` and `Ctrl+U` do the first three directly.\n\nThe **≡ handle** that appears beside a row, or `Ctrl+.`, opens the item menu: heading size (H1–H3), bullet colour, duplicate, zoom in, copy as markdown, mirror and more.\n"},{id:"navigating",md:"# Finding and moving around\n\nZoom, jump, search and file things away without leaving the keyboard.\n\n## Zoom\n\nClick a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms out one level and `Alt+Shift+←` goes all the way to the top. The zoom lives in the page address, so your browser's back and forward buttons walk your zoom history, and you can bookmark any item.\n\n## The jump palette\n\n`Ctrl+K` opens a fuzzy finder over every item title. It works from anywhere, including while you are typing.\n\n- Type a few letters; they need not be contiguous. Matches at word starts rank higher.\n- With nothing typed it shows what you **edited most recently**, so `Ctrl+K` then `Enter` returns you to where you were.\n- **Same name in several places?** Type the path: `Projects/Log` finds the item called \"Log\" under an ancestor containing \"Projects\". `>` and `›` work as separators too, and `Projects/` lists everything inside a match. If a title really contains a slash, a query that finds nothing falls back to a literal search.\n- With **Hide completed** on, finished items are left out of the list.\n\n## Move to…\n\n`Alt+M` uses the same picker to choose a *destination*: the current item, with everything under it, becomes the last child of the one you pick. It is one undo step, and the caret follows the item. Choose **Top level** to file something back out to the root.\n\n## Search\n\n`Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom.\n\n- It matches titles **and** notes, ignoring case.\n- Matches are shown with their ancestors dimmed for context.\n- A search made only of a single `#tag` matches that whole tag: `#todo` does not match `#todos`. Click any tag chip to search for it, and click it again to clear.\n- Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.\n- Items you create while a search is active stay visible until you change the search.\n- `Esc` clears the search.\n"},{id:"links",md:"# Links, backlinks and mirrors\n\nConnect items to each other, and show one item in several places.\n\n## Links\n\nType `[[` in a title or note and pick an item from the list; `Enter` or `Tab` inserts its exact title. The link jumps to that item when clicked.\n\nLinks are matched by **title**, ignoring case. If two items share a title the link goes to the first one in document order. A link whose target does not exist is shown as broken until an item with that title appears.\n\nIf you rename an item that others link to, 37nodes offers to update those links, so they do not quietly stop working.\n\n## Backlinks\n\nThe [info panel](#help/panel) lists every item that links to the one you are on, from titles and notes alike. Click a row to go there. With **Hide completed** on, completed sources are not listed, since there would be nothing to jump to.\n\n## Mirrors\n\nA **mirror** is a live view of an item shown somewhere else. Edit it in either place and both change, because there is only one item. Completing it, formatting it and its notes all follow.\n\n- Type `((` in an empty item and pick the original from the list, or use **Mirror this item** in the ≡ menu.\n- The mirror's *position* and its collapsed state are its own, so you can fold it away in one place and not the other.\n- Both the original and its mirrors carry a small ⧉ badge. The info panel's \"Mirrored in\" list shows every place an item appears.\n- Deleting the original does not lose the content: the first mirror is promoted to hold it.\n"},{id:"organizing",md:"# Tags and starred items\n\nLightweight ways to group things that do not live under the same parent.\n\n## Tags\n\nAny `#word` in a title or note is a tag, shown as a clickable chip. Click one to filter the outline to it, and click it again to clear.\n\nTyping `#` offers the tags you already use, most-used first, so a vocabulary stays a vocabulary instead of drifting into `#todo`, `#todos` and `#to-do`.\n\nThe panel's **Tags** section lists every tag in view with a count of the items using it. With **Hide completed** on, the count covers only items you can see, and a tag used only on finished items drops out of the list (it is still offered when you type `#`).\n\n## Starred items\n\n`Alt+S` stars the item you are on, or use ★ in the panel or the ≡ menu. A star marks the item at the right edge of its row, and the panel's **Starred** section keeps every starred item one click away, wherever it lives in the outline. It is a shortlist you curate, in document order.\n\n## Headings and colour\n\nThe ≡ menu gives an item a heading size (H1, H2, H3) and a bullet colour from a six-colour palette. Both are purely visual and do not change the structure.\n"},{id:"panel",md:"# The info panel\n\nA side strip that follows your caret and answers \"what is this connected to?\".\n\nOpen it with the ◨ button in the top bar or `Alt+I`. Drag its left edge to resize it, and double-click the edge to reset.\n\n## Sections\n\nEach section collapses, and the panel remembers which are open.\n\n- **This item** lists what links to the item you are on, where it is mirrored, and its details: created, edited, how many items are inside and how many links go out.\n- **Zoomed into** appears when your caret is on something inside the item you have zoomed into. It shows that parent's links and mirrors, which are the ones you came here for, without moving the caret.\n- **Starred** is your shortlist. Click a row to go there; click its ★ to unstar it.\n- **Tags** lists the tags in the current view with counts. Click a tag to filter, click it again to clear.\n\n## Notes on behaviour\n\n- The panel tracks the caret. With nothing focused it shows the item you are zoomed into.\n- Clicking a row goes to that item without changing your zoom, unless it sits outside the current view.\n- **Hide completed** (`Alt+C`) applies here too: completed sources and their tags are not counted.\n"},{id:"data",md:"# Your data, backups and themes\n\nWhere your outline lives, and how to keep it safe.\n\n## Where it is stored\n\nYour outline is saved in this browser's built-in database (IndexedDB), on this device. Nothing is uploaded; the app makes no network requests at all.\n\nBrowsers can still clear site data under disk pressure, or when you clear it yourself. **An export is your real backup.**\n\n## Export and import\n\n- **☰ → Export JSON** writes everything, losslessly, including colours, stars and mirrors. This is the one to keep.\n- **☰ → Export Markdown** writes the current view, or the whole outline, as plain nested text.\n- **☰ → Import JSON…** reads a JSON export back in. To bring in plain text, paste it: indented or bulleted lines become items. `Ctrl+Shift+C` copies the item you are on, with everything under it, as markdown.\n\nA gentle reminder appears when your last JSON export is more than 14 days old; you can change or turn it off in the menu.\n\n## Mirror to a file\n\nIn Chromium browsers (Chrome, Edge), **☰ → Mirror to a file on disk…** keeps a JSON file continuously up to date on every save: a live backup that survives cleared browser data. After a restart the browser may ask you to click **Resume** once.\n\n## More than one tab\n\nOpening the outline in two tabs at once raises a warning banner. The last save wins between tabs, so it is best to use one.\n\n## Themes and layout\n\n**☰ → View** has the themes: Nordic, Light, Dark, E-ink, Parchment, Evergreen, and three terminal tributes (green CRT, IBM 5151 sepia and Wyse 60 white phosphor, with glow and scanlines). **Wide layout** lets the outline follow the window instead of a fixed reading column.\n"}],news:"## v2.5 · 2026-10-12\n\n- **A Help Center.** This window: topic pages, search, a full keyboard reference and this list. `?` still jumps straight to the shortcuts.\n- **`Alt+C` shows or hides completed items.** It is the same switch as ☰ → Hide completed, and it now governs more: the jump palette, the panel's backlinks and mirrors, and its tag counts.\n- **Jump palette: `Parent/Child`.** Type `Projects/Log` to pick the right \"Log\" when several items share a name. Completed items are left out while they are hidden.\n- **Tag counts ignore hidden completed items.** A tag used only on finished work leaves the panel list (not the `#` suggester).\n- **Move to… (`Alt+M`).** File an item inside any other one by name, with the caret following it there.\n- **`Ctrl+Home` / `Ctrl+End`** jump to the first and last item in view.\n- **The caret survives zooming**, whichever way you zoom, so you do not lose your place.\n- **Resizable info panel**: drag its left edge. It also gained a **Zoomed into** section.\n- **Fixes:** Move to… no longer leaves a ghost copy behind, and jumping with Ctrl+K from a zoom header no longer shows the old title.\n\n## v2.4 · starred items and tags\n\n- **Starred items** (`Alt+S`): a shortlist, listed in the panel.\n- **Tag index** with counts, and **tag autocomplete** as you type `#`.\n- A tidier, grouped ☰ menu.\n\n## v2.0–v2.3 · foundations\n\n- **Backlinks and the info panel** (v2.3), with an offer to update inbound links when you rename an item.\n- **Mirrors** (v2.2): one item, shown in several places.\n- **Item menu, headings, bullet colours and inline formatting** (v2.1).\n- **A real database** (v2.0): IndexedDB storage and migration, so large outlines and future upgrades are safe.\n"},{ topics: [], news: '' }][0];
+
+/* [keys, what] — `keys` is a list of alternatives, each a combo joined by "+" */
+const HELP_KEYS = [
+  { cat: 'Editing', rows: [
+    [['Enter'], 'New item below (splits the title at the caret)'],
+    [['Shift+Enter'], 'Add or edit the item\'s note'],
+    [['Tab', 'Shift+Tab'], 'Indent / outdent'],
+    [['Alt+↑', 'Alt+↓'], 'Move the item up / down'],
+    [['Ctrl+Enter'], 'Complete / un-complete'],
+    [['Ctrl+↑', 'Ctrl+↓'], 'Collapse / expand'],
+    [['Backspace'], 'On an empty item: delete it (its children are kept)'],
+    [['Ctrl+Shift+Backspace'], 'Delete the item and everything under it'],
+    [['Ctrl+Z', 'Ctrl+Shift+Z'], 'Undo / redo'],
+    [['Ctrl+Shift+C'], 'Copy the item and its subtree as markdown'],
+  ] },
+  { cat: 'Formatting', rows: [
+    [['Ctrl+B', 'Ctrl+I', 'Ctrl+U'], 'Bold / italic / underline the selected title text. Select text for the full format bar'],
+    [['Ctrl+.'], 'Item menu: heading, colour and more. Also the ≡ handle, or right-click a bullet'],
+  ] },
+  { cat: 'Moving around', rows: [
+    [['↑', '↓', '←', '→'], 'Move between items'],
+    [['Ctrl+Home', 'Ctrl+End'], 'First / last item in view'],
+    [['Alt+→', 'Alt+←'], 'Zoom in / zoom out'],
+    [['Alt+Shift+←'], 'Zoom all the way out to the top'],
+  ] },
+  { cat: 'Finding and filing', rows: [
+    [['Ctrl+F'], 'Search the outline'],
+    [['Ctrl+K'], 'Jump to any item by title. Type Parent/Child to choose between items with the same name'],
+    [['Alt+M'], 'Move this item inside another one you pick'],
+    [['Alt+C'], 'Show / hide completed items'],
+  ] },
+  { cat: 'Linking and organising', rows: [
+    [['[['], 'Link to an item: pick from the list; Enter or Tab inserts it'],
+    [['(('], 'On an empty item: turn it into a live mirror of another item'],
+    [['#'], 'Tag an item: the tags you already use are offered as you type'],
+    [['Alt+S'], 'Star / unstar the item'],
+    [['Alt+I'], 'Open or close the info panel'],
+  ] },
+  { cat: 'General', rows: [
+    [['Esc'], 'Clear the search, close a note, close a dialog'],
+    [['?'], 'This keyboard reference'],
+  ] },
+];
+
+const hcEl = $('#help-dialog');
+const hcSearchEl = $('#hc-search');
+const hcNavEl = $('#hc-topics');
+const hcMainEl = $('#hc-main');
+const hcContentEl = $('#hc-content');
+
+let hcCur = 'home';
+let hcQuery = '';
+
+/* --- content model ------------------------------------------------------- */
+let hcTopicCache = null;
+function hcTopics() {
+  if (hcTopicCache) return hcTopicCache;
+  return (hcTopicCache = HELP_DATA.topics.map(t => {
+    const lines = t.md.replace(/\r\n?/g, '\n').split('\n');
+    const title = (lines[0] || '').replace(/^#\s+/, '').trim() || t.id;
+    // the first paragraph after the title is the one-line summary on the overview
+    let i = 1;
+    while (i < lines.length && !lines[i].trim()) i++;
+    const sum = [];
+    while (i < lines.length && lines[i].trim() && !/^(#|[-*>\d`])/.test(lines[i])) sum.push(lines[i++].trim());
+    return { id: t.id, title, summary: sum.join(' '), md: t.md, text: t.md.toLowerCase() };
+  }));
+}
+let hcNewsCache = null;
+function hcNews() { // newest first, as written: [{id, title, md}]
+  if (hcNewsCache) return hcNewsCache;
+  const out = [];
+  let cur = null;
+  for (const line of HELP_DATA.news.replace(/\r\n?/g, '\n').split('\n')) {
+    const m = line.match(/^##\s+(.*)$/);
+    if (m) { cur = { id: m[1].trim(), title: m[1].trim(), lines: [] }; out.push(cur); }
+    else if (cur) cur.lines.push(line);
+  }
+  return (hcNewsCache = out.map(e => ({ id: e.id, title: e.title, md: e.lines.join('\n').trim() })));
+}
+const HELP_KEYS_TEXT = HELP_KEYS.map(g => g.cat + ' ' + g.rows.map(r => r[0].join(' ') + ' ' + r[1]).join(' ')).join(' ').toLowerCase();
+
+/* Everything the nav can show, in order. `text` is what the search looks in. */
+function hcEntries() {
+  const news = hcNews();
+  return [
+    { id: 'home', title: 'Overview', text: 'overview help' },
+    { id: 'news', title: 'What’s new', text: news.map(e => e.title + ' ' + e.md).join(' ').toLowerCase() },
+    ...hcTopics().map(t => ({ id: t.id, title: t.title, text: t.title.toLowerCase() + ' ' + t.text })),
+    { id: 'keys', title: 'Keyboard shortcuts', text: 'keyboard shortcuts keys ' + HELP_KEYS_TEXT },
+  ];
+}
+
+/* --- what's new bookkeeping ---------------------------------------------- */
+function hcUnseenCount() {
+  const news = hcNews();
+  if (!news.length) return 0;
+  const seen = prefs.whatsNewSeen;
+  if (!seen) return news.length;
+  const at = news.findIndex(e => e.id === seen);
+  return at < 0 ? news.length : at;
+}
+function hcMarkSeen() {
+  const news = hcNews();
+  if (!news.length || prefs.whatsNewSeen === news[0].id) return;
+  prefs.whatsNewSeen = news[0].id;
+  savePrefs();
+  hcSyncDot();
+}
+function hcSyncDot() {
+  const n = hcUnseenCount();
+  $('#menu-btn').classList.toggle('has-news', n > 0);
+  const pill = $('#help-new-pill');
+  if (pill) pill.hidden = n === 0;
+}
+
+/* --- rendering ----------------------------------------------------------- */
+const KEY_NAMES = new Set(['Enter', 'Tab', 'Esc', 'Backspace', 'Delete', 'Home', 'End', '?', '#', '[[', '((',
+  '↑', '↓', '←', '→']);
+function isKeyCombo(t) {
+  return /^(?:Ctrl|Alt|Shift|Cmd)\+\S+/.test(t) || KEY_NAMES.has(t);
+}
+function hcKbd(combo) {
+  const wrap = document.createElement('span');
+  wrap.className = 'hc-combo';
+  const parts = /^(?:Ctrl|Alt|Shift|Cmd)\+/.test(combo) ? combo.split('+') : [combo];
+  parts.forEach((p, i) => {
+    if (i) wrap.append(document.createTextNode('+'));
+    const k = document.createElement('kbd');
+    k.textContent = p;
+    wrap.append(k);
+  });
+  return wrap;
+}
+function hcKeysCell(alts) {
+  const frag = document.createDocumentFragment();
+  alts.forEach((a, i) => {
+    if (i) frag.append(document.createTextNode(' / '));
+    frag.append(hcKbd(a));
+  });
+  return frag;
+}
+
+/* post-render touch-ups on a markdown subtree */
+function hcDecorate(root) {
+  for (const c of $$('code', root)) {
+    if (c.closest('pre') || !isKeyCombo(c.textContent)) continue;
+    c.replaceWith(hcKbd(c.textContent));
+  }
+  for (const a of $$('a', root)) {
+    const h = a.getAttribute('href') || '';
+    if (!h.startsWith('#help/')) continue;
+    a.removeAttribute('target');
+    a.removeAttribute('rel');
+    a.dataset.help = h.slice(6);
+  }
+  return root;
+}
+function hcMd(src) {
+  const el = hcDecorate(mdRender(src));
+  el.classList.add('hc-md');
+  return el;
+}
+
+function hcRenderNav() {
+  const q = hcQuery;
+  const unseen = hcUnseenCount();
+  hcNavEl.textContent = '';
+  let shown = 0;
+  for (const e of hcEntries()) {
+    if (q && !(e.title.toLowerCase().includes(q) || e.text.includes(q))) continue;
+    shown++;
+    const b = document.createElement('button');
+    b.className = 'hc-topic' + (e.id === hcCur ? ' on' : '');
+    b.dataset.topic = e.id;
+    b.append(document.createTextNode(e.title));
+    if (e.id === 'news' && unseen > 0) {
+      const p = document.createElement('span');
+      p.className = 'hc-pill';
+      p.textContent = String(unseen);
+      p.title = `${unseen} new`;
+      b.append(p);
+    }
+    hcNavEl.append(b);
+  }
+  if (!shown) {
+    const d = document.createElement('div');
+    d.className = 'hc-empty';
+    d.textContent = 'Nothing matches that.';
+    hcNavEl.append(d);
+  }
+}
+
+function hcCard(id, title, summary) {
+  const b = document.createElement('button');
+  b.className = 'hc-card';
+  b.dataset.topic = id;
+  const t = document.createElement('span');
+  t.className = 'hc-card-title';
+  t.textContent = title;
+  b.append(t);
+  if (summary) {
+    const s = document.createElement('span');
+    s.className = 'hc-card-sum';
+    s.textContent = summary;
+    b.append(s);
+  }
+  return b;
+}
+
+function hcShowHome(root) {
+  const h = document.createElement('h1');
+  h.textContent = 'How can we help?';
+  const p = document.createElement('p');
+  p.className = 'hc-lede';
+  p.textContent = 'Pick a topic, or search from the box on the left. Your outline never leaves this browser, and neither does anything you read here.';
+  root.append(h, p);
+  const grid = document.createElement('div');
+  grid.className = 'hc-cards';
+  if (hcNews().length) {
+    const n = hcUnseenCount();
+    grid.append(hcCard('news', n ? `What’s new (${n})` : 'What’s new', 'What changed in each release, newest first.'));
+  }
+  for (const t of hcTopics()) grid.append(hcCard(t.id, t.title, t.summary));
+  grid.append(hcCard('keys', 'Keyboard shortcuts', 'Every key, grouped by what you are doing. Also reachable with ?.'));
+  root.append(grid);
+}
+
+function hcShowNews(root) {
+  const unseen = hcUnseenCount();
+  const h = document.createElement('h1');
+  h.textContent = 'What’s new';
+  root.append(h);
+  hcNews().forEach((e, i) => {
+    const sec = document.createElement('section');
+    sec.className = 'hc-release';
+    const h2 = document.createElement('h2');
+    h2.textContent = e.title;
+    if (i < unseen) {
+      const p = document.createElement('span');
+      p.className = 'hc-pill hc-pill-new';
+      p.textContent = 'New';
+      h2.append(p);
+    }
+    sec.append(h2, hcMd(e.md));
+    root.append(sec);
+  });
+  hcMarkSeen(); // after the badges are drawn: this is the moment they are read
+}
+
+function hcShowKeys(root) {
+  const h = document.createElement('h1');
+  h.textContent = 'Keyboard shortcuts';
+  const note = document.createElement('p');
+  note.className = 'hc-lede';
+  note.append(document.createTextNode('On macOS, use '), hcKbd('⌘'), document.createTextNode(' in place of '), hcKbd('Ctrl'), document.createTextNode('.'));
+  root.append(h, note);
+  let any = false;
+  for (const g of HELP_KEYS) {
+    const rows = g.rows.filter(r => !hcQuery || (r[0].join(' ') + ' ' + r[1] + ' ' + g.cat).toLowerCase().includes(hcQuery));
+    if (!rows.length) continue;
+    any = true;
+    const h2 = document.createElement('h2');
+    h2.textContent = g.cat;
+    const table = document.createElement('table');
+    table.className = 'hc-keys';
+    for (const [keys, what] of rows) {
+      const tr = document.createElement('tr');
+      const k = document.createElement('td');
+      k.append(hcKeysCell(keys));
+      const w = document.createElement('td');
+      w.textContent = what;
+      tr.append(k, w);
+      table.append(tr);
+    }
+    root.append(h2, table);
+  }
+  if (!any) {
+    const d = document.createElement('p');
+    d.className = 'hc-empty';
+    d.textContent = 'No shortcut matches that.';
+    root.append(d);
+  }
+}
+
+function hcShowTopic(root, t) {
+  root.append(hcMd(t.md));
+}
+
+function hcShow(id) {
+  const entries = hcEntries();
+  if (!entries.some(e => e.id === id)) id = 'home';
+  hcCur = id;
+  hcContentEl.textContent = '';
+  if (id === 'home') hcShowHome(hcContentEl);
+  else if (id === 'news') hcShowNews(hcContentEl);
+  else if (id === 'keys') hcShowKeys(hcContentEl);
+  else hcShowTopic(hcContentEl, hcTopics().find(t => t.id === id));
+  hcMainEl.scrollTop = 0;
+  hcRenderNav();
+}
+
+/* --- open / wiring -------------------------------------------------------- */
+function openHelp(id) {
+  hcQuery = '';
+  hcSearchEl.value = '';
+  if (!hcEl.open) hcEl.showModal();
+  hcShow(id || 'home');
+  hcMainEl.focus({ preventScroll: true }); // arrows scroll the page; typing does not land in a field
+}
+
+hcNavEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-topic]');
+  if (b) hcShow(b.dataset.topic);
+});
+hcMainEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-topic], a[data-help]');
+  if (!b) return;
+  e.preventDefault();
+  hcShow(b.dataset.topic || b.dataset.help);
+});
+hcSearchEl.addEventListener('input', () => {
+  hcQuery = hcSearchEl.value.trim().toLowerCase();
+  if (hcQuery) {
+    // keep the page you are on if it still matches; otherwise the first hit
+    const hits = hcEntries().filter(en => en.title.toLowerCase().includes(hcQuery) || en.text.includes(hcQuery));
+    if (hits.length && !hits.some(en => en.id === hcCur)) { hcShow(hits[0].id); return; }
+  }
+  hcShow(hcCur);
+});
+hcEl.addEventListener('keydown', e => {
+  // "/" jumps to the search box, as in most docs sites
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && e.target !== hcSearchEl) {
+    e.preventDefault();
+    hcSearchEl.focus();
+    hcSearchEl.select();
+  }
+});
+$('#show-help').addEventListener('click', () => { closeMenu(); openHelp('home'); });
+$('#help-close').addEventListener('click', () => hcEl.close());
+closeOnBackdropClick(hcEl);
+
+// on a first run the tour has the screen and nothing here is news; for anyone
+// with a document already, the dot says there is something to read
+bootReady.then(() => {
+  const news = hcNews();
+  if (news.length && prefs.whatsNewSeen === undefined && store.wasSeeded) {
+    prefs.whatsNewSeen = news[0].id;
+    savePrefs();
+  }
+  hcSyncDot();
 });
 
 })();

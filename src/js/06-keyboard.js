@@ -331,7 +331,7 @@ document.addEventListener('keydown', e => {
   }
   const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
   if (!inField) {
-    if (e.key === '?' && !mod) { e.preventDefault(); $('#help-dialog').showModal(); return; }
+    if (e.key === '?' && !mod) { e.preventDefault(); openHelp('keys'); return; }
     if (mod && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault();
       const fid = e.shiftKey ? store.redo() : store.undo();

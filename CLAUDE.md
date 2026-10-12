@@ -15,6 +15,20 @@ no framework, no CDN, no fetch.
   amend an F-item in the matching section.
 - This file — how the code is put together, and the traps in it.
 
+## Definition of done
+
+A change to behaviour is not finished until all of these exist:
+
+1. an F-item in `PRD.md` (new or amended),
+2. a line in `src/help/whatsnew.md` under the current release, and a topic
+   page edit in `src/help/` if the behaviour changes how something is used,
+3. a row in `HELP_KEYS` (`18-help.js`) if it adds or changes a key, plus the
+   `<kbd>` hint on whatever menu row or tooltip exposes it,
+4. its `FEEDBACK.md` item moved to Done with the build and F-number.
+
+The Help Center is only as good as this list: it has no other way of learning
+that something shipped.
+
 ## Build
 
 Source lives in `src/`. The shipped file is generated — **never edit
@@ -31,6 +45,13 @@ stamps `__BUILD__`/`__BUILT__`, bumps `build-number.txt`, and writes the result
 to both `37nodes.html` and `index.html` (byte-identical; `index.html` exists so
 a web host serves it by default). The build number shows at the bottom of the ☰
 menu — handy for confirming a browser is looking at your build.
+
+`build.ps1` also bundles `src/help/` into the file: `NN-slug.md` are the Help
+Center's topic pages (filename order is nav order, the slug is the topic id)
+and `whatsnew.md` is the release list, newest `##` section first. It replaces
+the `/*__HELP__*/` marker in `18-help.js`. Help text is rendered by the same
+DOM-only markdown renderer as notes; write `[[` and `((` inside code spans or
+they will be resolved as wikilinks against the *user's* document.
 
 `.gitattributes` forces LF everywhere. Don't let an editor rewrite line endings.
 
@@ -74,6 +95,7 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `15-toolbar.js` | Floating format bar over a selection in an editing title; wrap/unwrap of inline syntax |
 | `16-panel.js` | Backlink index, right-hand info panel (collapsible sections: item / starred / tags), rename-rewrite offer |
 | `17-stars-tags.js` | Starred index + star gestures (row ★, `Alt+S`), tag vocabulary index |
+| `18-help.js` | Help Center dialog: overview, topic pages, keyboard table, What's new + its dot. Content is `src/help/*.md`, bundled at build |
 
 `app.css` is CSS-variable driven: `:root` holds the token set, each
 `[data-theme=…]` block overrides it. `--motion:0` and `--glow` let a theme opt
