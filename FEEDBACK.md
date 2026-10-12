@@ -127,7 +127,7 @@ mechanism that keeps it current.
 | FR-9 | Ctrl+Home / Ctrl+End: first / last item in view | Done (build 48, F68) | S | Low | Yes |
 | FR-10 | Panel section for the zoomed-into item as well as the selected one | Done (build 52, F61) | S–M | Low | Yes |
 | FR-11 | Keep the caret on the item you zoomed out of (and into) | Done (build 49, F12) | S | Low | Yes, for every zoom path |
-| FR-12 | Keep collapse state while a filter is active (and let ▸ work inside it) | Approved | M | Medium | Yes, with a different rule than asked for; touches a documented invariant |
+| FR-12 | Keep collapse state while a filter is active (and let ▸ work inside it) | Done (build 62, F74) | M | Medium | Yes, with a different rule than asked for; touches a documented invariant |
 | FR-13 | Keyboard shortcut to toggle Hide completed | Done (build 60, F69) | S | Low | `Alt+C`; one global switch |
 | FR-14 | Hide completed items in the Ctrl+K jump palette | Done (build 60, F70) | S | Low | Follows the global toggle |
 | FR-15 | Jump palette: `Parent/Log` path syntax to disambiguate | Done (build 60, F70) | S–M | Low | Palette-only; shared matcher untouched |
@@ -548,3 +548,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-12 | Decisions: one global Hide-completed switch (FR-13); FR-18 does AND and scoped `>`; FR-17 saved searches live in the document and ride export/import. |
 | 2026-10-12 | FR-13 shipped (`Alt+C`), FR-5, FR-14, FR-15 (`Parent/Log`), FR-21 shipped. FR-20 and FR-22 held for answers on what he sees. |
 | 2026-10-12 | DOC-1 shipped: the Help Center (overview, topics, keyboard reference, What's new). |
+| 2026-10-12 | FR-12 shipped: filters keep collapse state; ▸ works inside a search as a session override (F74). |

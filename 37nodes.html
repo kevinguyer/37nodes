@@ -1065,7 +1065,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Help&hellip; <span class="menu-pill" id="help-new-pill" hidden>New</span></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 61 &middot; 2026-10-12</div>
+  <div class="menu-note" id="build-readout">Build 62 &middot; 2026-10-12</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -2350,6 +2350,7 @@ const view = {
   query: '',
   filter: null, // { matched:Set, anc:Set, under:Set, q } while searching
   filterExempt: new Set(), // ids created during this search: shown though they don't match
+  filterOpen: new Map(),   // id -> bool: ▸ toggles made during this search (F74); never persisted
 };
 
 /* Instance maps: a node normally renders exactly once, but inside a mirror
@@ -2463,6 +2464,36 @@ function keepInFilter(ids) {
 }
 function clearFilterExempt() {
   view.filterExempt.clear();
+  view.filterOpen.clear(); // a new query starts from the outline as you left it
+}
+
+/* Is this row expanded? Outside a filter, that is the stored flag. Under one
+   (F74) the outline keeps the shape you left it, with two exceptions that are
+   there so no result can be hidden:
+   - a row with a matching descendant (`anc`) is held open;
+   - a mirror stays folded, since its subtree would duplicate what the
+     original already reports.
+   A ▸ toggle made during the search is a session override (`filterOpen`) that
+   beats both and is never written to the document — folding things away to
+   read a result list must not re-fold the outline underneath it.
+   `own` is the row's structural node: a mirror row's state is its own. */
+function rowExpanded(own) {
+  const f = view.filter;
+  if (!f) return !own.collapsed;
+  const o = view.filterOpen.get(own.id);
+  if (o !== undefined) return o;
+  if (own.mirrorOf) return false;
+  if (f.anc.has(own.id)) return true;
+  return !own.collapsed;
+}
+/* The one door for a person's expand/collapse gesture (▸, Ctrl+↑/↓). */
+function setRowCollapsed(id, collapsed) {
+  const n = store.getNode(id);
+  if (!n) return;
+  if (!view.filter) { store.setCollapsed(id, collapsed); return; }
+  if (rowExpanded(n) === !collapsed) return;
+  view.filterOpen.set(id, !collapsed);
+  refreshCollapse(id);
 }
 
 /* --- node rendering ---------------------------------------------------- */
@@ -2672,8 +2703,7 @@ function setTitleContent(el, n) {
    membership are their own while everything visible comes from the target. */
 function applyNodeState(el, n, own = n) {
   const hasKids = n.children.length > 0;
-  // mirrors sit collapsed in search view (their subtrees would duplicate results)
-  const expanded = view.filter ? !own.mirrorOf : !own.collapsed;
+  const expanded = rowExpanded(own);
   if (n.format) el.dataset.format = n.format; else delete el.dataset.format;
   if (n.color) el.dataset.color = n.color; else delete el.dataset.color;
   el.classList.toggle('completed', n.completed);
@@ -2810,10 +2840,7 @@ function renderNode(n, level, suffix = '') {
   applyNodeState(el, content || n, n);
   const loop = isMirror && target && mirrorExpansionLoop(n, target, suffix);
   if (loop) el.classList.add('loop');
-  // mirrors stay collapsed while a search filter is up: their subtrees would
-  // duplicate results the original already reports
-  const expand = view.filter ? !isMirror : !n.collapsed;
-  if (expand && content && content.children.length && !loop) {
+  if (rowExpanded(n) && content && content.children.length && !loop) {
     fillChildren(kids, content, level, isMirror ? suffix + '@' + n.id : suffix);
   }
   return el;
@@ -3118,7 +3145,10 @@ function closeNoteEditor(ta) {
 /* --- focus helpers -------------------------------------------------------- */
 function revealNode(id) {
   for (const a of store.ancestorsOf(id)) {
-    if (a.id !== ROOT_ID && a.collapsed) store.setCollapsed(a.id, false);
+    if (a.id === ROOT_ID) continue;
+    if (view.filter) { // the stored flag is not what the screen is showing
+      if (!rowExpanded(a)) { view.filterOpen.set(a.id, true); refreshCollapse(a.id); }
+    } else if (a.collapsed) store.setCollapsed(a.id, false);
   }
 }
 function activateTitle(t, off = 0) {
@@ -3192,6 +3222,34 @@ function updateSaveIndicator(state) {
     ? 'Saving failed. Click to retry and see details' : '';
 }
 
+/* Bring every rendered instance of row `id` in line with rowExpanded():
+   fill a newly opened container lazily, and restyle the row. Shared by the
+   store's 'collapse' event and by search-view toggles, which never reach the
+   store. */
+function refreshCollapse(id) {
+  const n = store.getNode(id);
+  if (!n) return;
+  const content = store.mirrorContent(n) || n;
+  const open = rowExpanded(n);
+  for (const el of nodeInstances(id)) {
+    // collapse state belongs to the row's own node: mirror rows showing
+    // `id` as content keep their own state and are skipped here
+    if (el.dataset.id !== id) continue;
+    const kids = el.querySelector(':scope > .children');
+    const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
+    if (open && !kids.dataset.filled && content.children.length && !loop) {
+      const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+      fillChildren(kids, content, level,
+        n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
+    }
+    if (open) {
+      kids.classList.add('just-expanded');
+      setTimeout(() => kids.classList.remove('just-expanded'), 250);
+    }
+    applyNodeState(el, content, n);
+  }
+}
+
 /* --- store event wiring ----------------------------------------------------- */
 store.subscribe(ev => {
   switch (ev.type) {
@@ -3205,29 +3263,9 @@ store.subscribe(ev => {
         renderChildrenOf(ev.id);
       }
       break;
-    case 'collapse': {
-      const n = store.getNode(ev.id);
-      if (!n) break;
-      const content = store.mirrorContent(n) || n;
-      for (const el of nodeInstances(ev.id)) {
-        // collapse state belongs to the row's own node: mirror rows showing
-        // ev.id as content keep their own state and are skipped here
-        if (el.dataset.id !== ev.id) continue;
-        const kids = el.querySelector(':scope > .children');
-        const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
-        if (!n.collapsed && !kids.dataset.filled && content.children.length && !loop) {
-          const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-          fillChildren(kids, content, level,
-            n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
-        }
-        if (!n.collapsed) {
-          kids.classList.add('just-expanded');
-          setTimeout(() => kids.classList.remove('just-expanded'), 250);
-        }
-        applyNodeState(el, content, n);
-      }
+    case 'collapse':
+      refreshCollapse(ev.id);
       break;
-    }
     case 'doc':
       renderAll();
       break;
@@ -3499,7 +3537,7 @@ function onTitleKeydown(e, el) {
       if (mod && !e.altKey && !e.shiftKey) {
         e.preventDefault();
         if (el !== focusTitleEl && n.children.length) {
-          store.setCollapsed(id, key === 'ArrowUp');
+          setRowCollapsed(id, key === 'ArrowUp');
         }
         return;
       }
@@ -3730,7 +3768,7 @@ treeEl.addEventListener('click', e => {
   if (tg) {
     const el = tg.closest('.node');
     const n = store.getNode(el.dataset.id);
-    if (n) store.setCollapsed(n.id, !n.collapsed);
+    if (n) setRowCollapsed(n.id, rowExpanded(n));
     return;
   }
   const noteWrap = e.target.closest('.note');
@@ -6845,7 +6883,7 @@ document.addEventListener('keydown', e => {
    prefs.whatsNewSeen, and lights a dot on the ☰ button until they do. */
 
 // the build puts the real data (plus a comma) at the marker; unbuilt, the default stands
-const HELP_DATA = [{topics:[{id:"start",md:"# Getting started\n\nAn outline is a list where every item can hold its own list, as deep as you like. Everything stays in this browser; nothing is sent anywhere.\n\n## The basics\n\n- Click an item's text and type. There is no edit mode: the outline is always editable.\n- `Enter` makes a new item below. `Tab` indents it under the item above; `Shift+Tab` brings it back out.\n- Click a bullet to **zoom** into that item and make it the whole page. The breadcrumbs at the top lead back out.\n- `Shift+Enter` adds a **note** under an item: longer text that supports markdown.\n- `Ctrl+Z` undoes, about 200 steps back, including structural changes.\n\n## Find your way around\n\n- `Ctrl+K` jumps to any item by typing a few letters of its title.\n- `Ctrl+F` searches everything in view.\n- `Alt+I` opens the **info panel**: what links to the current item, your starred items, and every tag you use.\n- The **☰ menu** holds themes, export and import, and these help pages.\n\n## Where to go next\n\n- [Editing and structure](#help/editing) covers moving, completing and formatting items.\n- [Finding and moving around](#help/navigating) covers zoom, the jump palette and **Move to…**.\n- [Keyboard shortcuts](#help/keys) is the full list, also reachable any time with `?`.\n"},{id:"editing",md:"# Editing and structure\n\nEverything you do to an item's text and place in the outline.\n\n## Titles and notes\n\nA title is one line. A note is free-form markdown under it: `Shift+Enter` opens it, and it renders when you click away. Notes support bold, italic, `code`, links, lists, quotes and headings.\n\nPasting several lines at once turns them into structure: indentation becomes nesting, and `-`, `*` and `1.` list markers are stripped.\n\n## Moving things\n\n- `Tab` / `Shift+Tab` indent and outdent, bringing the item's children with it.\n- `Alt+↑` / `Alt+↓` move an item up or down among its siblings.\n- Drag an item by its **bullet** to reorder it, or drop it onto another item to nest it inside.\n- `Alt+M` files the item inside another one you pick by name. See [Finding and moving around](#help/navigating).\n\n## Completing, collapsing, deleting\n\n- `Ctrl+Enter` marks an item done. Completed items are struck through; a parent shows a `done/total` count of its children once any are checked.\n- `Alt+C` hides or shows completed items everywhere. It is one switch: search, the jump palette and the panel all follow it.\n- `Ctrl+↑` / `Ctrl+↓` collapse and expand. A ringed bullet means something is folded inside.\n- `Backspace` on an empty item deletes it and keeps its children. `Ctrl+Shift+Backspace` deletes the item *and everything under it*; undo is the safety net.\n\n## Making things stand out\n\nSelect text in a title and a small bar appears: bold, italic, underline, code, link, text colour and highlight. `Ctrl+B`, `Ctrl+I` and `Ctrl+U` do the first three directly.\n\nThe **≡ handle** that appears beside a row, or `Ctrl+.`, opens the item menu: heading size (H1–H3), bullet colour, duplicate, zoom in, copy as markdown, mirror and more.\n"},{id:"navigating",md:"# Finding and moving around\n\nZoom, jump, search and file things away without leaving the keyboard.\n\n## Zoom\n\nClick a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms out one level and `Alt+Shift+←` goes all the way to the top. The zoom lives in the page address, so your browser's back and forward buttons walk your zoom history, and you can bookmark any item.\n\n## The jump palette\n\n`Ctrl+K` opens a fuzzy finder over every item title. It works from anywhere, including while you are typing.\n\n- Type a few letters; they need not be contiguous. Matches at word starts rank higher.\n- With nothing typed it shows what you **edited most recently**, so `Ctrl+K` then `Enter` returns you to where you were.\n- **Same name in several places?** Type the path: `Projects/Log` finds the item called \"Log\" under an ancestor containing \"Projects\". `>` and `›` work as separators too, and `Projects/` lists everything inside a match. If a title really contains a slash, a query that finds nothing falls back to a literal search.\n- With **Hide completed** on, finished items are left out of the list.\n\n## Move to…\n\n`Alt+M` uses the same picker to choose a *destination*: the current item, with everything under it, becomes the last child of the one you pick. It is one undo step, and the caret follows the item. Choose **Top level** to file something back out to the root.\n\n## Search\n\n`Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom.\n\n- It matches titles **and** notes, ignoring case.\n- Matches are shown with their ancestors dimmed for context.\n- A search made only of a single `#tag` matches that whole tag: `#todo` does not match `#todos`. Click any tag chip to search for it, and click it again to clear.\n- Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.\n- Items you create while a search is active stay visible until you change the search.\n- `Esc` clears the search.\n"},{id:"links",md:"# Links, backlinks and mirrors\n\nConnect items to each other, and show one item in several places.\n\n## Links\n\nType `[[` in a title or note and pick an item from the list; `Enter` or `Tab` inserts its exact title. The link jumps to that item when clicked.\n\nLinks are matched by **title**, ignoring case. If two items share a title the link goes to the first one in document order. A link whose target does not exist is shown as broken until an item with that title appears.\n\nIf you rename an item that others link to, 37nodes offers to update those links, so they do not quietly stop working.\n\n## Backlinks\n\nThe [info panel](#help/panel) lists every item that links to the one you are on, from titles and notes alike. Click a row to go there. With **Hide completed** on, completed sources are not listed, since there would be nothing to jump to.\n\n## Mirrors\n\nA **mirror** is a live view of an item shown somewhere else. Edit it in either place and both change, because there is only one item. Completing it, formatting it and its notes all follow.\n\n- Type `((` in an empty item and pick the original from the list, or use **Mirror this item** in the ≡ menu.\n- The mirror's *position* and its collapsed state are its own, so you can fold it away in one place and not the other.\n- Both the original and its mirrors carry a small ⧉ badge. The info panel's \"Mirrored in\" list shows every place an item appears.\n- Deleting the original does not lose the content: the first mirror is promoted to hold it.\n"},{id:"organizing",md:"# Tags and starred items\n\nLightweight ways to group things that do not live under the same parent.\n\n## Tags\n\nAny `#word` in a title or note is a tag, shown as a clickable chip. Click one to filter the outline to it, and click it again to clear.\n\nTyping `#` offers the tags you already use, most-used first, so a vocabulary stays a vocabulary instead of drifting into `#todo`, `#todos` and `#to-do`.\n\nThe panel's **Tags** section lists every tag in view with a count of the items using it. With **Hide completed** on, the count covers only items you can see, and a tag used only on finished items drops out of the list (it is still offered when you type `#`).\n\n## Starred items\n\n`Alt+S` stars the item you are on, or use ★ in the panel or the ≡ menu. A star marks the item at the right edge of its row, and the panel's **Starred** section keeps every starred item one click away, wherever it lives in the outline. It is a shortlist you curate, in document order.\n\n## Headings and colour\n\nThe ≡ menu gives an item a heading size (H1, H2, H3) and a bullet colour from a six-colour palette. Both are purely visual and do not change the structure.\n"},{id:"panel",md:"# The info panel\n\nA side strip that follows your caret and answers \"what is this connected to?\".\n\nOpen it with the ◨ button in the top bar or `Alt+I`. Drag its left edge to resize it, and double-click the edge to reset.\n\n## Sections\n\nEach section collapses, and the panel remembers which are open.\n\n- **This item** lists what links to the item you are on, where it is mirrored, and its details: created, edited, how many items are inside and how many links go out.\n- **Zoomed into** appears when your caret is on something inside the item you have zoomed into. It shows that parent's links and mirrors, which are the ones you came here for, without moving the caret.\n- **Starred** is your shortlist. Click a row to go there; click its ★ to unstar it.\n- **Tags** lists the tags in the current view with counts. Click a tag to filter, click it again to clear.\n\n## Notes on behaviour\n\n- The panel tracks the caret. With nothing focused it shows the item you are zoomed into.\n- Clicking a row goes to that item without changing your zoom, unless it sits outside the current view.\n- **Hide completed** (`Alt+C`) applies here too: completed sources and their tags are not counted.\n"},{id:"data",md:"# Your data, backups and themes\n\nWhere your outline lives, and how to keep it safe.\n\n## Where it is stored\n\nYour outline is saved in this browser's built-in database (IndexedDB), on this device. Nothing is uploaded; the app makes no network requests at all.\n\nBrowsers can still clear site data under disk pressure, or when you clear it yourself. **An export is your real backup.**\n\n## Export and import\n\n- **☰ → Export JSON** writes everything, losslessly, including colours, stars and mirrors. This is the one to keep.\n- **☰ → Export Markdown** writes the current view, or the whole outline, as plain nested text.\n- **☰ → Import JSON…** reads a JSON export back in. To bring in plain text, paste it: indented or bulleted lines become items. `Ctrl+Shift+C` copies the item you are on, with everything under it, as markdown.\n\nA gentle reminder appears when your last JSON export is more than 14 days old; you can change or turn it off in the menu.\n\n## Mirror to a file\n\nIn Chromium browsers (Chrome, Edge), **☰ → Mirror to a file on disk…** keeps a JSON file continuously up to date on every save: a live backup that survives cleared browser data. After a restart the browser may ask you to click **Resume** once.\n\n## More than one tab\n\nOpening the outline in two tabs at once raises a warning banner. The last save wins between tabs, so it is best to use one.\n\n## Themes and layout\n\n**☰ → View** has the themes: Nordic, Light, Dark, E-ink, Parchment, Evergreen, and three terminal tributes (green CRT, IBM 5151 sepia and Wyse 60 white phosphor, with glow and scanlines). **Wide layout** lets the outline follow the window instead of a fixed reading column.\n"}],news:"## v2.5 · 2026-10-12\n\n- **A Help Center.** This window: topic pages, search, a full keyboard reference and this list. `?` still jumps straight to the shortcuts.\n- **`Alt+C` shows or hides completed items.** It is the same switch as ☰ → Hide completed, and it now governs more: the jump palette, the panel's backlinks and mirrors, and its tag counts.\n- **Jump palette: `Parent/Child`.** Type `Projects/Log` to pick the right \"Log\" when several items share a name. Completed items are left out while they are hidden.\n- **Tag counts ignore hidden completed items.** A tag used only on finished work leaves the panel list (not the `#` suggester).\n- **Move to… (`Alt+M`).** File an item inside any other one by name, with the caret following it there.\n- **`Ctrl+Home` / `Ctrl+End`** jump to the first and last item in view.\n- **The caret survives zooming**, whichever way you zoom, so you do not lose your place.\n- **Resizable info panel**: drag its left edge. It also gained a **Zoomed into** section.\n- **Fixes:** Move to… no longer leaves a ghost copy behind, and jumping with Ctrl+K from a zoom header no longer shows the old title.\n\n## v2.4 · starred items and tags\n\n- **Starred items** (`Alt+S`): a shortlist, listed in the panel.\n- **Tag index** with counts, and **tag autocomplete** as you type `#`.\n- A tidier, grouped ☰ menu.\n\n## v2.0–v2.3 · foundations\n\n- **Backlinks and the info panel** (v2.3), with an offer to update inbound links when you rename an item.\n- **Mirrors** (v2.2): one item, shown in several places.\n- **Item menu, headings, bullet colours and inline formatting** (v2.1).\n- **A real database** (v2.0): IndexedDB storage and migration, so large outlines and future upgrades are safe.\n"},{ topics: [], news: '' }][0];
+const HELP_DATA = [{topics:[{id:"start",md:"# Getting started\n\nAn outline is a list where every item can hold its own list, as deep as you like. Everything stays in this browser; nothing is sent anywhere.\n\n## The basics\n\n- Click an item's text and type. There is no edit mode: the outline is always editable.\n- `Enter` makes a new item below. `Tab` indents it under the item above; `Shift+Tab` brings it back out.\n- Click a bullet to **zoom** into that item and make it the whole page. The breadcrumbs at the top lead back out.\n- `Shift+Enter` adds a **note** under an item: longer text that supports markdown.\n- `Ctrl+Z` undoes, about 200 steps back, including structural changes.\n\n## Find your way around\n\n- `Ctrl+K` jumps to any item by typing a few letters of its title.\n- `Ctrl+F` searches everything in view.\n- `Alt+I` opens the **info panel**: what links to the current item, your starred items, and every tag you use.\n- The **☰ menu** holds themes, export and import, and these help pages.\n\n## Where to go next\n\n- [Editing and structure](#help/editing) covers moving, completing and formatting items.\n- [Finding and moving around](#help/navigating) covers zoom, the jump palette and **Move to…**.\n- [Keyboard shortcuts](#help/keys) is the full list, also reachable any time with `?`.\n"},{id:"editing",md:"# Editing and structure\n\nEverything you do to an item's text and place in the outline.\n\n## Titles and notes\n\nA title is one line. A note is free-form markdown under it: `Shift+Enter` opens it, and it renders when you click away. Notes support bold, italic, `code`, links, lists, quotes and headings.\n\nPasting several lines at once turns them into structure: indentation becomes nesting, and `-`, `*` and `1.` list markers are stripped.\n\n## Moving things\n\n- `Tab` / `Shift+Tab` indent and outdent, bringing the item's children with it.\n- `Alt+↑` / `Alt+↓` move an item up or down among its siblings.\n- Drag an item by its **bullet** to reorder it, or drop it onto another item to nest it inside.\n- `Alt+M` files the item inside another one you pick by name. See [Finding and moving around](#help/navigating).\n\n## Completing, collapsing, deleting\n\n- `Ctrl+Enter` marks an item done. Completed items are struck through; a parent shows a `done/total` count of its children once any are checked.\n- `Alt+C` hides or shows completed items everywhere. It is one switch: search, the jump palette and the panel all follow it.\n- `Ctrl+↑` / `Ctrl+↓` collapse and expand. A ringed bullet means something is folded inside.\n- `Backspace` on an empty item deletes it and keeps its children. `Ctrl+Shift+Backspace` deletes the item *and everything under it*; undo is the safety net.\n\n## Making things stand out\n\nSelect text in a title and a small bar appears: bold, italic, underline, code, link, text colour and highlight. `Ctrl+B`, `Ctrl+I` and `Ctrl+U` do the first three directly.\n\nThe **≡ handle** that appears beside a row, or `Ctrl+.`, opens the item menu: heading size (H1–H3), bullet colour, duplicate, zoom in, copy as markdown, mirror and more.\n"},{id:"navigating",md:"# Finding and moving around\n\nZoom, jump, search and file things away without leaving the keyboard.\n\n## Zoom\n\nClick a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms out one level and `Alt+Shift+←` goes all the way to the top. The zoom lives in the page address, so your browser's back and forward buttons walk your zoom history, and you can bookmark any item.\n\n## The jump palette\n\n`Ctrl+K` opens a fuzzy finder over every item title. It works from anywhere, including while you are typing.\n\n- Type a few letters; they need not be contiguous. Matches at word starts rank higher.\n- With nothing typed it shows what you **edited most recently**, so `Ctrl+K` then `Enter` returns you to where you were.\n- **Same name in several places?** Type the path: `Projects/Log` finds the item called \"Log\" under an ancestor containing \"Projects\". `>` and `›` work as separators too, and `Projects/` lists everything inside a match. If a title really contains a slash, a query that finds nothing falls back to a literal search.\n- With **Hide completed** on, finished items are left out of the list.\n\n## Move to…\n\n`Alt+M` uses the same picker to choose a *destination*: the current item, with everything under it, becomes the last child of the one you pick. It is one undo step, and the caret follows the item. Choose **Top level** to file something back out to the root.\n\n## Search\n\n`Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom.\n\n- It matches titles **and** notes, ignoring case.\n- Matches are shown with their ancestors dimmed for context. Items keep their folds: a collapsed item stays collapsed, unless something inside it matches. Use ▸ to open or close items while searching; that changes only the search view, not your outline.\n- A search made only of a single `#tag` matches that whole tag: `#todo` does not match `#todos`. Click any tag chip to search for it, and click it again to clear.\n- Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.\n- Items you create while a search is active stay visible until you change the search.\n- `Esc` clears the search.\n"},{id:"links",md:"# Links, backlinks and mirrors\n\nConnect items to each other, and show one item in several places.\n\n## Links\n\nType `[[` in a title or note and pick an item from the list; `Enter` or `Tab` inserts its exact title. The link jumps to that item when clicked.\n\nLinks are matched by **title**, ignoring case. If two items share a title the link goes to the first one in document order. A link whose target does not exist is shown as broken until an item with that title appears.\n\nIf you rename an item that others link to, 37nodes offers to update those links, so they do not quietly stop working.\n\n## Backlinks\n\nThe [info panel](#help/panel) lists every item that links to the one you are on, from titles and notes alike. Click a row to go there. With **Hide completed** on, completed sources are not listed, since there would be nothing to jump to.\n\n## Mirrors\n\nA **mirror** is a live view of an item shown somewhere else. Edit it in either place and both change, because there is only one item. Completing it, formatting it and its notes all follow.\n\n- Type `((` in an empty item and pick the original from the list, or use **Mirror this item** in the ≡ menu.\n- The mirror's *position* and its collapsed state are its own, so you can fold it away in one place and not the other.\n- Both the original and its mirrors carry a small ⧉ badge. The info panel's \"Mirrored in\" list shows every place an item appears.\n- Deleting the original does not lose the content: the first mirror is promoted to hold it.\n"},{id:"organizing",md:"# Tags and starred items\n\nLightweight ways to group things that do not live under the same parent.\n\n## Tags\n\nAny `#word` in a title or note is a tag, shown as a clickable chip. Click one to filter the outline to it, and click it again to clear.\n\nTyping `#` offers the tags you already use, most-used first, so a vocabulary stays a vocabulary instead of drifting into `#todo`, `#todos` and `#to-do`.\n\nThe panel's **Tags** section lists every tag in view with a count of the items using it. With **Hide completed** on, the count covers only items you can see, and a tag used only on finished items drops out of the list (it is still offered when you type `#`).\n\n## Starred items\n\n`Alt+S` stars the item you are on, or use ★ in the panel or the ≡ menu. A star marks the item at the right edge of its row, and the panel's **Starred** section keeps every starred item one click away, wherever it lives in the outline. It is a shortlist you curate, in document order.\n\n## Headings and colour\n\nThe ≡ menu gives an item a heading size (H1, H2, H3) and a bullet colour from a six-colour palette. Both are purely visual and do not change the structure.\n"},{id:"panel",md:"# The info panel\n\nA side strip that follows your caret and answers \"what is this connected to?\".\n\nOpen it with the ◨ button in the top bar or `Alt+I`. Drag its left edge to resize it, and double-click the edge to reset.\n\n## Sections\n\nEach section collapses, and the panel remembers which are open.\n\n- **This item** lists what links to the item you are on, where it is mirrored, and its details: created, edited, how many items are inside and how many links go out.\n- **Zoomed into** appears when your caret is on something inside the item you have zoomed into. It shows that parent's links and mirrors, which are the ones you came here for, without moving the caret.\n- **Starred** is your shortlist. Click a row to go there; click its ★ to unstar it.\n- **Tags** lists the tags in the current view with counts. Click a tag to filter, click it again to clear.\n\n## Notes on behaviour\n\n- The panel tracks the caret. With nothing focused it shows the item you are zoomed into.\n- Clicking a row goes to that item without changing your zoom, unless it sits outside the current view.\n- **Hide completed** (`Alt+C`) applies here too: completed sources and their tags are not counted.\n"},{id:"data",md:"# Your data, backups and themes\n\nWhere your outline lives, and how to keep it safe.\n\n## Where it is stored\n\nYour outline is saved in this browser's built-in database (IndexedDB), on this device. Nothing is uploaded; the app makes no network requests at all.\n\nBrowsers can still clear site data under disk pressure, or when you clear it yourself. **An export is your real backup.**\n\n## Export and import\n\n- **☰ → Export JSON** writes everything, losslessly, including colours, stars and mirrors. This is the one to keep.\n- **☰ → Export Markdown** writes the current view, or the whole outline, as plain nested text.\n- **☰ → Import JSON…** reads a JSON export back in. To bring in plain text, paste it: indented or bulleted lines become items. `Ctrl+Shift+C` copies the item you are on, with everything under it, as markdown.\n\nA gentle reminder appears when your last JSON export is more than 14 days old; you can change or turn it off in the menu.\n\n## Mirror to a file\n\nIn Chromium browsers (Chrome, Edge), **☰ → Mirror to a file on disk…** keeps a JSON file continuously up to date on every save: a live backup that survives cleared browser data. After a restart the browser may ask you to click **Resume** once.\n\n## More than one tab\n\nOpening the outline in two tabs at once raises a warning banner. The last save wins between tabs, so it is best to use one.\n\n## Themes and layout\n\n**☰ → View** has the themes: Nordic, Light, Dark, E-ink, Parchment, Evergreen, and three terminal tributes (green CRT, IBM 5151 sepia and Wyse 60 white phosphor, with glow and scanlines). **Wide layout** lets the outline follow the window instead of a fixed reading column.\n"}],news:"## v2.5 · 2026-10-12\n\n- **A Help Center.** This window: topic pages, search, a full keyboard reference and this list. `?` still jumps straight to the shortcuts.\n- **`Alt+C` shows or hides completed items.** It is the same switch as ☰ → Hide completed, and it now governs more: the jump palette, the panel's backlinks and mirrors, and its tag counts.\n- **Jump palette: `Parent/Child`.** Type `Projects/Log` to pick the right \"Log\" when several items share a name. Completed items are left out while they are hidden.\n- **Tag counts ignore hidden completed items.** A tag used only on finished work leaves the panel list (not the `#` suggester).\n- **Searching keeps your folds.** A filter no longer opens every item: collapsed items stay collapsed unless something inside them matches, and the ▸ arrows work inside a search without changing your outline.\n- **Move to… (`Alt+M`).** File an item inside any other one by name, with the caret following it there.\n- **`Ctrl+Home` / `Ctrl+End`** jump to the first and last item in view.\n- **The caret survives zooming**, whichever way you zoom, so you do not lose your place.\n- **Resizable info panel**: drag its left edge. It also gained a **Zoomed into** section.\n- **Fixes:** Move to… no longer leaves a ghost copy behind, and jumping with Ctrl+K from a zoom header no longer shows the old title.\n\n## v2.4 · starred items and tags\n\n- **Starred items** (`Alt+S`): a shortlist, listed in the panel.\n- **Tag index** with counts, and **tag autocomplete** as you type `#`.\n- A tidier, grouped ☰ menu.\n\n## v2.0–v2.3 · foundations\n\n- **Backlinks and the info panel** (v2.3), with an offer to update inbound links when you rename an item.\n- **Mirrors** (v2.2): one item, shown in several places.\n- **Item menu, headings, bullet colours and inline formatting** (v2.1).\n- **A real database** (v2.0): IndexedDB storage and migration, so large outlines and future upgrades are safe.\n"},{ topics: [], news: '' }][0];
 
 /* [keys, what] — `keys` is a list of alternatives, each a combo joined by "+" */
 const HELP_KEYS = [

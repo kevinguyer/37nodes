@@ -4,6 +4,7 @@
 - **`Alt+C` shows or hides completed items.** It is the same switch as ☰ → Hide completed, and it now governs more: the jump palette, the panel's backlinks and mirrors, and its tag counts.
 - **Jump palette: `Parent/Child`.** Type `Projects/Log` to pick the right "Log" when several items share a name. Completed items are left out while they are hidden.
 - **Tag counts ignore hidden completed items.** A tag used only on finished work leaves the panel list (not the `#` suggester).
+- **Searching keeps your folds.** A filter no longer opens every item: collapsed items stay collapsed unless something inside them matches, and the ▸ arrows work inside a search without changing your outline.
 - **Move to… (`Alt+M`).** File an item inside any other one by name, with the caret following it there.
 - **`Ctrl+Home` / `Ctrl+End`** jump to the first and last item in view.
 - **The caret survives zooming**, whichever way you zoom, so you do not lose your place.

@@ -186,7 +186,7 @@ function onTitleKeydown(e, el) {
       if (mod && !e.altKey && !e.shiftKey) {
         e.preventDefault();
         if (el !== focusTitleEl && n.children.length) {
-          store.setCollapsed(id, key === 'ArrowUp');
+          setRowCollapsed(id, key === 'ArrowUp');
         }
         return;
       }
@@ -417,7 +417,7 @@ treeEl.addEventListener('click', e => {
   if (tg) {
     const el = tg.closest('.node');
     const n = store.getNode(el.dataset.id);
-    if (n) store.setCollapsed(n.id, !n.collapsed);
+    if (n) setRowCollapsed(n.id, rowExpanded(n));
     return;
   }
   const noteWrap = e.target.closest('.note');

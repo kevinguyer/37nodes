@@ -234,8 +234,13 @@ substring over title *and* note.
   actually see must consult that body class (`completedRowsHidden()` in
   `04-view.js`). Toggling the checkbox does not emit a store event, so anything
   derived from it needs an explicit re-render.
-- **A search filter forces every node expanded** (`view.filter ? true :
-  !n.collapsed`), so "is it expanded" is not the same question in search view.
+- **"Is this row expanded?" has two answers.** Outside a filter it is
+  `!own.collapsed`; under one it is `rowExpanded(own)` (`04-view.js`): a
+  session override from `view.filterOpen` wins, then mirrors stay folded, then
+  a row with a matching descendant is held open, else the stored flag. Never
+  read `.collapsed` directly for display. User toggles go through
+  `setRowCollapsed`, which routes to the override map in a filter and never
+  writes the document there.
 - **Text edits don't re-filter, structural edits do.** A title edited out of
   matching stays on screen until something emits `children`.
 - **`store.create()` emits before it returns.** The filtered rebuild triggered

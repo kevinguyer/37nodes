@@ -20,6 +20,7 @@ const view = {
   query: '',
   filter: null, // { matched:Set, anc:Set, under:Set, q } while searching
   filterExempt: new Set(), // ids created during this search: shown though they don't match
+  filterOpen: new Map(),   // id -> bool: ▸ toggles made during this search (F74); never persisted
 };
 
 /* Instance maps: a node normally renders exactly once, but inside a mirror
@@ -133,6 +134,36 @@ function keepInFilter(ids) {
 }
 function clearFilterExempt() {
   view.filterExempt.clear();
+  view.filterOpen.clear(); // a new query starts from the outline as you left it
+}
+
+/* Is this row expanded? Outside a filter, that is the stored flag. Under one
+   (F74) the outline keeps the shape you left it, with two exceptions that are
+   there so no result can be hidden:
+   - a row with a matching descendant (`anc`) is held open;
+   - a mirror stays folded, since its subtree would duplicate what the
+     original already reports.
+   A ▸ toggle made during the search is a session override (`filterOpen`) that
+   beats both and is never written to the document — folding things away to
+   read a result list must not re-fold the outline underneath it.
+   `own` is the row's structural node: a mirror row's state is its own. */
+function rowExpanded(own) {
+  const f = view.filter;
+  if (!f) return !own.collapsed;
+  const o = view.filterOpen.get(own.id);
+  if (o !== undefined) return o;
+  if (own.mirrorOf) return false;
+  if (f.anc.has(own.id)) return true;
+  return !own.collapsed;
+}
+/* The one door for a person's expand/collapse gesture (▸, Ctrl+↑/↓). */
+function setRowCollapsed(id, collapsed) {
+  const n = store.getNode(id);
+  if (!n) return;
+  if (!view.filter) { store.setCollapsed(id, collapsed); return; }
+  if (rowExpanded(n) === !collapsed) return;
+  view.filterOpen.set(id, !collapsed);
+  refreshCollapse(id);
 }
 
 /* --- node rendering ---------------------------------------------------- */
@@ -342,8 +373,7 @@ function setTitleContent(el, n) {
    membership are their own while everything visible comes from the target. */
 function applyNodeState(el, n, own = n) {
   const hasKids = n.children.length > 0;
-  // mirrors sit collapsed in search view (their subtrees would duplicate results)
-  const expanded = view.filter ? !own.mirrorOf : !own.collapsed;
+  const expanded = rowExpanded(own);
   if (n.format) el.dataset.format = n.format; else delete el.dataset.format;
   if (n.color) el.dataset.color = n.color; else delete el.dataset.color;
   el.classList.toggle('completed', n.completed);
@@ -480,10 +510,7 @@ function renderNode(n, level, suffix = '') {
   applyNodeState(el, content || n, n);
   const loop = isMirror && target && mirrorExpansionLoop(n, target, suffix);
   if (loop) el.classList.add('loop');
-  // mirrors stay collapsed while a search filter is up: their subtrees would
-  // duplicate results the original already reports
-  const expand = view.filter ? !isMirror : !n.collapsed;
-  if (expand && content && content.children.length && !loop) {
+  if (rowExpanded(n) && content && content.children.length && !loop) {
     fillChildren(kids, content, level, isMirror ? suffix + '@' + n.id : suffix);
   }
   return el;
@@ -788,7 +815,10 @@ function closeNoteEditor(ta) {
 /* --- focus helpers -------------------------------------------------------- */
 function revealNode(id) {
   for (const a of store.ancestorsOf(id)) {
-    if (a.id !== ROOT_ID && a.collapsed) store.setCollapsed(a.id, false);
+    if (a.id === ROOT_ID) continue;
+    if (view.filter) { // the stored flag is not what the screen is showing
+      if (!rowExpanded(a)) { view.filterOpen.set(a.id, true); refreshCollapse(a.id); }
+    } else if (a.collapsed) store.setCollapsed(a.id, false);
   }
 }
 function activateTitle(t, off = 0) {
@@ -862,6 +892,34 @@ function updateSaveIndicator(state) {
     ? 'Saving failed. Click to retry and see details' : '';
 }
 
+/* Bring every rendered instance of row `id` in line with rowExpanded():
+   fill a newly opened container lazily, and restyle the row. Shared by the
+   store's 'collapse' event and by search-view toggles, which never reach the
+   store. */
+function refreshCollapse(id) {
+  const n = store.getNode(id);
+  if (!n) return;
+  const content = store.mirrorContent(n) || n;
+  const open = rowExpanded(n);
+  for (const el of nodeInstances(id)) {
+    // collapse state belongs to the row's own node: mirror rows showing
+    // `id` as content keep their own state and are skipped here
+    if (el.dataset.id !== id) continue;
+    const kids = el.querySelector(':scope > .children');
+    const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
+    if (open && !kids.dataset.filled && content.children.length && !loop) {
+      const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+      fillChildren(kids, content, level,
+        n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
+    }
+    if (open) {
+      kids.classList.add('just-expanded');
+      setTimeout(() => kids.classList.remove('just-expanded'), 250);
+    }
+    applyNodeState(el, content, n);
+  }
+}
+
 /* --- store event wiring ----------------------------------------------------- */
 store.subscribe(ev => {
   switch (ev.type) {
@@ -875,29 +933,9 @@ store.subscribe(ev => {
         renderChildrenOf(ev.id);
       }
       break;
-    case 'collapse': {
-      const n = store.getNode(ev.id);
-      if (!n) break;
-      const content = store.mirrorContent(n) || n;
-      for (const el of nodeInstances(ev.id)) {
-        // collapse state belongs to the row's own node: mirror rows showing
-        // ev.id as content keep their own state and are skipped here
-        if (el.dataset.id !== ev.id) continue;
-        const kids = el.querySelector(':scope > .children');
-        const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
-        if (!n.collapsed && !kids.dataset.filled && content.children.length && !loop) {
-          const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-          fillChildren(kids, content, level,
-            n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
-        }
-        if (!n.collapsed) {
-          kids.classList.add('just-expanded');
-          setTimeout(() => kids.classList.remove('just-expanded'), 250);
-        }
-        applyNodeState(el, content, n);
-      }
+    case 'collapse':
+      refreshCollapse(ev.id);
       break;
-    }
     case 'doc':
       renderAll();
       break;

@@ -24,7 +24,7 @@ Click a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms 
 `Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom.
 
 - It matches titles **and** notes, ignoring case.
-- Matches are shown with their ancestors dimmed for context.
+- Matches are shown with their ancestors dimmed for context. Items keep their folds: a collapsed item stays collapsed, unless something inside it matches. Use ▸ to open or close items while searching; that changes only the search view, not your outline.
 - A search made only of a single `#tag` matches that whole tag: `#todo` does not match `#todos`. Click any tag chip to search for it, and click it again to clear.
 - Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.
 - Items you create while a search is active stay visible until you change the search.
