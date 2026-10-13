@@ -147,6 +147,9 @@ favicon is generated from that same path at boot, so there is only ever one
 copy of the mark in the file. `37nodes_logo_huge_raw.png` is the master
 artwork it was vectorised from; the build does not read it.
 
+Tests: the search language is a pure module and has a Node test file —
+`node tests/query.test.js`. Everything else is verified in the browser.
+
 Build (PowerShell):
 
 ```powershell

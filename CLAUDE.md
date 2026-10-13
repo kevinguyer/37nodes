@@ -10,9 +10,12 @@ no framework, no CDN, no fetch.
   with ids (`BUG-n`, `FR-n`), status, sizing, and the decision each one
   needs. Check it before starting new work; move an item to Done when it
   ships and gets its F-number in the PRD.
-- `PRD.md` — **the behavioural spec**, numbered `F1…F52`. It is the source of
-  truth for what the app does and why. When you add or change behaviour, add or
-  amend an F-item in the matching section.
+- `PRD.md` — **the behavioural spec**, numbered `F1`, `F2`, … in order of
+  creation, not by section: new items take the next free number and sit beside
+  the items they relate to, so the highest number is the newest (grep for it
+  before adding one). It is the source of truth for what the app does and
+  why. When you add or change behaviour, add or amend an F-item in the
+  matching section.
 - This file — how the code is put together, and the traps in it.
 
 ## Definition of done
@@ -96,8 +99,8 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `15-toolbar.js` | Floating format bar over a selection in an editing title; wrap/unwrap of inline syntax |
 | `16-panel.js` | Backlink index, right-hand info panel (collapsible sections: item / starred / tags), rename-rewrite offer |
 | `17-stars-tags.js` | Starred index + star gestures (row ★, `Alt+S`), tag vocabulary index |
-| `19-saved.js` | Saved + recent searches, the ☆ button and the search box dropdown. Local-only: lives in prefs, not the document |
 | `18-help.js` | Help Center dialog: overview, topic pages, keyboard table, What's new + its dot. Content is `src/help/*.md`, bundled at build |
+| `19-saved.js` | Saved + recent searches, the ☆ button and the search box dropdown. Local-only: lives in prefs, not the document |
 
 `app.css` is CSS-variable driven: `:root` holds the token set, each
 `[data-theme=…]` block overrides it. `--motion:0` and `--glow` let a theme opt
@@ -267,6 +270,12 @@ Build first, then load `http://localhost:8137/37nodes.html` — the server has n
 knowledge of `src/`, so an unbuilt change simply won't be there. Check the build
 number in the ☰ menu if behaviour looks stale.
 
-Testing is manual: there is no test suite. Verify in the browser, and remember
-that the preview's IndexedDB is real persisted data — undo or clean up any
-document edits you make while poking at it.
+Testing is manual: there is no browser test suite. Verify in the browser, and
+remember that the preview's IndexedDB is real persisted data — undo or clean up
+any document edits you make while poking at it.
+
+The one exception is `src/js/04b-query.js`, which is pure (strings in, plain
+data out) and so can be loaded under Node: `node tests/query.test.js` runs its
+grammar tests and exits non-zero on a failure. Run it after any change to the
+search language, and add a case for every behaviour you add — it is the most
+regression-prone logic in the app.
