@@ -138,10 +138,7 @@ focusStarEl.addEventListener('click', () => {
 });
 
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts (some send a dead
-  // key or an accented character as e.key), so match the physical key too
-  if (e.code !== 'KeyS' && e.key !== 's' && e.key !== 'S') return;
+  if (!altChord(e, 'KeyS')) return;
   const id = starTargetId();
   if (!id) return;
   e.preventDefault();

@@ -8,6 +8,16 @@ const nowISO = () => new Date().toISOString();
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const truncate = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s);
 
+/* Is this keydown the Alt+<letter> chord `code` ('KeyL'), with Shift only if
+   asked for? Alt+letter reports differently across keyboard layouts — some
+   send a dead key or an accented character as e.key — so the physical key
+   (e.code) is accepted as well as the character. One place for the rule, so a
+   fix to how chords are recognised is made once. */
+function altChord(e, code, { shift = false } = {}) {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey !== shift) return false;
+  return e.code === code || e.key.toLowerCase() === code.slice(3).toLowerCase();
+}
+
 function debounce(fn, ms) {
   let t = null;
   const wrap = (...a) => {

@@ -419,10 +419,7 @@ document.addEventListener('keydown', e => {
    Deliberately not Ctrl+Shift+K — that is Firefox's web console, and N3
    claims Firefox support. */
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts (some send a dead
-  // key or an accented character as e.key), so match the physical key too
-  if (e.code !== 'KeyM' && e.key !== 'm' && e.key !== 'M') return;
+  if (!altChord(e, 'KeyM')) return;
   const id = moveTargetId();
   if (!id) return;
   e.preventDefault();
@@ -430,8 +427,7 @@ document.addEventListener('keydown', e => {
 });
 /* Alt+Shift+M: the same picker, creating a mirror at the destination */
 document.addEventListener('keydown', e => {
-  if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
-  if (e.code !== 'KeyM' && e.key !== 'm' && e.key !== 'M') return;
+  if (!altChord(e, 'KeyM', { shift: true })) return;
   const id = moveTargetId();
   if (!id) return;
   e.preventDefault();

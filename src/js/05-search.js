@@ -55,9 +55,7 @@ function filterToLinked(id) {
   focusNodeTitle(id, 'end'); // a no-op when the item sits outside the zoom
 }
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts: match the key too
-  if (e.code !== 'KeyL' && e.key !== 'l' && e.key !== 'L') return;
+  if (!altChord(e, 'KeyL')) return;
   const id = starTargetId(); // the item the caret is in, else the one the panel tracks
   if (!id) return;
   e.preventDefault();

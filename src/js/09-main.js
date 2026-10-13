@@ -62,10 +62,7 @@ function setHideCompleted(on) {
 }
 hideCompletedEl.addEventListener('change', () => setHideCompleted(hideCompletedEl.checked));
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // match the physical key too: Alt+letter reports oddly on some layouts
-  if (e.code !== 'KeyC' && e.key !== 'c' && e.key !== 'C') return;
-  if (e.defaultPrevented) return;
+  if (!altChord(e, 'KeyC') || e.defaultPrevented) return;
   e.preventDefault();
   setHideCompleted(!completedRowsHidden());
 });

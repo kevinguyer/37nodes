@@ -593,10 +593,7 @@ ipStarEl.addEventListener('click', () => {
   if (id && id !== ROOT_ID) store.toggleStarred(id);
 });
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts (some send a dead
-  // key or an accented character as e.key), so match the physical key too
-  if (e.code === 'KeyI' || e.key === 'i' || e.key === 'I') {
+  if (altChord(e, 'KeyI')) {
     e.preventDefault();
     setPanelOpen(!panelOpen());
   }
