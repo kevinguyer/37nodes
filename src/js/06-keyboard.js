@@ -185,7 +185,8 @@ function onTitleKeydown(e, el) {
       }
       if (mod && !e.altKey && !e.shiftKey) {
         e.preventDefault();
-        if (el !== focusTitleEl && n.children.length) {
+        // a mirror row has no children of its own: its expansion is its target's
+        if (el !== focusTitleEl && (store.mirrorContent(n) || n).children.length) {
           setRowCollapsed(id, key === 'ArrowUp');
         }
         return;

@@ -255,11 +255,11 @@ function deleteSubtree(id) {
   if (m) {
     const mp = getParent(id); // n's parent after promotion
     if (mp && mp.id !== p.id) emit({ type: 'children', id: mp.id });
-    emit({ type: 'node', id }); // may have lost its last mirror: ⧉ badge off
+    emit({ type: 'node', id }); // may have lost its last mirror: filled diamond off
   } else {
     // no promotion. Two kinds of fallout to repaint: mirrors pointing into
     // the deleted subtree broke (tombstones), and targets of mirrors that
-    // DIED with the subtree may have lost their ⧉ badge.
+    // DIED with the subtree may have lost their diamond.
     const gone = new Set(), lostTargets = new Set();
     (function collect(x) {
       gone.add(x.id);
@@ -404,7 +404,7 @@ function setMirror(id, targetId) {
   scheduleSave();
   emit({ type: 'node', id });
   emit({ type: 'children', id: p.id }); // the row changes shape: rebuild it
-  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
+  emit({ type: 'node', id: target.id }); // the original gains its diamond
   return true;
 }
 /* place a new mirror of targetId as its next sibling (the menu flow) */
@@ -413,7 +413,7 @@ function createMirror(targetId) {
   const anchor = getNode(targetId), p = getParent(targetId);
   if (!target || !anchor || !p) return null;
   const m = create(p.id, p.children.indexOf(anchor) + 1, { mirrorOf: target.id });
-  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
+  emit({ type: 'node', id: target.id }); // the original gains its diamond
   return m;
 }
 
@@ -427,7 +427,7 @@ function createMirrorIn(targetId, parentId, index = Infinity) {
   if (!target || !p || p.mirrorOf) return null;
   if (p.id === target.id || isDescendant(p.id, target.id)) return null;
   const m = create(p.id, Math.min(index, p.children.length), { mirrorOf: target.id });
-  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
+  emit({ type: 'node', id: target.id }); // the original gains its diamond
   return m;
 }
 

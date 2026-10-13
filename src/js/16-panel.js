@@ -249,7 +249,7 @@ function ipItemBody(body, id, n) {
   if (mirrors.length) {
     body.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
     for (const m of mirrors) {
-      body.append(ipRow('⧉ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
+      body.append(ipRow('◇ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
     }
   }
 

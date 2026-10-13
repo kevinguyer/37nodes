@@ -394,7 +394,8 @@ function applyNodeState(el, n, own = n) {
   el.classList.toggle('expanded', hasKids && expanded);
   if (hasKids) el.setAttribute('aria-expanded', String(expanded));
   else el.removeAttribute('aria-expanded');
-  // originals that have live mirrors wear the same ⧉ badge as their mirrors
+  // an original that has live mirrors is drawn as a filled diamond, each of
+  // its mirrors as a hollow one (app.css)
   const mirrored = !own.mirrorOf && store.hasMirrors(own.id);
   el.classList.toggle('mirrored', mirrored);
   if (!own.mirrorOf) {

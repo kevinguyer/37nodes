@@ -136,7 +136,7 @@ mechanism that keeps it current.
 | FR-17b | Saved searches embedded in the document and exports | Deferred | M | Medium | An optional document field + schema step; revisit if you want them to travel between browsers or survive cleared site data |
 | FR-18 | Chained / multi-term search with operators | Done (build 68, F75–F77) | M–L | Medium | Same-item AND **and** scoped `>` (decided 2026-10-12); grammar into the PRD before code |
 | FR-19 | Filter by starred / unstarred | Done (build 68, F75) | S | Low | `is:starred` / `-is:starred`; specified in F75 |
-| FR-20 | Distinct glyph for mirrors (diamond) | Discuss | S | Low | Yes, CSS only; confirm what he sees today |
+| FR-20 | Distinct glyph for mirrors (diamond) | Done (build 85, F82) | S | Low | Filled diamond = original with mirrors, hollow = mirror (decided 2026-10-13) |
 | FR-21 | Tag counts exclude completed items; hide zero-count tags | Done (build 60, F71) | S | Low | Panel only; follows the global toggle |
 | FR-22 | Starred / backlink click zooms into the item | Discuss | S | Low | Yes, as a pref; decide leaf behaviour |
 
@@ -570,3 +570,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-13 | FR-17 shipped as local-only saved searches plus a recent-searches dropdown (F79). The in-document, exportable variant is split out as FR-17b and deferred: it is the only remaining change that touches the on-disk format, and nothing in F79 forecloses it. |
 | 2026-10-13 | FR-6 shipped: Mirror to… (`Alt+Shift+M`, ≡ menu), F80. It follows the new mirror like Move to… follows its item; FR-4 will govern both. |
 | 2026-10-13 | FR-4 shipped (F81): After Move / Mirror to… preference plus Shift+Enter in the picker. Stay lands on the next visible row after the item's subtree, else the previous one. |
+| 2026-10-13 | FR-20 shipped (F82): filled diamond for an item that has mirrors, hollow for each mirror, drawn in CSS. Ctrl+↑/↓ now folds a mirror row. |

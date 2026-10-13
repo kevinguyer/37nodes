@@ -339,8 +339,12 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .bullet:hover .dot{transform:scale(1.35);}
 .node.collapsed > .row > .bullet .dot{box-shadow:0 0 0 3.5px var(--bullet-ring);}
-/* mirrors: the ⧉ badge marks a mirror row AND an original that has mirrors —
-   either way, this item lives in more than one place */
+/* mirrors (F82): two diamonds, drawn in CSS so they look the same on every
+   platform. The original of a mirrored item is a FILLED diamond — the real
+   thing — and each mirror is a HOLLOW one — a reflection of it. The two are
+   never on the same row (a mirror is not itself mirrored), so one box serves
+   both; it is transparent and carries only `color`, which the bullet-colour
+   rules below set, and the shapes read currentColor. */
 .node.mirror > .row > .bullet .dot,
 .node.mirrored > .row > .bullet .dot{
   width:12px; height:12px; border-radius:2px;
@@ -348,8 +352,18 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .node.mirror > .row > .bullet .dot::before,
 .node.mirrored > .row > .bullet .dot::before{
-  content:"⧉"; display:block;
-  font-size:13px; line-height:12px; text-align:center;
+  content:""; display:block; box-sizing:border-box;
+  width:8px; height:8px; margin:2px;
+  transform:rotate(45deg);
+}
+.node.mirrored > .row > .bullet .dot::before{background:currentColor;}
+.node.mirror > .row > .bullet .dot::before{border:1.5px solid currentColor;}
+/* the "has children, folded" ring follows the diamond instead of the box */
+.node.mirror.collapsed > .row > .bullet .dot,
+.node.mirrored.collapsed > .row > .bullet .dot{box-shadow:none;}
+.node.mirror.collapsed > .row > .bullet .dot::before,
+.node.mirrored.collapsed > .row > .bullet .dot::before{
+  box-shadow:0 0 0 3px var(--bullet-ring);
 }
 .node.mirror[data-color="red"] > .row > .bullet .dot,
 .node.mirrored[data-color="red"] > .row > .bullet .dot{background:transparent; color:var(--nc-red);}
