@@ -284,16 +284,16 @@ function ipTagsBody(body) {
   }
   const cloud = document.createElement('div');
   cloud.className = 'ip-tags';
-  const active = view.query.trim().toLowerCase();
+  const lit = view.filter ? view.filter.tags : null; // every positive tag in the query
   for (const t of tags) {
     const b = document.createElement('button');
-    b.className = 'ip-tag' + (active === t.tag.toLowerCase() ? ' active' : '');
-    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter`;
+    b.className = 'ip-tag' + (lit && lit.has(t.tag.toLowerCase()) ? ' active' : '');
+    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter · Shift+click to add to the search`;
     b.append(document.createTextNode(t.tag));
     const c = document.createElement('sup');
     c.textContent = String(t.count);
     b.append(c);
-    b.addEventListener('click', () => toggleTagFilter(t.tag));
+    b.addEventListener('click', e => toggleTagFilter(t.tag, e.shiftKey));
     cloud.append(b);
   }
   body.append(cloud);

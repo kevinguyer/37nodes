@@ -21,11 +21,20 @@ Click a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms 
 
 ## Search
 
-`Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom.
+`Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom. Every word you type must match, in any order, in an item's title or note.
 
-- It matches titles **and** notes, ignoring case.
-- Matches are shown with their ancestors dimmed for context. Items keep their folds: a collapsed item stays collapsed, unless something inside it matches. Use ▸ to open or close items while searching; that changes only the search view, not your outline.
-- A search made only of a single `#tag` matches that whole tag: `#todo` does not match `#todos`. Click any tag chip to search for it, and click it again to clear.
+- `budget q3` finds items containing both words; each may be in the title or the note.
+- `"q3 budget"` finds that exact phrase, spaces included.
+- `#urgent` finds items tagged `#urgent`: the whole tag, so `#todo` does not match `#todos`.
+- `-draft` finds items that do **not** contain *draft*. It works on words, phrases, tags and flags: `-#later`, `-"to do"`.
+- `is:starred` finds starred items; `-is:starred` finds the rest.
+- `is:done` finds completed items (nothing shows while **Hide completed** is on).
+- `acme > #urgent` finds `#urgent` items somewhere inside an item matching *acme*. Chain it for more levels: `acme > launch > #urgent`.
+
+- `>` must stand alone with spaces around it; the matches to its left are shown dimmed for context.
+- To search for a word that begins with `-`, put it in quotes: `"-5"`.
+- Matches are shown with their ancestors dimmed. Items keep their folds: a collapsed item stays collapsed, unless something inside it matches. Use ▸ to open or close items while searching; that changes only the search view, not your outline.
+- **Click a tag chip** to search for just that tag, and click it again to clear. **Shift+click** a chip, in the outline or the panel, to add it to the search you already have, or to take it back out.
 - Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.
 - Items you create while a search is active stay visible until you change the search.
 - `Esc` clears the search.

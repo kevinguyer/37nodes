@@ -15,8 +15,14 @@ function setSearch(q) {
   applySearch();
   applySearch.flush();
 }
-function toggleTagFilter(tag) {
-  if (view.query.trim().toLowerCase() === tag.toLowerCase()) clearSearch();
+/* A plain click replaces the query with the tag, or clears it when the tag is
+   already the whole query. Shift+click edits the query instead (F77): the tag
+   becomes one more term, or is taken back out — how a second tag narrows. */
+function toggleTagFilter(tag, add = false) {
+  if (add) {
+    const q = queryToggleTag(view.query, tag);
+    if (q.trim()) setSearch(q); else clearSearch();
+  } else if (queryIsOnlyTag(view.query, tag)) clearSearch();
   else setSearch(tag);
 }
 /* tag chips: clicking one filters by that tag; clicking it again clears */
@@ -24,7 +30,7 @@ document.addEventListener('click', e => {
   const tag = e.target.closest?.('.title .tag');
   if (!tag) return;
   e.preventDefault();
-  toggleTagFilter(tag.textContent);
+  toggleTagFilter(tag.textContent, e.shiftKey);
 });
 
 function clearSearch(refocusOutline = true) {

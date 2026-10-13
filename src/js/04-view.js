@@ -18,7 +18,7 @@ const BRAND_TAGLINE = 'Infinite depth. Zero chaos.';
 const view = {
   focusId: ROOT_ID,
   query: '',
-  filter: null, // { matched:Set, anc:Set, under:Set, q } while searching
+  filter: null, // { matched, anc, under: Set<id>, marks: [string], tags: Set<'#tag'> } while searching
   filterExempt: new Set(), // ids created during this search: shown though they don't match
   filterOpen: new Map(),   // id -> bool: ▸ toggles made during this search (F74); never persisted
 };
@@ -81,17 +81,18 @@ function completedRowsHidden() {
   return document.body.classList.contains('hide-completed');
 }
 function computeFilter() {
-  const q = view.query.trim().toLowerCase();
-  if (!q) { view.filter = null; return; }
-  // a pure #tag query matches the exact tag only (#todo must not hit #todos)
-  const tagRe = /^#[\w-]+$/.test(q) ? new RegExp('(^|\\s)' + q + '(?![\\w-])', 'i') : null;
-  const test = tagRe
-    ? s => tagRe.test(s || '')
-    : s => (s || '').toLowerCase().includes(q);
+  const parsed = parseQuery(view.query);
+  const groups = parsed.groups;
+  if (!groups.length) { view.filter = null; return; }
+  const k = groups.length;
   const skipCompleted = completedRowsHidden();
   const matched = new Set(), anc = new Set(), under = new Set();
   const focus = store.getNode(view.focusId);
-  (function walk(n, ancIds, underMatch) {
+  // `stage` = how many leading groups an ancestor has already satisfied
+  // (F76). Taking each anchor as early as possible is always sufficient, so
+  // one pass suffices and cost stays linear. With one group, stage is
+  // always k-1 and this is a plain search.
+  (function walk(n, ancIds, underMatch, stage) {
     const isFocus = n === focus;
     // a mirror matches on its target's text (it has none of its own); its
     // subtree is not walked here — the original reports the real hits
@@ -99,7 +100,15 @@ function computeFilter() {
     // an off-screen completed row can't be a result, and neither can anything
     // inside it (the CSS hides the subtree with it)
     if (!isFocus && skipCompleted && c.completed) return;
-    const hit = !isFocus && (test(c.title) || test(c.note));
+    let hit = false, nextStage = stage;
+    if (!isFocus) {
+      const item = {
+        title: (c.title || '').toLowerCase(), note: (c.note || '').toLowerCase(),
+        starred: !!c.starred, completed: !!c.completed,
+      };
+      if (stage === k - 1) hit = queryGroupMatches(groups[k - 1], item);
+      else if (queryGroupMatches(groups[stage], item)) nextStage = stage + 1;
+    }
     // items made during this search don't match it; keep them on screen anyway
     const kept = !isFocus && view.filterExempt.has(n.id);
     if (hit) matched.add(n.id);
@@ -107,9 +116,9 @@ function computeFilter() {
     const nowUnder = underMatch || hit || kept;
     if (nowUnder && !isFocus) under.add(n.id);
     const nextAnc = isFocus ? ancIds : ancIds.concat(n.id);
-    for (const c of n.children) walk(c, nextAnc, nowUnder);
-  })(focus, [], false);
-  view.filter = { matched, anc, under, q, tagQuery: !!tagRe };
+    for (const ch of n.children) walk(ch, nextAnc, nowUnder, nextStage);
+  })(focus, [], false, 0);
+  view.filter = { matched, anc, under, marks: parsed.marks, tags: parsed.tags };
 }
 function nodeVisibleInFilter(n) {
   if (!view.filter) return true;
@@ -167,19 +176,17 @@ function setRowCollapsed(id, collapsed) {
 }
 
 /* --- node rendering ---------------------------------------------------- */
-function highlightFrag(text, q) {
+function highlightFrag(text, ranges) { // ranges: sorted, merged [start, end] pairs
   const frag = document.createDocumentFragment();
-  const lower = text.toLowerCase();
-  let i = 0;
-  for (;;) {
-    const j = lower.indexOf(q, i);
-    if (j < 0) { frag.append(document.createTextNode(text.slice(i))); break; }
-    if (j > i) frag.append(document.createTextNode(text.slice(i, j)));
+  let at = 0;
+  for (const [s, e] of ranges) {
+    if (s > at) frag.append(document.createTextNode(text.slice(at, s)));
     const m = document.createElement('mark');
-    m.textContent = text.slice(j, j + q.length);
+    m.textContent = text.slice(s, e);
     frag.append(m);
-    i = j + q.length;
+    at = e;
   }
+  if (at < text.length) frag.append(document.createTextNode(text.slice(at)));
   return frag;
 }
 /* --- [[wikilinks]]: resolved by title, case-insensitive, at render time.
@@ -290,6 +297,7 @@ const TITLE_PATTERNS = [
   { re: /(^|\s)(#[\w-]+)/, isTag: true },
 ];
 
+/* activeTag: the Set of lowercase '#tags' the current query asks for (or null) */
 function titleParseInto(parent, text, rawBase, activeTag, S) {
   const emitText = (container, str, at) => {
     if (!str) return;
@@ -317,7 +325,7 @@ function titleParseInto(parent, text, rawBase, activeTag, S) {
       const chipAt = bestIdx + best[1].length; // keep the leading space plain
       emitText(parent, rest.slice(0, chipAt), base);
       const s = document.createElement('span');
-      s.className = 'tag' + (activeTag && best[2].toLowerCase() === activeTag ? ' active' : '');
+      s.className = 'tag' + (activeTag && activeTag.has(best[2].toLowerCase()) ? ' active' : '');
       s.textContent = best[2];
       s.title = 'Filter by ' + best[2];
       ctx.seg(s.firstChild, base + chipAt);
@@ -361,11 +369,13 @@ function titleRawOffset(el, renderedOff) {
 function setTitleContent(el, n) {
   el.textContent = '';
   const f = view.filter;
-  if (f && !f.tagQuery && f.matched.has(n.id) && (n.title || '').toLowerCase().includes(f.q)) {
+  const ranges = f && f.marks.length && f.matched.has(n.id)
+    ? queryMarkRanges(n.title || '', f.marks) : [];
+  if (ranges.length) {
     titleSegs.delete(el); // raw text + <mark>s: rendered offsets ARE raw offsets
-    el.append(highlightFrag(n.title, f.q)); // text search: marks win over formatting
+    el.append(highlightFrag(n.title, ranges)); // text hits: marks win over formatting
   } else {
-    el.append(titleFrag(el, n.title || '', f && f.tagQuery ? f.q : null));
+    el.append(titleFrag(el, n.title || '', f ? f.tags : null));
   }
 }
 /* n = the CONTENT node (what the row shows); own = the row's structural

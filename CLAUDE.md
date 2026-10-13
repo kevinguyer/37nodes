@@ -82,6 +82,7 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `02b-idb.js` | IndexedDB plumbing: one cached connection, stores `doc` + `kv` |
 | `03-store.js` | Document state, node index, ops-based undo, persistence, schema migrations, cross-tab guard, seed document |
 | `04-view.js` | All rendering: keyed reconciliation, search filter, note editors, banner, save indicator |
+| `04b-query.js` | The search language: tokenizer, parser, per-item matcher, highlight ranges. **Pure** — no DOM or store, so it can be run under Node on its own |
 | `05-search.js` | Search box wiring, tag-chip click filter |
 | `06-keyboard.js` | Every title/note event, delegated at `document` level |
 | `07-dnd.js` | Drag & drop by bullet |
@@ -223,8 +224,14 @@ gone from the store and those links no longer resolve to the renamed item.
 - `under` — matches and everything beneath them; **this set is "visible"**
 - `filterExempt` — ids kept visible even though they don't match
 
-A pure `#tag` query matches whole tags only; anything else is a case-insensitive
-substring over title *and* note.
+The query is parsed by `04b-query.js` (PRD F75–F77): terms are ANDed per item,
+`-` negates, `is:starred`/`is:done` are flags, and a standalone `>` chains
+groups down the ancestors. `computeFilter` carries a *stage* — how many
+groups an ancestor has already satisfied — so it stays one linear pass.
+`matched` holds results only; scope anchors land in `anc`, shown dimmed. The
+filter also exposes `marks` (positive word/phrase terms, for highlighting) and
+`tags` (positive `#tags`, for chip state) — read those, never re-parse the
+query string in a view.
 
 ## Traps worth knowing
 

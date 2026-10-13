@@ -97,9 +97,9 @@ function tagsAlphabetical(scopeId) {
 function tagsForPanel(scopeId) {
   const all = tagsAlphabetical(scopeId);
   if (!completedRowsHidden()) return all;
-  const active = view.query.trim().toLowerCase();
+  const lit = view.filter ? view.filter.tags : null;
   return all
-    .filter(t => t.live > 0 || t.tag.toLowerCase() === active)
+    .filter(t => t.live > 0 || (lit && lit.has(t.tag.toLowerCase())))
     .map(t => ({ ...t, count: t.live }));
 }
 function tagsByUse(scopeId) {

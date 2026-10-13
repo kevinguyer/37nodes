@@ -31,7 +31,9 @@ See [PRD.md](PRD.md) for the full product requirements.
   (`?` opens it right there) and a **What's new** list that lights a dot on ☰
   until you've read it. Content is plain markdown in `src/help/`
 - Full **keyboard operation** — press `?` in the app for the reference
-- Live **search/filter** with match highlighting (`Ctrl+F`)
+- Live **search/filter** (`Ctrl+F`) with a small query language: several words
+  ANDed, `"phrases"`, `-exclude`, `#tags`, `is:starred`, `is:done`, and
+  `acme > #urgent` to search inside matches. Shift+click a tag chip to add it
 - **Jump palette** (`Ctrl+K`): fuzzy-match any item's title and zoom straight
   to it from anywhere. Type `Parent/Child` to pick between same-named items,
   and with **Hide completed** on (`Alt+C`) finished items are left out
@@ -120,6 +122,7 @@ src/js/02-markdown.js  safe markdown subset → DOM renderer (no innerHTML)
 src/js/02b-idb.js   shared IndexedDB plumbing (doc + kv stores)
 src/js/03-store.js  document state, ops-based undo, persistence, schema migrations
 src/js/04-view.js   incremental keyed rendering, notes, search filter
+src/js/04b-query.js the search language (pure parser + matcher)
 src/js/05-search.js search box wiring
 src/js/06-keyboard.js  keyboard model + editing events
 src/js/07-dnd.js    drag & drop

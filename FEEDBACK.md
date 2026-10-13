@@ -116,7 +116,7 @@ mechanism that keeps it current.
 
 | ID | Title | Status | Size | Risk | Recommendation |
 |---|---|---|---|---|---|
-| FR-1 | Filter by several tags at once | Approved (as part of FR-18) | S–M | Low | AND, `Shift`+click chip; specified in F75/F77 |
+| FR-1 | Filter by several tags at once | Done (build 68, F75–F77) | S–M | Low | AND, `Shift`+click chip; specified in F75/F77 |
 | FR-2 | Resizable side panel | Done (build 51, F61) | S | Low | Yes |
 | FR-3 | Richer backlinks view (context, collapsible children) | Discuss | M–L | Low | Yes in two phases; need a concrete picture of phase 2 |
 | FR-4 | Option: don't jump after "Move to…" | Discuss | S | Low | Yes; decide pref vs modifier key |
@@ -133,8 +133,8 @@ mechanism that keeps it current.
 | FR-15 | Jump palette: `Parent/Log` path syntax to disambiguate | Done (build 60, F70) | S–M | Low | Palette-only; shared matcher untouched |
 | FR-16 | One-key filter to items linked to/from the selected item | Discuss | M | Medium | Yes, but as an operator of FR-18's grammar, not a one-off |
 | FR-17 | Saved searches | Approved | M | Medium | Stored **in the document** and carried by export/import (decided 2026-10-12); after FR-18 |
-| FR-18 | Chained / multi-term search with operators | In design (spec: PRD F75–F77) | M–L | Medium | Same-item AND **and** scoped `>` (decided 2026-10-12); grammar into the PRD before code |
-| FR-19 | Filter by starred / unstarred | Approved (as part of FR-18) | S | Low | `is:starred` / `-is:starred`; specified in F75 |
+| FR-18 | Chained / multi-term search with operators | Done (build 68, F75–F77) | M–L | Medium | Same-item AND **and** scoped `>` (decided 2026-10-12); grammar into the PRD before code |
+| FR-19 | Filter by starred / unstarred | Done (build 68, F75) | S | Low | `is:starred` / `-is:starred`; specified in F75 |
 | FR-20 | Distinct glyph for mirrors (diamond) | Discuss | S | Low | Yes, CSS only; confirm what he sees today |
 | FR-21 | Tag counts exclude completed items; hide zero-count tags | Done (build 60, F71) | S | Low | Panel only; follows the global toggle |
 | FR-22 | Starred / backlink click zooms into the item | Discuss | S | Low | Yes, as a pref; decide leaf behaviour |
@@ -564,3 +564,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-12 | FR-13 shipped (`Alt+C`), FR-5, FR-14, FR-15 (`Parent/Log`), FR-21 shipped. FR-20 and FR-22 held for answers on what he sees. |
 | 2026-10-12 | DOC-1 shipped: the Help Center (overview, topics, keyboard reference, What's new). |
 | 2026-10-12 | FR-12 shipped: filters keep collapse state; ▸ works inside a search as a session override (F74). |
+| 2026-10-12 | FR-18 shipped with FR-1 and FR-19: the query language (terms, `-`, `is:`, `>` scope), Shift+click chips (F75–F77). FR-16 (`links:`) and FR-17 (saved searches) now unblocked. |

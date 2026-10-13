@@ -995,7 +995,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <nav id="breadcrumbs" aria-label="Breadcrumbs"></nav>
   <div id="topbar-right">
     <span id="save-indicator" aria-live="polite">Saved</span>
-    <input id="search" type="search" placeholder="Search  (Ctrl+F)" autocomplete="off" spellcheck="false" aria-label="Search outline">
+    <input id="search" type="search" placeholder="Search  (Ctrl+F)" title="Words, &quot;phrases&quot;, #tags, -exclude, is:starred, is:done, and a &gt; b to search inside matches of a" autocomplete="off" spellcheck="false" aria-label="Search outline">
     <button id="panel-btn" aria-pressed="false" title="Info panel: what links here, starred items, tags (Alt+I)" aria-label="Toggle info panel">&#9704;</button>
     <button id="menu-btn" aria-haspopup="true" aria-expanded="false" title="Menu">&#9776;</button>
   </div>
@@ -1065,7 +1065,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Help&hellip; <span class="menu-pill" id="help-new-pill" hidden>New</span></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 62 &middot; 2026-10-12</div>
+  <div class="menu-note" id="build-readout">Build 68 &middot; 2026-10-12</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -2328,6 +2328,140 @@ const store = {
   get backend() { return backend; }, // 'idb' | 'local' | 'memory' — diagnostics
 };
 
+/* ===== 04b query =====
+   The search query language (F75–F77). Pure: strings in, plain data out — no
+   DOM, no store — so it can be exercised on its own and its meaning cannot
+   drift with the renderer. computeFilter (04) walks the tree with it.
+
+   A query is whitespace-separated TERMS, ANDed per item:
+     word        case-insensitive substring of title or note
+     "a phrase"  the same, spaces literal (unterminated: runs to the end)
+     #tag        a whole tag (F43), in title or note
+     is:starred  / is:done — flags on the item's content
+   Any term takes a leading "-" to negate it. A standalone ">" splits the
+   query into GROUPS that must hold down a chain of ancestors (F76).
+
+   The grammar is total: nothing is a syntax error. Text that only resembles
+   syntax (10:30, is:nonsense, a>b, a lone "-") is a plain word. */
+
+/* → [{start, end, neg, kind: 'text'|'tag'|'flag'|'sep', v}] with source spans,
+   so a token can be cut back out of the string it came from */
+function queryTokens(str) {
+  const out = [];
+  const n = str.length;
+  const isSpace = ch => /\s/.test(ch);
+  let i = 0;
+  while (i < n) {
+    if (isSpace(str[i])) { i++; continue; }
+    const start = i;
+    let neg = false;
+    if (str[i] === '-' && i + 1 < n && !isSpace(str[i + 1])) { neg = true; i++; }
+    if (str[i] === '"') {
+      const close = str.indexOf('"', i + 1);
+      const end = close < 0 ? n : close;
+      const v = str.slice(i + 1, end).toLowerCase();
+      i = close < 0 ? n : close + 1;
+      if (v) out.push({ start, end: i, neg, kind: 'text', v });
+      continue;
+    }
+    let j = i;
+    while (j < n && !isSpace(str[j])) j++;
+    const raw = str.slice(i, j);
+    i = j;
+    const low = raw.toLowerCase();
+    if (raw === '>' && !neg) out.push({ start, end: i, neg: false, kind: 'sep', v: '>' });
+    else if (raw === '>' && neg) out.push({ start, end: i, neg: false, kind: 'text', v: '->' });
+    else if (/^#[\w-]+$/.test(raw)) out.push({ start, end: i, neg, kind: 'tag', v: low });
+    else if (low === 'is:starred') out.push({ start, end: i, neg, kind: 'flag', v: 'starred' });
+    else if (low === 'is:done') out.push({ start, end: i, neg, kind: 'flag', v: 'completed' });
+    else out.push({ start, end: i, neg, kind: 'text', v: low });
+  }
+  return out;
+}
+
+/* → { groups: [[term, …], …], marks: [string], tags: Set<'#tag'> }
+   `marks` and `tags` are the POSITIVE terms only — what to highlight.
+   Empty groups are dropped, so a half-typed "acme >" reads as "acme". */
+function parseQuery(str) {
+  const groups = [];
+  let cur = [];
+  const marks = [];
+  const tags = new Set();
+  for (const t of queryTokens(String(str || ''))) {
+    if (t.kind === 'sep') {
+      if (cur.length) groups.push(cur);
+      cur = [];
+      continue;
+    }
+    const term = { neg: t.neg, kind: t.kind, v: t.v };
+    if (t.kind === 'tag') {
+      // whole tags only: #todo must not hit #todos (tag chars are [\w-])
+      term.re = new RegExp('(^|\\s)' + t.v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])', 'i');
+    }
+    cur.push(term);
+    if (!t.neg) {
+      if (t.kind === 'text') marks.push(t.v);
+      else if (t.kind === 'tag') tags.add(t.v);
+    }
+  }
+  if (cur.length) groups.push(cur);
+  return { groups, marks, tags };
+}
+
+/* does one item satisfy every term of a group? `item` carries the title and
+   note ALREADY lowercased, plus the two flags the operators read */
+function queryGroupMatches(group, item) {
+  for (const t of group) {
+    let ok;
+    if (t.kind === 'text') ok = item.title.includes(t.v) || item.note.includes(t.v);
+    else if (t.kind === 'tag') ok = t.re.test(item.title) || t.re.test(item.note);
+    else ok = !!item[t.v === 'starred' ? 'starred' : 'completed'];
+    if (ok === t.neg) return false;
+  }
+  return true;
+}
+
+/* highlight ranges for a title: every occurrence of every needle, merged
+   where they overlap or touch → [[start, end], …] in order */
+function queryMarkRanges(text, needles) {
+  const low = text.toLowerCase();
+  const spans = [];
+  for (const nd of needles) {
+    if (!nd) continue;
+    for (let at = low.indexOf(nd); at >= 0; at = low.indexOf(nd, at + nd.length)) {
+      spans.push([at, at + nd.length]);
+    }
+  }
+  spans.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged = [];
+  for (const s of spans) {
+    const last = merged[merged.length - 1];
+    if (last && s[0] <= last[1]) last[1] = Math.max(last[1], s[1]);
+    else merged.push([s[0], s[1]]);
+  }
+  return merged;
+}
+
+/* Shift+click on a tag chip: add the tag as a term, or take it back out if the
+   query already has it (positive). Cuts by source span, so quotes, operators
+   and `>` elsewhere in the query are left exactly as typed. */
+function queryToggleTag(str, tag) {
+  const want = tag.toLowerCase();
+  const hits = queryTokens(str).filter(t => t.kind === 'tag' && !t.neg && t.v === want);
+  if (!hits.length) return (str.trim() ? str.trim() + ' ' : '') + tag;
+  let out = str;
+  for (const t of hits.reverse()) out = out.slice(0, t.start) + out.slice(t.end);
+  return out.replace(/\s{2,}/g, ' ').trim();
+}
+
+/* is the whole query exactly this one tag? (a plain chip click then clears) */
+function queryIsOnlyTag(str, tag) {
+  const p = parseQuery(str);
+  return p.groups.length === 1 && p.groups[0].length === 1
+    && p.groups[0][0].kind === 'tag' && !p.groups[0][0].neg
+    && p.groups[0][0].v === tag.toLowerCase();
+}
+
 /* ===== 04 view =====
    Incremental DOM rendering. Each node maps to one .node element keyed by
    data-id; structural changes rebuild only the affected children container.
@@ -2348,7 +2482,7 @@ const BRAND_TAGLINE = 'Infinite depth. Zero chaos.';
 const view = {
   focusId: ROOT_ID,
   query: '',
-  filter: null, // { matched:Set, anc:Set, under:Set, q } while searching
+  filter: null, // { matched, anc, under: Set<id>, marks: [string], tags: Set<'#tag'> } while searching
   filterExempt: new Set(), // ids created during this search: shown though they don't match
   filterOpen: new Map(),   // id -> bool: ▸ toggles made during this search (F74); never persisted
 };
@@ -2411,17 +2545,18 @@ function completedRowsHidden() {
   return document.body.classList.contains('hide-completed');
 }
 function computeFilter() {
-  const q = view.query.trim().toLowerCase();
-  if (!q) { view.filter = null; return; }
-  // a pure #tag query matches the exact tag only (#todo must not hit #todos)
-  const tagRe = /^#[\w-]+$/.test(q) ? new RegExp('(^|\\s)' + q + '(?![\\w-])', 'i') : null;
-  const test = tagRe
-    ? s => tagRe.test(s || '')
-    : s => (s || '').toLowerCase().includes(q);
+  const parsed = parseQuery(view.query);
+  const groups = parsed.groups;
+  if (!groups.length) { view.filter = null; return; }
+  const k = groups.length;
   const skipCompleted = completedRowsHidden();
   const matched = new Set(), anc = new Set(), under = new Set();
   const focus = store.getNode(view.focusId);
-  (function walk(n, ancIds, underMatch) {
+  // `stage` = how many leading groups an ancestor has already satisfied
+  // (F76). Taking each anchor as early as possible is always sufficient, so
+  // one pass suffices and cost stays linear. With one group, stage is
+  // always k-1 and this is a plain search.
+  (function walk(n, ancIds, underMatch, stage) {
     const isFocus = n === focus;
     // a mirror matches on its target's text (it has none of its own); its
     // subtree is not walked here — the original reports the real hits
@@ -2429,7 +2564,15 @@ function computeFilter() {
     // an off-screen completed row can't be a result, and neither can anything
     // inside it (the CSS hides the subtree with it)
     if (!isFocus && skipCompleted && c.completed) return;
-    const hit = !isFocus && (test(c.title) || test(c.note));
+    let hit = false, nextStage = stage;
+    if (!isFocus) {
+      const item = {
+        title: (c.title || '').toLowerCase(), note: (c.note || '').toLowerCase(),
+        starred: !!c.starred, completed: !!c.completed,
+      };
+      if (stage === k - 1) hit = queryGroupMatches(groups[k - 1], item);
+      else if (queryGroupMatches(groups[stage], item)) nextStage = stage + 1;
+    }
     // items made during this search don't match it; keep them on screen anyway
     const kept = !isFocus && view.filterExempt.has(n.id);
     if (hit) matched.add(n.id);
@@ -2437,9 +2580,9 @@ function computeFilter() {
     const nowUnder = underMatch || hit || kept;
     if (nowUnder && !isFocus) under.add(n.id);
     const nextAnc = isFocus ? ancIds : ancIds.concat(n.id);
-    for (const c of n.children) walk(c, nextAnc, nowUnder);
-  })(focus, [], false);
-  view.filter = { matched, anc, under, q, tagQuery: !!tagRe };
+    for (const ch of n.children) walk(ch, nextAnc, nowUnder, nextStage);
+  })(focus, [], false, 0);
+  view.filter = { matched, anc, under, marks: parsed.marks, tags: parsed.tags };
 }
 function nodeVisibleInFilter(n) {
   if (!view.filter) return true;
@@ -2497,19 +2640,17 @@ function setRowCollapsed(id, collapsed) {
 }
 
 /* --- node rendering ---------------------------------------------------- */
-function highlightFrag(text, q) {
+function highlightFrag(text, ranges) { // ranges: sorted, merged [start, end] pairs
   const frag = document.createDocumentFragment();
-  const lower = text.toLowerCase();
-  let i = 0;
-  for (;;) {
-    const j = lower.indexOf(q, i);
-    if (j < 0) { frag.append(document.createTextNode(text.slice(i))); break; }
-    if (j > i) frag.append(document.createTextNode(text.slice(i, j)));
+  let at = 0;
+  for (const [s, e] of ranges) {
+    if (s > at) frag.append(document.createTextNode(text.slice(at, s)));
     const m = document.createElement('mark');
-    m.textContent = text.slice(j, j + q.length);
+    m.textContent = text.slice(s, e);
     frag.append(m);
-    i = j + q.length;
+    at = e;
   }
+  if (at < text.length) frag.append(document.createTextNode(text.slice(at)));
   return frag;
 }
 /* --- [[wikilinks]]: resolved by title, case-insensitive, at render time.
@@ -2620,6 +2761,7 @@ const TITLE_PATTERNS = [
   { re: /(^|\s)(#[\w-]+)/, isTag: true },
 ];
 
+/* activeTag: the Set of lowercase '#tags' the current query asks for (or null) */
 function titleParseInto(parent, text, rawBase, activeTag, S) {
   const emitText = (container, str, at) => {
     if (!str) return;
@@ -2647,7 +2789,7 @@ function titleParseInto(parent, text, rawBase, activeTag, S) {
       const chipAt = bestIdx + best[1].length; // keep the leading space plain
       emitText(parent, rest.slice(0, chipAt), base);
       const s = document.createElement('span');
-      s.className = 'tag' + (activeTag && best[2].toLowerCase() === activeTag ? ' active' : '');
+      s.className = 'tag' + (activeTag && activeTag.has(best[2].toLowerCase()) ? ' active' : '');
       s.textContent = best[2];
       s.title = 'Filter by ' + best[2];
       ctx.seg(s.firstChild, base + chipAt);
@@ -2691,11 +2833,13 @@ function titleRawOffset(el, renderedOff) {
 function setTitleContent(el, n) {
   el.textContent = '';
   const f = view.filter;
-  if (f && !f.tagQuery && f.matched.has(n.id) && (n.title || '').toLowerCase().includes(f.q)) {
+  const ranges = f && f.marks.length && f.matched.has(n.id)
+    ? queryMarkRanges(n.title || '', f.marks) : [];
+  if (ranges.length) {
     titleSegs.delete(el); // raw text + <mark>s: rendered offsets ARE raw offsets
-    el.append(highlightFrag(n.title, f.q)); // text search: marks win over formatting
+    el.append(highlightFrag(n.title, ranges)); // text hits: marks win over formatting
   } else {
-    el.append(titleFrag(el, n.title || '', f && f.tagQuery ? f.q : null));
+    el.append(titleFrag(el, n.title || '', f ? f.tags : null));
   }
 }
 /* n = the CONTENT node (what the row shows); own = the row's structural
@@ -3305,8 +3449,14 @@ function setSearch(q) {
   applySearch();
   applySearch.flush();
 }
-function toggleTagFilter(tag) {
-  if (view.query.trim().toLowerCase() === tag.toLowerCase()) clearSearch();
+/* A plain click replaces the query with the tag, or clears it when the tag is
+   already the whole query. Shift+click edits the query instead (F77): the tag
+   becomes one more term, or is taken back out — how a second tag narrows. */
+function toggleTagFilter(tag, add = false) {
+  if (add) {
+    const q = queryToggleTag(view.query, tag);
+    if (q.trim()) setSearch(q); else clearSearch();
+  } else if (queryIsOnlyTag(view.query, tag)) clearSearch();
   else setSearch(tag);
 }
 /* tag chips: clicking one filters by that tag; clicking it again clears */
@@ -3314,7 +3464,7 @@ document.addEventListener('click', e => {
   const tag = e.target.closest?.('.title .tag');
   if (!tag) return;
   e.preventDefault();
-  toggleTagFilter(tag.textContent);
+  toggleTagFilter(tag.textContent, e.shiftKey);
 });
 
 function clearSearch(refocusOutline = true) {
@@ -6492,16 +6642,16 @@ function ipTagsBody(body) {
   }
   const cloud = document.createElement('div');
   cloud.className = 'ip-tags';
-  const active = view.query.trim().toLowerCase();
+  const lit = view.filter ? view.filter.tags : null; // every positive tag in the query
   for (const t of tags) {
     const b = document.createElement('button');
-    b.className = 'ip-tag' + (active === t.tag.toLowerCase() ? ' active' : '');
-    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter`;
+    b.className = 'ip-tag' + (lit && lit.has(t.tag.toLowerCase()) ? ' active' : '');
+    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter · Shift+click to add to the search`;
     b.append(document.createTextNode(t.tag));
     const c = document.createElement('sup');
     c.textContent = String(t.count);
     b.append(c);
-    b.addEventListener('click', () => toggleTagFilter(t.tag));
+    b.addEventListener('click', e => toggleTagFilter(t.tag, e.shiftKey));
     cloud.append(b);
   }
   body.append(cloud);
@@ -6812,9 +6962,9 @@ function tagsAlphabetical(scopeId) {
 function tagsForPanel(scopeId) {
   const all = tagsAlphabetical(scopeId);
   if (!completedRowsHidden()) return all;
-  const active = view.query.trim().toLowerCase();
+  const lit = view.filter ? view.filter.tags : null;
   return all
-    .filter(t => t.live > 0 || t.tag.toLowerCase() === active)
+    .filter(t => t.live > 0 || (lit && lit.has(t.tag.toLowerCase())))
     .map(t => ({ ...t, count: t.live }));
 }
 function tagsByUse(scopeId) {
@@ -6883,7 +7033,7 @@ document.addEventListener('keydown', e => {
    prefs.whatsNewSeen, and lights a dot on the ☰ button until they do. */
 
 // the build puts the real data (plus a comma) at the marker; unbuilt, the default stands
-const HELP_DATA = [{topics:[{id:"start",md:"# Getting started\n\nAn outline is a list where every item can hold its own list, as deep as you like. Everything stays in this browser; nothing is sent anywhere.\n\n## The basics\n\n- Click an item's text and type. There is no edit mode: the outline is always editable.\n- `Enter` makes a new item below. `Tab` indents it under the item above; `Shift+Tab` brings it back out.\n- Click a bullet to **zoom** into that item and make it the whole page. The breadcrumbs at the top lead back out.\n- `Shift+Enter` adds a **note** under an item: longer text that supports markdown.\n- `Ctrl+Z` undoes, about 200 steps back, including structural changes.\n\n## Find your way around\n\n- `Ctrl+K` jumps to any item by typing a few letters of its title.\n- `Ctrl+F` searches everything in view.\n- `Alt+I` opens the **info panel**: what links to the current item, your starred items, and every tag you use.\n- The **☰ menu** holds themes, export and import, and these help pages.\n\n## Where to go next\n\n- [Editing and structure](#help/editing) covers moving, completing and formatting items.\n- [Finding and moving around](#help/navigating) covers zoom, the jump palette and **Move to…**.\n- [Keyboard shortcuts](#help/keys) is the full list, also reachable any time with `?`.\n"},{id:"editing",md:"# Editing and structure\n\nEverything you do to an item's text and place in the outline.\n\n## Titles and notes\n\nA title is one line. A note is free-form markdown under it: `Shift+Enter` opens it, and it renders when you click away. Notes support bold, italic, `code`, links, lists, quotes and headings.\n\nPasting several lines at once turns them into structure: indentation becomes nesting, and `-`, `*` and `1.` list markers are stripped.\n\n## Moving things\n\n- `Tab` / `Shift+Tab` indent and outdent, bringing the item's children with it.\n- `Alt+↑` / `Alt+↓` move an item up or down among its siblings.\n- Drag an item by its **bullet** to reorder it, or drop it onto another item to nest it inside.\n- `Alt+M` files the item inside another one you pick by name. See [Finding and moving around](#help/navigating).\n\n## Completing, collapsing, deleting\n\n- `Ctrl+Enter` marks an item done. Completed items are struck through; a parent shows a `done/total` count of its children once any are checked.\n- `Alt+C` hides or shows completed items everywhere. It is one switch: search, the jump palette and the panel all follow it.\n- `Ctrl+↑` / `Ctrl+↓` collapse and expand. A ringed bullet means something is folded inside.\n- `Backspace` on an empty item deletes it and keeps its children. `Ctrl+Shift+Backspace` deletes the item *and everything under it*; undo is the safety net.\n\n## Making things stand out\n\nSelect text in a title and a small bar appears: bold, italic, underline, code, link, text colour and highlight. `Ctrl+B`, `Ctrl+I` and `Ctrl+U` do the first three directly.\n\nThe **≡ handle** that appears beside a row, or `Ctrl+.`, opens the item menu: heading size (H1–H3), bullet colour, duplicate, zoom in, copy as markdown, mirror and more.\n"},{id:"navigating",md:"# Finding and moving around\n\nZoom, jump, search and file things away without leaving the keyboard.\n\n## Zoom\n\nClick a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms out one level and `Alt+Shift+←` goes all the way to the top. The zoom lives in the page address, so your browser's back and forward buttons walk your zoom history, and you can bookmark any item.\n\n## The jump palette\n\n`Ctrl+K` opens a fuzzy finder over every item title. It works from anywhere, including while you are typing.\n\n- Type a few letters; they need not be contiguous. Matches at word starts rank higher.\n- With nothing typed it shows what you **edited most recently**, so `Ctrl+K` then `Enter` returns you to where you were.\n- **Same name in several places?** Type the path: `Projects/Log` finds the item called \"Log\" under an ancestor containing \"Projects\". `>` and `›` work as separators too, and `Projects/` lists everything inside a match. If a title really contains a slash, a query that finds nothing falls back to a literal search.\n- With **Hide completed** on, finished items are left out of the list.\n\n## Move to…\n\n`Alt+M` uses the same picker to choose a *destination*: the current item, with everything under it, becomes the last child of the one you pick. It is one undo step, and the caret follows the item. Choose **Top level** to file something back out to the root.\n\n## Search\n\n`Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom.\n\n- It matches titles **and** notes, ignoring case.\n- Matches are shown with their ancestors dimmed for context. Items keep their folds: a collapsed item stays collapsed, unless something inside it matches. Use ▸ to open or close items while searching; that changes only the search view, not your outline.\n- A search made only of a single `#tag` matches that whole tag: `#todo` does not match `#todos`. Click any tag chip to search for it, and click it again to clear.\n- Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.\n- Items you create while a search is active stay visible until you change the search.\n- `Esc` clears the search.\n"},{id:"links",md:"# Links, backlinks and mirrors\n\nConnect items to each other, and show one item in several places.\n\n## Links\n\nType `[[` in a title or note and pick an item from the list; `Enter` or `Tab` inserts its exact title. The link jumps to that item when clicked.\n\nLinks are matched by **title**, ignoring case. If two items share a title the link goes to the first one in document order. A link whose target does not exist is shown as broken until an item with that title appears.\n\nIf you rename an item that others link to, 37nodes offers to update those links, so they do not quietly stop working.\n\n## Backlinks\n\nThe [info panel](#help/panel) lists every item that links to the one you are on, from titles and notes alike. Click a row to go there. With **Hide completed** on, completed sources are not listed, since there would be nothing to jump to.\n\n## Mirrors\n\nA **mirror** is a live view of an item shown somewhere else. Edit it in either place and both change, because there is only one item. Completing it, formatting it and its notes all follow.\n\n- Type `((` in an empty item and pick the original from the list, or use **Mirror this item** in the ≡ menu.\n- The mirror's *position* and its collapsed state are its own, so you can fold it away in one place and not the other.\n- Both the original and its mirrors carry a small ⧉ badge. The info panel's \"Mirrored in\" list shows every place an item appears.\n- Deleting the original does not lose the content: the first mirror is promoted to hold it.\n"},{id:"organizing",md:"# Tags and starred items\n\nLightweight ways to group things that do not live under the same parent.\n\n## Tags\n\nAny `#word` in a title or note is a tag, shown as a clickable chip. Click one to filter the outline to it, and click it again to clear.\n\nTyping `#` offers the tags you already use, most-used first, so a vocabulary stays a vocabulary instead of drifting into `#todo`, `#todos` and `#to-do`.\n\nThe panel's **Tags** section lists every tag in view with a count of the items using it. With **Hide completed** on, the count covers only items you can see, and a tag used only on finished items drops out of the list (it is still offered when you type `#`).\n\n## Starred items\n\n`Alt+S` stars the item you are on, or use ★ in the panel or the ≡ menu. A star marks the item at the right edge of its row, and the panel's **Starred** section keeps every starred item one click away, wherever it lives in the outline. It is a shortlist you curate, in document order.\n\n## Headings and colour\n\nThe ≡ menu gives an item a heading size (H1, H2, H3) and a bullet colour from a six-colour palette. Both are purely visual and do not change the structure.\n"},{id:"panel",md:"# The info panel\n\nA side strip that follows your caret and answers \"what is this connected to?\".\n\nOpen it with the ◨ button in the top bar or `Alt+I`. Drag its left edge to resize it, and double-click the edge to reset.\n\n## Sections\n\nEach section collapses, and the panel remembers which are open.\n\n- **This item** lists what links to the item you are on, where it is mirrored, and its details: created, edited, how many items are inside and how many links go out.\n- **Zoomed into** appears when your caret is on something inside the item you have zoomed into. It shows that parent's links and mirrors, which are the ones you came here for, without moving the caret.\n- **Starred** is your shortlist. Click a row to go there; click its ★ to unstar it.\n- **Tags** lists the tags in the current view with counts. Click a tag to filter, click it again to clear.\n\n## Notes on behaviour\n\n- The panel tracks the caret. With nothing focused it shows the item you are zoomed into.\n- Clicking a row goes to that item without changing your zoom, unless it sits outside the current view.\n- **Hide completed** (`Alt+C`) applies here too: completed sources and their tags are not counted.\n"},{id:"data",md:"# Your data, backups and themes\n\nWhere your outline lives, and how to keep it safe.\n\n## Where it is stored\n\nYour outline is saved in this browser's built-in database (IndexedDB), on this device. Nothing is uploaded; the app makes no network requests at all.\n\nBrowsers can still clear site data under disk pressure, or when you clear it yourself. **An export is your real backup.**\n\n## Export and import\n\n- **☰ → Export JSON** writes everything, losslessly, including colours, stars and mirrors. This is the one to keep.\n- **☰ → Export Markdown** writes the current view, or the whole outline, as plain nested text.\n- **☰ → Import JSON…** reads a JSON export back in. To bring in plain text, paste it: indented or bulleted lines become items. `Ctrl+Shift+C` copies the item you are on, with everything under it, as markdown.\n\nA gentle reminder appears when your last JSON export is more than 14 days old; you can change or turn it off in the menu.\n\n## Mirror to a file\n\nIn Chromium browsers (Chrome, Edge), **☰ → Mirror to a file on disk…** keeps a JSON file continuously up to date on every save: a live backup that survives cleared browser data. After a restart the browser may ask you to click **Resume** once.\n\n## More than one tab\n\nOpening the outline in two tabs at once raises a warning banner. The last save wins between tabs, so it is best to use one.\n\n## Themes and layout\n\n**☰ → View** has the themes: Nordic, Light, Dark, E-ink, Parchment, Evergreen, and three terminal tributes (green CRT, IBM 5151 sepia and Wyse 60 white phosphor, with glow and scanlines). **Wide layout** lets the outline follow the window instead of a fixed reading column.\n"}],news:"## v2.5 · 2026-10-12\n\n- **A Help Center.** This window: topic pages, search, a full keyboard reference and this list. `?` still jumps straight to the shortcuts.\n- **`Alt+C` shows or hides completed items.** It is the same switch as ☰ → Hide completed, and it now governs more: the jump palette, the panel's backlinks and mirrors, and its tag counts.\n- **Jump palette: `Parent/Child`.** Type `Projects/Log` to pick the right \"Log\" when several items share a name. Completed items are left out while they are hidden.\n- **Tag counts ignore hidden completed items.** A tag used only on finished work leaves the panel list (not the `#` suggester).\n- **Searching keeps your folds.** A filter no longer opens every item: collapsed items stay collapsed unless something inside them matches, and the ▸ arrows work inside a search without changing your outline.\n- **Move to… (`Alt+M`).** File an item inside any other one by name, with the caret following it there.\n- **`Ctrl+Home` / `Ctrl+End`** jump to the first and last item in view.\n- **The caret survives zooming**, whichever way you zoom, so you do not lose your place.\n- **Resizable info panel**: drag its left edge. It also gained a **Zoomed into** section.\n- **Fixes:** Move to… no longer leaves a ghost copy behind, and jumping with Ctrl+K from a zoom header no longer shows the old title.\n\n## v2.4 · starred items and tags\n\n- **Starred items** (`Alt+S`): a shortlist, listed in the panel.\n- **Tag index** with counts, and **tag autocomplete** as you type `#`.\n- A tidier, grouped ☰ menu.\n\n## v2.0–v2.3 · foundations\n\n- **Backlinks and the info panel** (v2.3), with an offer to update inbound links when you rename an item.\n- **Mirrors** (v2.2): one item, shown in several places.\n- **Item menu, headings, bullet colours and inline formatting** (v2.1).\n- **A real database** (v2.0): IndexedDB storage and migration, so large outlines and future upgrades are safe.\n"},{ topics: [], news: '' }][0];
+const HELP_DATA = [{topics:[{id:"start",md:"# Getting started\n\nAn outline is a list where every item can hold its own list, as deep as you like. Everything stays in this browser; nothing is sent anywhere.\n\n## The basics\n\n- Click an item's text and type. There is no edit mode: the outline is always editable.\n- `Enter` makes a new item below. `Tab` indents it under the item above; `Shift+Tab` brings it back out.\n- Click a bullet to **zoom** into that item and make it the whole page. The breadcrumbs at the top lead back out.\n- `Shift+Enter` adds a **note** under an item: longer text that supports markdown.\n- `Ctrl+Z` undoes, about 200 steps back, including structural changes.\n\n## Find your way around\n\n- `Ctrl+K` jumps to any item by typing a few letters of its title.\n- `Ctrl+F` searches everything in view.\n- `Alt+I` opens the **info panel**: what links to the current item, your starred items, and every tag you use.\n- The **☰ menu** holds themes, export and import, and these help pages.\n\n## Where to go next\n\n- [Editing and structure](#help/editing) covers moving, completing and formatting items.\n- [Finding and moving around](#help/navigating) covers zoom, the jump palette and **Move to…**.\n- [Keyboard shortcuts](#help/keys) is the full list, also reachable any time with `?`.\n"},{id:"editing",md:"# Editing and structure\n\nEverything you do to an item's text and place in the outline.\n\n## Titles and notes\n\nA title is one line. A note is free-form markdown under it: `Shift+Enter` opens it, and it renders when you click away. Notes support bold, italic, `code`, links, lists, quotes and headings.\n\nPasting several lines at once turns them into structure: indentation becomes nesting, and `-`, `*` and `1.` list markers are stripped.\n\n## Moving things\n\n- `Tab` / `Shift+Tab` indent and outdent, bringing the item's children with it.\n- `Alt+↑` / `Alt+↓` move an item up or down among its siblings.\n- Drag an item by its **bullet** to reorder it, or drop it onto another item to nest it inside.\n- `Alt+M` files the item inside another one you pick by name. See [Finding and moving around](#help/navigating).\n\n## Completing, collapsing, deleting\n\n- `Ctrl+Enter` marks an item done. Completed items are struck through; a parent shows a `done/total` count of its children once any are checked.\n- `Alt+C` hides or shows completed items everywhere. It is one switch: search, the jump palette and the panel all follow it.\n- `Ctrl+↑` / `Ctrl+↓` collapse and expand. A ringed bullet means something is folded inside.\n- `Backspace` on an empty item deletes it and keeps its children. `Ctrl+Shift+Backspace` deletes the item *and everything under it*; undo is the safety net.\n\n## Making things stand out\n\nSelect text in a title and a small bar appears: bold, italic, underline, code, link, text colour and highlight. `Ctrl+B`, `Ctrl+I` and `Ctrl+U` do the first three directly.\n\nThe **≡ handle** that appears beside a row, or `Ctrl+.`, opens the item menu: heading size (H1–H3), bullet colour, duplicate, zoom in, copy as markdown, mirror and more.\n"},{id:"navigating",md:"# Finding and moving around\n\nZoom, jump, search and file things away without leaving the keyboard.\n\n## Zoom\n\nClick a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms out one level and `Alt+Shift+←` goes all the way to the top. The zoom lives in the page address, so your browser's back and forward buttons walk your zoom history, and you can bookmark any item.\n\n## The jump palette\n\n`Ctrl+K` opens a fuzzy finder over every item title. It works from anywhere, including while you are typing.\n\n- Type a few letters; they need not be contiguous. Matches at word starts rank higher.\n- With nothing typed it shows what you **edited most recently**, so `Ctrl+K` then `Enter` returns you to where you were.\n- **Same name in several places?** Type the path: `Projects/Log` finds the item called \"Log\" under an ancestor containing \"Projects\". `>` and `›` work as separators too, and `Projects/` lists everything inside a match. If a title really contains a slash, a query that finds nothing falls back to a literal search.\n- With **Hide completed** on, finished items are left out of the list.\n\n## Move to…\n\n`Alt+M` uses the same picker to choose a *destination*: the current item, with everything under it, becomes the last child of the one you pick. It is one undo step, and the caret follows the item. Choose **Top level** to file something back out to the root.\n\n## Search\n\n`Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom. Every word you type must match, in any order, in an item's title or note.\n\n- `budget q3` finds items containing both words; each may be in the title or the note.\n- `\"q3 budget\"` finds that exact phrase, spaces included.\n- `#urgent` finds items tagged `#urgent`: the whole tag, so `#todo` does not match `#todos`.\n- `-draft` finds items that do **not** contain *draft*. It works on words, phrases, tags and flags: `-#later`, `-\"to do\"`.\n- `is:starred` finds starred items; `-is:starred` finds the rest.\n- `is:done` finds completed items (nothing shows while **Hide completed** is on).\n- `acme > #urgent` finds `#urgent` items somewhere inside an item matching *acme*. Chain it for more levels: `acme > launch > #urgent`.\n\n- `>` must stand alone with spaces around it; the matches to its left are shown dimmed for context.\n- To search for a word that begins with `-`, put it in quotes: `\"-5\"`.\n- Matches are shown with their ancestors dimmed. Items keep their folds: a collapsed item stays collapsed, unless something inside it matches. Use ▸ to open or close items while searching; that changes only the search view, not your outline.\n- **Click a tag chip** to search for just that tag, and click it again to clear. **Shift+click** a chip, in the outline or the panel, to add it to the search you already have, or to take it back out.\n- Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.\n- Items you create while a search is active stay visible until you change the search.\n- `Esc` clears the search.\n"},{id:"links",md:"# Links, backlinks and mirrors\n\nConnect items to each other, and show one item in several places.\n\n## Links\n\nType `[[` in a title or note and pick an item from the list; `Enter` or `Tab` inserts its exact title. The link jumps to that item when clicked.\n\nLinks are matched by **title**, ignoring case. If two items share a title the link goes to the first one in document order. A link whose target does not exist is shown as broken until an item with that title appears.\n\nIf you rename an item that others link to, 37nodes offers to update those links, so they do not quietly stop working.\n\n## Backlinks\n\nThe [info panel](#help/panel) lists every item that links to the one you are on, from titles and notes alike. Click a row to go there. With **Hide completed** on, completed sources are not listed, since there would be nothing to jump to.\n\n## Mirrors\n\nA **mirror** is a live view of an item shown somewhere else. Edit it in either place and both change, because there is only one item. Completing it, formatting it and its notes all follow.\n\n- Type `((` in an empty item and pick the original from the list, or use **Mirror this item** in the ≡ menu.\n- The mirror's *position* and its collapsed state are its own, so you can fold it away in one place and not the other.\n- Both the original and its mirrors carry a small ⧉ badge. The info panel's \"Mirrored in\" list shows every place an item appears.\n- Deleting the original does not lose the content: the first mirror is promoted to hold it.\n"},{id:"organizing",md:"# Tags and starred items\n\nLightweight ways to group things that do not live under the same parent.\n\n## Tags\n\nAny `#word` in a title or note is a tag, shown as a clickable chip. Click one to filter the outline to it, and click it again to clear.\n\nTyping `#` offers the tags you already use, most-used first, so a vocabulary stays a vocabulary instead of drifting into `#todo`, `#todos` and `#to-do`.\n\nThe panel's **Tags** section lists every tag in view with a count of the items using it. With **Hide completed** on, the count covers only items you can see, and a tag used only on finished items drops out of the list (it is still offered when you type `#`).\n\n## Starred items\n\n`Alt+S` stars the item you are on, or use ★ in the panel or the ≡ menu. A star marks the item at the right edge of its row, and the panel's **Starred** section keeps every starred item one click away, wherever it lives in the outline. It is a shortlist you curate, in document order.\n\n## Headings and colour\n\nThe ≡ menu gives an item a heading size (H1, H2, H3) and a bullet colour from a six-colour palette. Both are purely visual and do not change the structure.\n"},{id:"panel",md:"# The info panel\n\nA side strip that follows your caret and answers \"what is this connected to?\".\n\nOpen it with the ◨ button in the top bar or `Alt+I`. Drag its left edge to resize it, and double-click the edge to reset.\n\n## Sections\n\nEach section collapses, and the panel remembers which are open.\n\n- **This item** lists what links to the item you are on, where it is mirrored, and its details: created, edited, how many items are inside and how many links go out.\n- **Zoomed into** appears when your caret is on something inside the item you have zoomed into. It shows that parent's links and mirrors, which are the ones you came here for, without moving the caret.\n- **Starred** is your shortlist. Click a row to go there; click its ★ to unstar it.\n- **Tags** lists the tags in the current view with counts. Click a tag to filter, click it again to clear.\n\n## Notes on behaviour\n\n- The panel tracks the caret. With nothing focused it shows the item you are zoomed into.\n- Clicking a row goes to that item without changing your zoom, unless it sits outside the current view.\n- **Hide completed** (`Alt+C`) applies here too: completed sources and their tags are not counted.\n"},{id:"data",md:"# Your data, backups and themes\n\nWhere your outline lives, and how to keep it safe.\n\n## Where it is stored\n\nYour outline is saved in this browser's built-in database (IndexedDB), on this device. Nothing is uploaded; the app makes no network requests at all.\n\nBrowsers can still clear site data under disk pressure, or when you clear it yourself. **An export is your real backup.**\n\n## Export and import\n\n- **☰ → Export JSON** writes everything, losslessly, including colours, stars and mirrors. This is the one to keep.\n- **☰ → Export Markdown** writes the current view, or the whole outline, as plain nested text.\n- **☰ → Import JSON…** reads a JSON export back in. To bring in plain text, paste it: indented or bulleted lines become items. `Ctrl+Shift+C` copies the item you are on, with everything under it, as markdown.\n\nA gentle reminder appears when your last JSON export is more than 14 days old; you can change or turn it off in the menu.\n\n## Mirror to a file\n\nIn Chromium browsers (Chrome, Edge), **☰ → Mirror to a file on disk…** keeps a JSON file continuously up to date on every save: a live backup that survives cleared browser data. After a restart the browser may ask you to click **Resume** once.\n\n## More than one tab\n\nOpening the outline in two tabs at once raises a warning banner. The last save wins between tabs, so it is best to use one.\n\n## Themes and layout\n\n**☰ → View** has the themes: Nordic, Light, Dark, E-ink, Parchment, Evergreen, and three terminal tributes (green CRT, IBM 5151 sepia and Wyse 60 white phosphor, with glow and scanlines). **Wide layout** lets the outline follow the window instead of a fixed reading column.\n"}],news:"## v2.5 · 2026-10-12\n\n- **A Help Center.** This window: topic pages, search, a full keyboard reference and this list. `?` still jumps straight to the shortcuts.\n- **`Alt+C` shows or hides completed items.** It is the same switch as ☰ → Hide completed, and it now governs more: the jump palette, the panel's backlinks and mirrors, and its tag counts.\n- **Jump palette: `Parent/Child`.** Type `Projects/Log` to pick the right \"Log\" when several items share a name. Completed items are left out while they are hidden.\n- **Tag counts ignore hidden completed items.** A tag used only on finished work leaves the panel list (not the `#` suggester).\n- **A real search language.** Several words now all have to match, `\"quotes\"` make a phrase, `-` excludes, `is:starred` and `is:done` filter by flag, and `acme > #urgent` searches *inside* matches of `acme`. Shift+click a tag chip to add it to your search. **One change to know about:** `foo bar` used to look for that exact text; it now finds items with both words, so put it in quotes if you want the phrase. See Finding and moving around.\n- **Searching keeps your folds.** A filter no longer opens every item: collapsed items stay collapsed unless something inside them matches, and the ▸ arrows work inside a search without changing your outline.\n- **Move to… (`Alt+M`).** File an item inside any other one by name, with the caret following it there.\n- **`Ctrl+Home` / `Ctrl+End`** jump to the first and last item in view.\n- **The caret survives zooming**, whichever way you zoom, so you do not lose your place.\n- **Resizable info panel**: drag its left edge. It also gained a **Zoomed into** section.\n- **Fixes:** Move to… no longer leaves a ghost copy behind, and jumping with Ctrl+K from a zoom header no longer shows the old title.\n\n## v2.4 · starred items and tags\n\n- **Starred items** (`Alt+S`): a shortlist, listed in the panel.\n- **Tag index** with counts, and **tag autocomplete** as you type `#`.\n- A tidier, grouped ☰ menu.\n\n## v2.0–v2.3 · foundations\n\n- **Backlinks and the info panel** (v2.3), with an offer to update inbound links when you rename an item.\n- **Mirrors** (v2.2): one item, shown in several places.\n- **Item menu, headings, bullet colours and inline formatting** (v2.1).\n- **A real database** (v2.0): IndexedDB storage and migration, so large outlines and future upgrades are safe.\n"},{ topics: [], news: '' }][0];
 
 /* [keys, what] — `keys` is a list of alternatives, each a combo joined by "+" */
 const HELP_KEYS = [
