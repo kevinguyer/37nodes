@@ -1122,7 +1122,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Help&hellip; <span class="menu-pill" id="help-new-pill" hidden>New</span></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 96 &middot; 2026-10-13</div>
+  <div class="menu-note" id="build-readout">Build 98 &middot; 2026-10-13</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -4795,6 +4795,7 @@ let palShown = [];  // scored results currently rendered
 let palSel = 0;
 let palMode = 'jump'; // 'jump' | 'move' | 'mirror'
 let palMoveId = null; // in move / mirror mode: the node being moved or mirrored
+let palFromId = null; // ...and the ROW the command was opened from (structural id)
 
 /* `up` is the index of the parent's entry (-1 at the top): the ancestor chain
    for `Parent/Child` matching (F70) without a copied array per item. With Hide
@@ -5080,9 +5081,11 @@ function paletteMove(i, follow = true) {
     jumpToNode(id);
   } else if (landing && store.getNode(landing)) {
     focusNodeTitle(landing, 'end');
-  } else {
-    const first = visibleTitles()[0]; // nowhere sensible: the dialog's focus target left
-    if (first) activateTitle(first, 0);
+  } else if (view.focusId !== ROOT_ID && store.getNode(view.focusId)) {
+    // no row left to stand on: the zoomed item is the nearest place you were
+    // (at the top level with nothing else in view there is nowhere to land,
+    // and the caret is simply left unplaced rather than thrown to row one)
+    focusNodeTitle(view.focusId, 'end');
   }
 }
 
@@ -5098,10 +5101,18 @@ function paletteMirror(i, follow = true) {
   if (!r || !id) return;
   const dest = store.getNode(r.id);
   if (!dest || !store.getNode(id)) return;
+  const from = palFromId;
   const m = store.createMirrorIn(id, dest.id, dest.children.length);
-  // staying needs no work: nothing moved, and closing the dialog hands the
-  // caret back to the row it was opened from
   if (m && follow) jumpToNode(m.id);
+  else if (m) {
+    // staying: nothing moved, and closing the dialog normally hands the caret
+    // back to the row it was opened from. When it was opened from the ≡ menu
+    // the thing focused before was the handle or nothing, so say where.
+    const a = document.activeElement;
+    if (!(a && a.closest && a.closest('.title, .note-edit')) && from && store.getNode(from)) {
+      focusNodeTitle(from, 'end');
+    }
+  }
 }
 
 /* --- opening ------------------------------------------------------------ */
@@ -5128,6 +5139,7 @@ function openMovePalette(id) {
   if (!n || id === ROOT_ID) return; // the root is the document, not an item
   palMode = 'move';
   palMoveId = id;
+  palFromId = id;
   palItems = moveIndex(id);
   // a mirror owns no text: name it by what the row shows, while still moving
   // the mirror itself
@@ -5146,6 +5158,7 @@ function openMirrorPalette(id) {
   const orig = store.mirrorContent(n) || n;
   palMode = 'mirror';
   palMoveId = orig.id;
+  palFromId = id;
   palItems = moveIndex(orig.id);
   const label = truncate(orig.title, 30) || 'Untitled';
   palInputEl.placeholder = `Mirror “${label}” into…`;
