@@ -298,7 +298,8 @@ function hcShowKeys(root) {
   h.textContent = 'Keyboard shortcuts';
   const note = document.createElement('p');
   note.className = 'hc-lede';
-  note.append(document.createTextNode('On macOS, use '), hcKbd('⌘'), document.createTextNode(' in place of '), hcKbd('Ctrl'), document.createTextNode('.'));
+  note.append(document.createTextNode('On macOS, use '), hcKbd('⌘'), document.createTextNode(' in place of '), hcKbd('Ctrl'),
+    document.createTextNode('. The Alt shortcuts use the Option key there, which means Option+C, L, M, S and I no longer type the characters they normally would (ç, ¬, µ, ß, ˆ); use the Character Viewer for those.'));
   root.append(h, note);
   let any = false;
   for (const g of HELP_KEYS) {

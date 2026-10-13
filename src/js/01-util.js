@@ -12,10 +12,22 @@ const truncate = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s);
    asked for? Alt+letter reports differently across keyboard layouts — some
    send a dead key or an accented character as e.key — so the physical key
    (e.code) is accepted as well as the character. One place for the rule, so a
-   fix to how chords are recognised is made once. */
+   fix to how chords are recognised is made once.
+
+   Two places a chord must NOT fire, because it would act on the outline from
+   somewhere that is not the outline: while a modal dialog is open (the
+   palette, Help — the shortcut would change the page behind it), and inside
+   an ordinary text field (the search box, a picker's input, a rename box, a
+   <select>), where the keystroke belongs to the field. Titles are
+   contenteditable and note editors are the one textarea that is part of the
+   outline, so both still take chords: that is where they are meant to be used. */
 function altChord(e, code, { shift = false } = {}) {
   if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey !== shift) return false;
-  return e.code === code || e.key.toLowerCase() === code.slice(3).toLowerCase();
+  if (e.code !== code && e.key.toLowerCase() !== code.slice(3).toLowerCase()) return false;
+  if (document.querySelector('dialog[open]')) return false;
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select') && !t.closest('.note-edit')) return false;
+  return true;
 }
 
 function debounce(fn, ms) {
