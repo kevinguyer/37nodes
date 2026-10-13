@@ -62,12 +62,31 @@ function moveIndex(selfId) {
 
 /* substring beats subsequence; word starts and tight runs beat scatter */
 function fuzzyMatch(q, title) {
-  const t = title.toLowerCase();
+  const { low: t, map } = lowerWithMap(title);
+  const m = fuzzyMatchLow(q, t, title.length);
+  // spans were found in the lowered text; the caller slices the original
+  if (m && map) m.spans = spansBack(title, map, m.spans);
+  return m;
+}
+/* [[start, length], …] in lowered coordinates → the same in the original,
+   merged where mapping made neighbours overlap (two lowered units that came
+   from one character) */
+function spansBack(text, map, spans) {
+  const out = [];
+  for (const [s, len] of spans) {
+    const [a, b] = lowerSpanBack(text, map, s, s + len);
+    const last = out[out.length - 1];
+    if (last && a < last[0] + last[1]) last[1] = Math.max(last[1], b - last[0]);
+    else out.push([a, b - a]);
+  }
+  return out;
+}
+function fuzzyMatchLow(q, t, titleLen) {
   const at = t.indexOf(q);
   if (at >= 0) {
     let score = 200 - Math.min(at, 50);
     if (at === 0 || /[^\w]/.test(t[at - 1])) score += 40;
-    return { score: score - Math.min(title.length, 100) / 5, spans: [[at, q.length]] };
+    return { score: score - Math.min(titleLen, 100) / 5, spans: [[at, q.length]] };
   }
   let ti = 0, score = 0;
   const spans = [];
@@ -82,7 +101,7 @@ function fuzzyMatch(q, title) {
     }
     ti = j + 1;
   }
-  return { score: score - Math.min(title.length, 100) / 5, spans };
+  return { score: score - Math.min(titleLen, 100) / 5, spans };
 }
 
 /* title text with the matched characters wrapped in <mark> (shared with the

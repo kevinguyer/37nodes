@@ -1122,7 +1122,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
       <button class="menu-row" id="show-help">Help&hellip; <span class="menu-pill" id="help-new-pill" hidden>New</span></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 93 &middot; 2026-10-13</div>
+  <div class="menu-note" id="build-readout">Build 94 &middot; 2026-10-13</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -2530,15 +2530,40 @@ function queryGroupMatches(group, item) {
   return true;
 }
 
+/* toLowerCase can change a string's length ('İ' becomes two units), so an
+   offset found in the lowered text is not an offset into the original. This
+   lowers `text` and, only when the lengths differ, returns where each lowered
+   unit came from: `map[i]` is the index in `text` of the character that
+   produced low[i] (plus a final entry for the end). map is null in the
+   overwhelming case that lengths agree — no mapping, no cost. */
+function lowerWithMap(text) {
+  const low = text.toLowerCase();
+  if (low.length === text.length) return { low, map: null };
+  const map = [];
+  for (let i = 0; i < text.length; ) {
+    const ch = String.fromCodePoint(text.codePointAt(i));
+    for (let k = ch.toLowerCase().length; k > 0; k--) map.push(i);
+    i += ch.length;
+  }
+  map.push(text.length);
+  return { low, map };
+}
+/* [start, end) in lowered coordinates → [start, end) in the original */
+function lowerSpanBack(text, map, start, end) {
+  if (!map) return [start, end];
+  const last = map[Math.max(start, end - 1)];
+  return [map[start], last + (text.codePointAt(last) > 0xFFFF ? 2 : 1)];
+}
+
 /* highlight ranges for a title: every occurrence of every needle, merged
    where they overlap or touch → [[start, end], …] in order */
 function queryMarkRanges(text, needles) {
-  const low = text.toLowerCase();
+  const { low, map } = lowerWithMap(text);
   const spans = [];
   for (const nd of needles) {
     if (!nd) continue;
     for (let at = low.indexOf(nd); at >= 0; at = low.indexOf(nd, at + nd.length)) {
-      spans.push([at, at + nd.length]);
+      spans.push(lowerSpanBack(text, map, at, at + nd.length));
     }
   }
   spans.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -4800,12 +4825,31 @@ function moveIndex(selfId) {
 
 /* substring beats subsequence; word starts and tight runs beat scatter */
 function fuzzyMatch(q, title) {
-  const t = title.toLowerCase();
+  const { low: t, map } = lowerWithMap(title);
+  const m = fuzzyMatchLow(q, t, title.length);
+  // spans were found in the lowered text; the caller slices the original
+  if (m && map) m.spans = spansBack(title, map, m.spans);
+  return m;
+}
+/* [[start, length], …] in lowered coordinates → the same in the original,
+   merged where mapping made neighbours overlap (two lowered units that came
+   from one character) */
+function spansBack(text, map, spans) {
+  const out = [];
+  for (const [s, len] of spans) {
+    const [a, b] = lowerSpanBack(text, map, s, s + len);
+    const last = out[out.length - 1];
+    if (last && a < last[0] + last[1]) last[1] = Math.max(last[1], b - last[0]);
+    else out.push([a, b - a]);
+  }
+  return out;
+}
+function fuzzyMatchLow(q, t, titleLen) {
   const at = t.indexOf(q);
   if (at >= 0) {
     let score = 200 - Math.min(at, 50);
     if (at === 0 || /[^\w]/.test(t[at - 1])) score += 40;
-    return { score: score - Math.min(title.length, 100) / 5, spans: [[at, q.length]] };
+    return { score: score - Math.min(titleLen, 100) / 5, spans: [[at, q.length]] };
   }
   let ti = 0, score = 0;
   const spans = [];
@@ -4820,7 +4864,7 @@ function fuzzyMatch(q, title) {
     }
     ti = j + 1;
   }
-  return { score: score - Math.min(title.length, 100) / 5, spans };
+  return { score: score - Math.min(titleLen, 100) / 5, spans };
 }
 
 /* title text with the matched characters wrapped in <mark> (shared with the

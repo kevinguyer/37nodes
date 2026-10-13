@@ -127,15 +127,40 @@ function queryGroupMatches(group, item) {
   return true;
 }
 
+/* toLowerCase can change a string's length ('İ' becomes two units), so an
+   offset found in the lowered text is not an offset into the original. This
+   lowers `text` and, only when the lengths differ, returns where each lowered
+   unit came from: `map[i]` is the index in `text` of the character that
+   produced low[i] (plus a final entry for the end). map is null in the
+   overwhelming case that lengths agree — no mapping, no cost. */
+function lowerWithMap(text) {
+  const low = text.toLowerCase();
+  if (low.length === text.length) return { low, map: null };
+  const map = [];
+  for (let i = 0; i < text.length; ) {
+    const ch = String.fromCodePoint(text.codePointAt(i));
+    for (let k = ch.toLowerCase().length; k > 0; k--) map.push(i);
+    i += ch.length;
+  }
+  map.push(text.length);
+  return { low, map };
+}
+/* [start, end) in lowered coordinates → [start, end) in the original */
+function lowerSpanBack(text, map, start, end) {
+  if (!map) return [start, end];
+  const last = map[Math.max(start, end - 1)];
+  return [map[start], last + (text.codePointAt(last) > 0xFFFF ? 2 : 1)];
+}
+
 /* highlight ranges for a title: every occurrence of every needle, merged
    where they overlap or touch → [[start, end], …] in order */
 function queryMarkRanges(text, needles) {
-  const low = text.toLowerCase();
+  const { low, map } = lowerWithMap(text);
   const spans = [];
   for (const nd of needles) {
     if (!nd) continue;
     for (let at = low.indexOf(nd); at >= 0; at = low.indexOf(nd, at + nd.length)) {
-      spans.push([at, at + nd.length]);
+      spans.push(lowerSpanBack(text, map, at, at + nd.length));
     }
   }
   spans.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
