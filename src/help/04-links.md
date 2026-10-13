@@ -23,5 +23,5 @@ A **mirror** is a live view of an item shown somewhere else. Edit it in either p
 - Type `((` in an empty item and pick the original from the list, or use **Mirror this item** in the ≡ menu.
 - To show an item somewhere else without moving it, press `Alt+Shift+M` (or **Mirror to…** in the ≡ menu) and pick the destination by name. The original stays where it is; a mirror appears as the last item inside the one you pick.
 - The mirror's *position* and its collapsed state are its own, so you can fold it away in one place and not the other.
-- An item that has mirrors shows a **filled diamond** for its bullet, and each mirror shows a **hollow diamond**, so you can tell the original from its reflections at a glance. The info panel's "Mirrored in" list shows every place an item appears.
+- An item that has mirrors shows a **filled diamond** for its bullet, and each mirror shows a **hollow diamond**, so you can tell the original from its reflections at a glance. The info panel's **Also appears in** list shows every place an item lives: the original first, then each mirror, with the one you are in marked *you are here*.
 - Deleting the original does not lose the content: the first mirror is promoted to hold it.

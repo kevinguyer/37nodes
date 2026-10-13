@@ -123,7 +123,7 @@ mechanism that keeps it current.
 | FR-5 | Hide completed items in the backlinks list | Done (build 60, F69) | S | Low | Yes; follows the global Hide-completed toggle |
 | FR-6 | "Mirror to…" command | Done (build 78, F80) | S–M | Low | `Alt+Shift+M`; rides on the Move-to picker |
 | FR-7 | Multi-line (multi-item) selection | Discuss | XL | Medium | Yes, but as its own release, scoped to sibling ranges |
-| FR-8 | On a mirror, show every other place it appears | Discuss | S | Low | Yes; confirm what he is seeing today |
+| FR-8 | On a mirror, show every other place it appears | Done (build 87, F83) | S | Low | "Also appears in": original + mirrors, current marked |
 | FR-9 | Ctrl+Home / Ctrl+End: first / last item in view | Done (build 48, F68) | S | Low | Yes |
 | FR-10 | Panel section for the zoomed-into item as well as the selected one | Done (build 52, F61) | S–M | Low | Yes |
 | FR-11 | Keep the caret on the item you zoomed out of (and into) | Done (build 49, F12) | S | Low | Yes, for every zoom path |
@@ -571,3 +571,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-13 | FR-6 shipped: Mirror to… (`Alt+Shift+M`, ≡ menu), F80. It follows the new mirror like Move to… follows its item; FR-4 will govern both. |
 | 2026-10-13 | FR-4 shipped (F81): After Move / Mirror to… preference plus Shift+Enter in the picker. Stay lands on the next visible row after the item's subtree, else the previous one. |
 | 2026-10-13 | FR-20 shipped (F82): filled diamond for an item that has mirrors, hollow for each mirror, drawn in CSS. Ctrl+↑/↓ now folds a mirror row. |
+| 2026-10-13 | FR-8 shipped (F83): the panel's "Also appears in" lists the original and every mirror and marks where the caret is. |

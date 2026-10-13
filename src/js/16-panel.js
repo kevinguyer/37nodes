@@ -95,6 +95,7 @@ const ipBodyEl = $('#ip-body');
 const ipStarEl = $('#ip-star');
 const ipBtnEl = $('#panel-btn'); // the top-bar switch, lit while the panel is out
 let ipActiveId = null; // the item the caret last visited (content id)
+let ipActiveRowId = null; // the row it was in (structural id): which instance of a mirrored item
 
 function panelOpen() { return !!prefs.infoPanel; }
 function syncPanelBtn() {
@@ -213,7 +214,9 @@ function jumpToNode(id) {
   revealNode(id);
   // point the panel at the destination outright: focusNodeTitle may not move
   // focus at all (the row can already hold it), and no focusin would follow
-  ipActiveId = id;
+  const landed = store.getNode(id);
+  ipActiveId = ((landed && store.mirrorContent(landed)) || landed).id; // a mirror row tracks its original
+  ipActiveRowId = id;
   focusNodeTitle(id, 'end');
   renderInfoPanel();
 }
@@ -222,7 +225,7 @@ function ipTrackedId() {
   return (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
 }
 
-function ipItemBody(body, id, n) {
+function ipItemBody(body, id, n, rowId = null) {
   // --- linked from ---
   const back = shownBacklinks(id);
   body.append(ipLabel(back.length
@@ -244,12 +247,23 @@ function ipItemBody(body, id, n) {
     body.append(ipRow('Show only linked items', 'Alt+L', () => filterToLinked(id)));
   }
 
-  // --- mirrors ---
+  // --- every place this item appears (F83) ---
+  // The original first, then each mirror, whichever of them the caret is in:
+  // a mirror row tracks its original, so without the original's own place in
+  // the list there would be no way to say where "the real one" lives, and no
+  // way to mark which row you are standing in.
   const mirrors = shownMirrors(id);
   if (mirrors.length) {
-    body.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
-    for (const m of mirrors) {
-      body.append(ipRow('◇ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
+    const places = [];
+    if (!sourceHidden(id)) places.push({ rowId: id, glyph: '◆', role: 'the original' });
+    for (const m of mirrors) places.push({ rowId: m.id, glyph: '◇', role: 'a mirror' });
+    body.append(ipLabel(`Also appears in ${places.length} place${places.length === 1 ? '' : 's'}`));
+    for (const p of places) {
+      const here = p.rowId === rowId;
+      const row = ipRow(`${p.glyph} ${pathOf(p.rowId)}`,
+        here ? `${p.role} · you are here` : p.role, () => jumpToNode(p.rowId));
+      if (here) row.classList.add('on');
+      body.append(row);
     }
   }
 
@@ -336,7 +350,7 @@ function renderInfoPanel() {
 
   ipSection('item', 'This item', null, body => {
     if (!tracked) { body.append(ipHint('Click an item to see what links to it.')); return; }
-    ipItemBody(body, id, n);
+    ipItemBody(body, id, n, ipActiveRowId);
   });
   // The zoomed-into item gets the same treatment while the caret is on
   // something else inside it: its links and mirrors are the ones you came
@@ -366,7 +380,15 @@ document.addEventListener('focusin', e => {
   const t = e.target.closest?.('.title');
   const ta = !t && e.target.closest?.('.note-edit');
   const id = t ? contentIdOfTitle(t) : ta ? contentIdOfNoteEditor(ta) : null;
-  if (id && id !== ipActiveId) { ipActiveId = id; ipRefresh(); }
+  // the structural row too: the same item can sit in several places
+  let rowId = null;
+  if (t) rowId = t === focusTitleEl ? view.focusId : idOfTitle(t);
+  else if (ta) rowId = ta.parentElement === focusNoteEl ? view.focusId : ta.closest('.node')?.dataset.id || null;
+  if (id && (id !== ipActiveId || rowId !== ipActiveRowId)) {
+    ipActiveId = id;
+    ipActiveRowId = rowId;
+    ipRefresh();
+  }
 });
 window.addEventListener('hashchange', () => {
   // zooming somewhere else is a change of subject: drop a tracked item that
@@ -374,6 +396,7 @@ window.addEventListener('hashchange', () => {
   // target. (Runs after 09's applyFocusFromHash, so view.focusId is current.)
   if (ipActiveId && ipActiveId !== view.focusId && !store.isDescendant(ipActiveId, view.focusId)) {
     ipActiveId = null;
+    ipActiveRowId = null;
   }
   ipRefresh();
 });
