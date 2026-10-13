@@ -138,7 +138,7 @@ mechanism that keeps it current.
 | FR-19 | Filter by starred / unstarred | Done (build 68, F75) | S | Low | `is:starred` / `-is:starred`; specified in F75 |
 | FR-20 | Distinct glyph for mirrors (diamond) | Done (build 85, F82) | S | Low | Filled diamond = original with mirrors, hollow = mirror (decided 2026-10-13) |
 | FR-21 | Tag counts exclude completed items; hide zero-count tags | Done (build 60, F71) | S | Low | Panel only; follows the global toggle |
-| FR-22 | Starred / backlink click zooms into the item | Discuss | S | Low | Yes, as a pref; decide leaf behaviour |
+| FR-22 | Starred / backlink click zooms into the item | Done (build 89, F84) | S | Low | Leaf zooms to its parent with the item focused (decided 2026-10-13); pref + Alt+click |
 
 ### FR-1 — several tags at once
 
@@ -572,3 +572,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-13 | FR-4 shipped (F81): After Move / Mirror to… preference plus Shift+Enter in the picker. Stay lands on the next visible row after the item's subtree, else the previous one. |
 | 2026-10-13 | FR-20 shipped (F82): filled diamond for an item that has mirrors, hollow for each mirror, drawn in CSS. Ctrl+↑/↓ now folds a mirror row. |
 | 2026-10-13 | FR-8 shipped (F83): the panel's "Also appears in" lists the original and every mirror and marks where the caret is. |
+| 2026-10-13 | FR-22 shipped (F84): starred and linked-from rows zoom; leaves zoom to their parent with the item focused; Panel links preference and Alt+click. |

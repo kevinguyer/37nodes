@@ -16,5 +16,5 @@ Each section collapses, and the panel remembers which are open.
 ## Notes on behaviour
 
 - The panel tracks the caret. With nothing focused it shows the item you are zoomed into.
-- Clicking a row goes to that item without changing your zoom, unless it sits outside the current view.
+- Clicking a **starred** or **linked-from** row zooms to that item. An item with things inside becomes the page; one without opens its parent with the item selected. Hold `Alt` while clicking to reveal it where it lives instead, without changing your zoom, or make that the default with **☰ → View → Panel links**. The places listed under **Also appears in** always just take you there.
 - **Hide completed** (`Alt+C`) applies here too: completed sources and their tags are not counted.

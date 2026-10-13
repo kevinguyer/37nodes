@@ -221,6 +221,42 @@ function jumpToNode(id) {
   renderInfoPanel();
 }
 
+/* Panel rows that name an ITEM (starred, linked from) — F84. By default they
+   zoom: an item with children becomes the page, and a leaf, which would make
+   an empty page with only a header, zooms to its parent with the leaf
+   focused, so you land among its siblings. The preference
+   (prefs.panelLinks === 'reveal') restores the older behaviour of revealing
+   the row where it lives without changing zoom; Alt+click does whichever one
+   the preference does not. Rows that name a PLACE (a mirror in "Also appears
+   in") always reveal: zooming to the original would be the same for all. */
+function panelZooms() { return prefs.panelLinks !== 'reveal'; }
+function panelGo(id, ev) {
+  const flip = !!(ev && ev.altKey);
+  if (panelZooms() !== flip) zoomToItem(id);
+  else jumpToNode(id);
+}
+function zoomToItem(id) {
+  const n = store.getNode(id);
+  if (!n || id === ROOT_ID) return;
+  const target = store.mirrorContent(n) || n; // a mirror zooms to its original
+  clearSearch(false);
+  let zoomId = target.id;
+  if (!target.children.length) {
+    const p = store.getParent(target.id);
+    zoomId = p ? p.id : ROOT_ID;
+  }
+  const hash = zoomId === ROOT_ID ? '' : '#' + zoomId;
+  if (view.focusId !== zoomId) {
+    location.hash = hash;
+    applyFocusFromHash(); // sync render; the later hashchange event no-ops
+  }
+  revealNode(target.id);
+  ipActiveId = target.id;
+  ipActiveRowId = target.id;
+  focusNodeTitle(target.id, 'end'); // the zoom header when it is the zoomed item
+  renderInfoPanel();
+}
+
 function ipTrackedId() {
   return (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
 }
@@ -239,7 +275,7 @@ function ipItemBody(body, id, n, rowId = null) {
       if (!src) continue;
       const where = s.inNote && !s.inTitle ? 'in a note · ' : '';
       body.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
-        () => jumpToNode(s.id)));
+        e => panelGo(s.id, e)));
     }
   }
 
@@ -294,7 +330,7 @@ function ipStarredBody(body) {
     const wrap = document.createElement('div');
     wrap.className = 'ip-row-wrap';
     wrap.append(
-      ipRow(truncate(it.title, 40) || 'Untitled', pathOf(it.id), () => jumpToNode(it.id)));
+      ipRow(truncate(it.title, 40) || 'Untitled', pathOf(it.id), e => panelGo(it.id, e)));
     const un = document.createElement('button');
     un.className = 'ip-unstar';
     un.textContent = '★';
