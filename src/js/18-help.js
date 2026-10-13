@@ -268,7 +268,7 @@ function hcShowHome(root) {
   root.append(grid);
 }
 
-function hcShowNews(root) {
+function hcShowNews(root, markRead = true) {
   const unseen = hcUnseen();
   const h = document.createElement('h1');
   h.textContent = 'What’s new';
@@ -287,7 +287,10 @@ function hcShowNews(root) {
     sec.append(h2, hcMd(e.md));
     root.append(sec);
   });
-  hcMarkSeen(); // after the badges are drawn: this is the moment they are read
+  // after the badges are drawn: this is the moment they are read — but only
+  // when the person chose this page. Landing here as a search result is not
+  // reading it.
+  if (markRead) hcMarkSeen();
 }
 
 function hcShowKeys(root) {
@@ -329,13 +332,16 @@ function hcShowTopic(root, t) {
   root.append(hcMd(t.md));
 }
 
-function hcShow(id) {
+/* `read` is false when the page was chosen FOR the person (a search result
+   landing on it), as opposed to opened by them: only the latter counts as
+   reading What's new. */
+function hcShow(id, read = true) {
   const entries = hcEntries();
   if (!entries.some(e => e.id === id)) id = 'home';
   hcCur = id;
   hcContentEl.textContent = '';
   if (id === 'home') hcShowHome(hcContentEl);
-  else if (id === 'news') hcShowNews(hcContentEl);
+  else if (id === 'news') hcShowNews(hcContentEl, read);
   else if (id === 'keys') hcShowKeys(hcContentEl);
   else hcShowTopic(hcContentEl, hcTopics().find(t => t.id === id));
   hcMainEl.scrollTop = 0;
@@ -366,9 +372,9 @@ hcSearchEl.addEventListener('input', () => {
   if (hcQuery) {
     // keep the page you are on if it still matches; otherwise the first hit
     const hits = hcEntries().filter(en => en.title.toLowerCase().includes(hcQuery) || en.text.includes(hcQuery));
-    if (hits.length && !hits.some(en => en.id === hcCur)) { hcShow(hits[0].id); return; }
+    if (hits.length && !hits.some(en => en.id === hcCur)) { hcShow(hits[0].id, false); return; }
   }
-  hcShow(hcCur);
+  hcShow(hcCur, false);
 });
 hcEl.addEventListener('keydown', e => {
   // "/" jumps to the search box, as in most docs sites
