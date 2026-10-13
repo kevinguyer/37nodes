@@ -13,8 +13,8 @@ const palResultsEl = $('#palette-results');
 let palItems = [];  // [{id, title, path}] — every node except the root
 let palShown = [];  // scored results currently rendered
 let palSel = 0;
-let palMode = 'jump'; // 'jump' | 'move'
-let palMoveId = null; // in move mode: the node being moved
+let palMode = 'jump'; // 'jump' | 'move' | 'mirror'
+let palMoveId = null; // in move / mirror mode: the node being moved or mirrored
 
 /* `up` is the index of the parent's entry (-1 at the top): the ancestor chain
    for `Parent/Child` matching (F70) without a copied array per item. With Hide
@@ -173,11 +173,13 @@ function renderPalette() {
     const recent = palItems.filter(it => it.title && !it.top)
       .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
       .slice(0, 12);
-    const top = palMode === 'move' ? palItems.filter(it => it.top) : [];
+    const top = palMode !== 'jump' ? palItems.filter(it => it.top) : [];
     palShown = [...top, ...recent]
       .map(it => ({ id: it.id, title: it.title, path: it.path, spans: [] }));
     palHint(palMode === 'move'
       ? 'Pick where it should live — it becomes the last item inside.'
+      : palMode === 'mirror'
+      ? 'Pick where the mirror should appear — it becomes the last item inside.'
       : palShown.length ? 'Recently edited' : 'Type to jump to any item by title.');
   } else {
     let scored = palScorePath(q);
@@ -185,7 +187,7 @@ function renderPalette() {
     scored.sort((a, b) => b.score - a.score || a.title.length - b.title.length || a.ord - b.ord);
     palShown = scored.slice(0, 50);
     if (!palShown.length) {
-      palHint(palMode === 'move' ? 'No matching destination.' : 'No matching items.');
+      palHint(palMode !== 'jump' ? 'No matching destination.' : 'No matching items.');
       return;
     }
   }
@@ -221,7 +223,9 @@ function palSetSel(i) {
 }
 
 function paletteAccept(i) {
-  return palMode === 'move' ? paletteMove(i) : paletteGo(i);
+  if (palMode === 'move') return paletteMove(i);
+  if (palMode === 'mirror') return paletteMirror(i);
+  return paletteGo(i);
 }
 
 function paletteGo(i) {
@@ -249,6 +253,22 @@ function paletteMove(i) {
   // an item to the end of the parent it already ends is a no-op, and losing
   // the caret over that would read as the command having failed.
   jumpToNode(id);
+}
+
+/* Mirror to… (F80): the pick is a destination, and accepting creates a live
+   mirror of the item as its last child there. Nothing moves; the original
+   stays where it is. The caret follows the new mirror, as Move to… follows
+   its item — one rule for both, so the FR-4 follow/stay option can govern
+   them together later. */
+function paletteMirror(i) {
+  const r = palShown[i];
+  const id = palMoveId;
+  palDialogEl.close();
+  if (!r || !id) return;
+  const dest = store.getNode(r.id);
+  if (!dest || !store.getNode(id)) return;
+  const m = store.createMirrorIn(id, dest.id, dest.children.length);
+  if (m) jumpToNode(m.id);
 }
 
 /* --- opening ------------------------------------------------------------ */
@@ -281,6 +301,22 @@ function openMovePalette(id) {
   const label = truncate((store.mirrorContent(n) || n).title, 30) || 'Untitled';
   palInputEl.placeholder = `Move “${label}” into…`;
   palDialogEl.setAttribute('aria-label', 'Move item into');
+  palShow();
+}
+
+function openMirrorPalette(id) {
+  if (palDialogEl.open) return;
+  const n = id && store.getNode(id);
+  if (!n || id === ROOT_ID) return;
+  // mirroring a mirror mirrors its original (chains are flattened), so the
+  // destinations are judged against the original: not inside its subtree
+  const orig = store.mirrorContent(n) || n;
+  palMode = 'mirror';
+  palMoveId = orig.id;
+  palItems = moveIndex(orig.id);
+  const label = truncate(orig.title, 30) || 'Untitled';
+  palInputEl.placeholder = `Mirror “${label}” into…`;
+  palDialogEl.setAttribute('aria-label', 'Mirror item into');
   palShow();
 }
 
@@ -334,4 +370,13 @@ document.addEventListener('keydown', e => {
   if (!id) return;
   e.preventDefault();
   openMovePalette(id);
+});
+/* Alt+Shift+M: the same picker, creating a mirror at the destination */
+document.addEventListener('keydown', e => {
+  if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
+  if (e.code !== 'KeyM' && e.key !== 'm' && e.key !== 'M') return;
+  const id = moveTargetId();
+  if (!id) return;
+  e.preventDefault();
+  openMirrorPalette(id);
 });

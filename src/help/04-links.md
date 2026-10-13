@@ -21,6 +21,7 @@ The [info panel](#help/panel) lists every item that links to the one you are on,
 A **mirror** is a live view of an item shown somewhere else. Edit it in either place and both change, because there is only one item. Completing it, formatting it and its notes all follow.
 
 - Type `((` in an empty item and pick the original from the list, or use **Mirror this item** in the ≡ menu.
+- To show an item somewhere else without moving it, press `Alt+Shift+M` (or **Mirror to…** in the ≡ menu) and pick the destination by name. The original stays where it is; a mirror appears as the last item inside the one you pick.
 - The mirror's *position* and its collapsed state are its own, so you can fold it away in one place and not the other.
 - Both the original and its mirrors carry a small ⧉ badge. The info panel's "Mirrored in" list shows every place an item appears.
 - Deleting the original does not lose the content: the first mirror is promoted to hold it.

@@ -417,6 +417,20 @@ function createMirror(targetId) {
   return m;
 }
 
+/* "Mirror to…" (F80): a new mirror of targetId's content as a child of
+   parentId. Refused where it would be a loop — inside the original's own
+   subtree, a mirror renders as a stub of itself — or under a mirror, which
+   has no children of its own. */
+function createMirrorIn(targetId, parentId, index = Infinity) {
+  const target = mirrorResolveTarget(targetId);
+  const p = getNode(parentId);
+  if (!target || !p || p.mirrorOf) return null;
+  if (p.id === target.id || isDescendant(p.id, target.id)) return null;
+  const m = create(p.id, Math.min(index, p.children.length), { mirrorOf: target.id });
+  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
+  return m;
+}
+
 function duplicate(id) {
   const n = getNode(id), p = getParent(id);
   if (!n || !p) return null;
@@ -783,7 +797,7 @@ const store = {
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
   setCollapsed, toggleCompleted, setFormat, setColor, toggleStarred, duplicate,
-  mirrorContent, mirrorsOf, hasMirrors, setMirror, createMirror,
+  mirrorContent, mirrorsOf, hasMirrors, setMirror, createMirror, createMirrorIn,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
   migrateDoc,

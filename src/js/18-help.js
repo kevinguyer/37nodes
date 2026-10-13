@@ -48,6 +48,7 @@ const HELP_KEYS = [
     [['Ctrl+F'], 'Search the outline'],
     [['Ctrl+K'], 'Jump to any item by title. Type Parent/Child to choose between items with the same name'],
     [['Alt+M'], 'Move this item inside another one you pick'],
+    [['Alt+Shift+M'], 'Show this item inside another one you pick, as a live mirror (the original stays put)'],
     [['Alt+C'], 'Show / hide completed items'],
     [['Alt+L'], 'Show only the items linked to or from this one (again to clear)'],
   ] },

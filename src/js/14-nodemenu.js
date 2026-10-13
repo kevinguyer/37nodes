@@ -101,6 +101,10 @@ nodeMenuEl.addEventListener('click', e => {
       }
       break;
     }
+    case 'nm-mirrorto':
+      closeNodeMenu();
+      openMirrorPalette(id);
+      break;
     case 'nm-move':
       closeNodeMenu();
       openMovePalette(id); // structural: a mirror row moves the mirror
