@@ -20,16 +20,21 @@ const ssListEl = $('#search-history');
 /* one canonical spelling per query, so "a  b" and "a b " are the same search */
 function ssKey(q) { return String(q || '').trim().replace(/\s+/g, ' '); }
 
+/* Does this query filter anything? A lone ">" or an empty "" is non-blank text
+   but parses to no terms at all — the outline stays unfiltered — so it is not
+   worth saving, recording, or offering a ☆ for. */
+function ssMeaningful(q) { return parseQuery(q).groups.length > 0; }
+
 function ssList() { // [{q, name}] — sanitised: prefs come from a text file
   const raw = Array.isArray(prefs.savedSearches) ? prefs.savedSearches : [];
   return raw
-    .filter(e => e && typeof e.q === 'string' && ssKey(e.q))
+    .filter(e => e && typeof e.q === 'string' && ssKey(e.q) && ssMeaningful(e.q))
     .map(e => ({ q: ssKey(e.q), name: typeof e.name === 'string' ? e.name.trim() : '' }))
     .slice(0, SS_MAX);
 }
 function ssRecentList() {
   const raw = Array.isArray(prefs.recentSearches) ? prefs.recentSearches : [];
-  return raw.filter(q => typeof q === 'string' && ssKey(q)).map(ssKey).slice(0, SS_RECENT_MAX);
+  return raw.filter(q => typeof q === 'string' && ssKey(q) && ssMeaningful(q)).map(ssKey).slice(0, SS_RECENT_MAX);
 }
 function ssIndexOf(q) {
   const k = ssKey(q);
@@ -44,7 +49,7 @@ function ssStore(list) {
 
 function ssSave(q, name = '') {
   const k = ssKey(q);
-  if (!k || ssIndexOf(k) >= 0) return;
+  if (!k || !ssMeaningful(k) || ssIndexOf(k) >= 0) return;
   ssStore([...ssList(), { q: k, name }]);
 }
 function ssRemove(i) {
@@ -75,7 +80,7 @@ function ssApply(q) {
 
 function ssRecord(q) {
   const k = ssKey(q);
-  if (!k) return;
+  if (!k || !ssMeaningful(k)) return;
   const list = [k, ...ssRecentList().filter(x => x !== k)].slice(0, SS_RECENT_MAX);
   prefs.recentSearches = list;
   savePrefs();
@@ -85,8 +90,9 @@ function ssRecord(q) {
 /* --- view: the ☆ button and the dropdown ---------------------------------- */
 function ssSync() {
   const k = ssKey(view.query);
-  const saved = k && ssIndexOf(k) >= 0;
-  ssSaveBtnEl.hidden = !k;
+  const meaningful = !!k && ssMeaningful(k);
+  const saved = meaningful && ssIndexOf(k) >= 0;
+  ssSaveBtnEl.hidden = !meaningful;
   ssSaveBtnEl.textContent = saved ? '★' : '☆';
   ssSaveBtnEl.classList.toggle('on', !!saved);
   ssSaveBtnEl.title = saved ? 'Saved — click to remove from saved searches' : 'Save this search';
@@ -113,7 +119,7 @@ function ssSync() {
 function ipSavedBody(body) {
   const list = ssList();
   const cur = ssKey(view.query);
-  if (cur && ssIndexOf(cur) < 0) {
+  if (cur && ssMeaningful(cur) && ssIndexOf(cur) < 0) {
     const b = document.createElement('button');
     b.className = 'ip-ss-add';
     b.textContent = '☆ Save current search';
