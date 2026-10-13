@@ -11,19 +11,21 @@
 
 const BL_RE = /\[\[([^\[\]]+)\]\]/g;
 let blDirty = true;
-let blIndex = null; // targetId -> [{id, inTitle, inNote}]
+let blIndex = null; // targetId -> [{id, inTitle, inNote, lines}] — lines: the note lines holding the link
 
 function scanLinks(text, fn) {
   if (!text) return;
   BL_RE.lastIndex = 0;
   for (let m; (m = BL_RE.exec(text)); ) fn(m[1]);
 }
-function blMark(map, targetId, sourceId, where) {
+function blMark(map, targetId, sourceId, where, line) {
   let arr = map.get(targetId);
   if (!arr) map.set(targetId, arr = []);
   let e = arr.find(x => x.id === sourceId); // few sources per target: linear is fine
-  if (!e) arr.push(e = { id: sourceId, inTitle: false, inNote: false });
+  if (!e) arr.push(e = { id: sourceId, inTitle: false, inNote: false, lines: [] });
   e[where] = true;
+  // the context shown under a backlink (F85): a few note lines, each once
+  if (line && e.lines.length < 3 && !e.lines.includes(line)) e.lines.push(line);
 }
 function backlinkIndex() {
   if (blIndex && !blDirty) return blIndex;
@@ -35,10 +37,17 @@ function backlinkIndex() {
           const id = resolveTitleLink(t);
           if (id && id !== c.id) blMark(map, id, c.id, 'inTitle'); // self-links aren't backlinks
         });
-        scanLinks(c.note, t => {
-          const id = resolveTitleLink(t);
-          if (id && id !== c.id) blMark(map, id, c.id, 'inNote');
-        });
+        // line by line, so each hit can carry the line it sits in
+        if (c.note) {
+          for (const raw of c.note.split('\n')) {
+            const line = raw.trim();
+            if (!line.includes('[[')) continue;
+            scanLinks(line, t => {
+              const id = resolveTitleLink(t);
+              if (id && id !== c.id) blMark(map, id, c.id, 'inNote', line);
+            });
+          }
+        }
       }
       walk(c);
     }
@@ -261,6 +270,67 @@ function ipTrackedId() {
   return (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
 }
 
+/* A line of text with the links that point at `targetId` marked (F85). Other
+   links in the line stay as typed. A long line is cut to a window around the
+   first hit, so the link is always in view. List markers and quote/heading
+   prefixes are dropped — they are note formatting, not context. */
+function ctxFrag(text, targetId, max = 110) {
+  const t = String(text).replace(/^\s*(?:[-*+]|\d+\.|>+|#{1,6})\s+/, '');
+  const re = new RegExp(BL_RE.source, 'g');
+  const hits = [];
+  for (let m; (m = re.exec(t)); ) {
+    if (resolveTitleLink(m[1]) === targetId) hits.push([m.index, m.index + m[0].length]);
+  }
+  let from = 0, to = t.length;
+  if (t.length > max) {
+    from = Math.max(0, (hits.length ? hits[0][0] : 0) - 36);
+    to = Math.min(t.length, from + max);
+    from = Math.max(0, to - max);
+  }
+  const frag = document.createDocumentFragment();
+  if (from > 0) frag.append(document.createTextNode('…'));
+  let pos = from;
+  for (const [s, e] of hits) {
+    if (e <= from) continue;
+    if (s >= to) break;
+    const s0 = Math.max(s, from), e0 = Math.min(e, to);
+    if (s0 > pos) frag.append(document.createTextNode(t.slice(pos, s0)));
+    const mk = document.createElement('mark');
+    mk.textContent = t.slice(s0, e0);
+    frag.append(mk);
+    pos = e0;
+  }
+  if (pos < to) frag.append(document.createTextNode(t.slice(pos, to)));
+  if (to < t.length) frag.append(document.createTextNode('…'));
+  return frag;
+}
+
+/* One backlink: the source's title (with the link marked when it is in the
+   title), then the note line or lines the link sits in, then where it lives. */
+function ipBacklinkRow(s, targetId) {
+  const src = store.getNode(s.id);
+  const b = document.createElement('button');
+  b.className = 'ip-row ip-bl';
+  b.title = src.title || 'Untitled';
+  const m = document.createElement('div');
+  m.className = 'ip-row-main';
+  if (s.inTitle) m.append(ctxFrag(src.title, targetId, 70));
+  else m.textContent = truncate(src.title, 60) || 'Untitled';
+  b.append(m);
+  for (const line of s.lines || []) {
+    const c = document.createElement('div');
+    c.className = 'ip-row-ctx';
+    c.append(ctxFrag(line, targetId));
+    b.append(c);
+  }
+  const sub = document.createElement('div');
+  sub.className = 'ip-row-sub';
+  sub.textContent = ((s.lines || []).length || !s.inNote || s.inTitle ? '' : 'in a note · ') + pathOf(s.id);
+  b.append(sub);
+  b.addEventListener('click', e => panelGo(s.id, e));
+  return b;
+}
+
 function ipItemBody(body, id, n, rowId = null) {
   // --- linked from ---
   const back = shownBacklinks(id);
@@ -273,9 +343,7 @@ function ipItemBody(body, id, n, rowId = null) {
     for (const s of back) {
       const src = store.getNode(s.id);
       if (!src) continue;
-      const where = s.inNote && !s.inTitle ? 'in a note · ' : '';
-      body.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
-        e => panelGo(s.id, e)));
+      body.append(ipBacklinkRow(s, id));
     }
   }
 

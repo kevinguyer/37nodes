@@ -118,7 +118,7 @@ mechanism that keeps it current.
 |---|---|---|---|---|---|
 | FR-1 | Filter by several tags at once | Done (build 68, F75–F77) | S–M | Low | AND, `Shift`+click chip; specified in F75/F77 |
 | FR-2 | Resizable side panel | Done (build 51, F61) | S | Low | Yes |
-| FR-3 | Richer backlinks view (context, collapsible children) | Discuss | M–L | Low | Yes in two phases; need a concrete picture of phase 2 |
+| FR-3 | Richer backlinks view (context, collapsible children) | Phase 1 done (build 91, F85); phase 2 Discuss | M–L | Low | Phase 2 (read-only children under each backlink) needs a concrete picture from him first |
 | FR-4 | Option: don't jump after "Move to…" | Done (build 84, F81) | S | Low | Both: a ☰ preference and `Shift+Enter` in the picker; covers Mirror to… too |
 | FR-5 | Hide completed items in the backlinks list | Done (build 60, F69) | S | Low | Yes; follows the global Hide-completed toggle |
 | FR-6 | "Mirror to…" command | Done (build 78, F80) | S–M | Low | `Alt+Shift+M`; rides on the Move-to picker |
@@ -573,3 +573,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-13 | FR-20 shipped (F82): filled diamond for an item that has mirrors, hollow for each mirror, drawn in CSS. Ctrl+↑/↓ now folds a mirror row. |
 | 2026-10-13 | FR-8 shipped (F83): the panel's "Also appears in" lists the original and every mirror and marks where the caret is. |
 | 2026-10-13 | FR-22 shipped (F84): starred and linked-from rows zoom; leaves zoom to their parent with the item focused; Panel links preference and Alt+click. |
+| 2026-10-13 | FR-3 phase 1 shipped (F85): backlink rows show the line the link sits in, link highlighted. Phase 2 (collapsible children) awaits a concrete picture. |

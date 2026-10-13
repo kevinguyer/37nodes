@@ -14,7 +14,7 @@ If you rename an item that others link to, 37nodes offers to update those links,
 
 ## Backlinks
 
-The [info panel](#help/panel) lists every item that links to the one you are on, from titles and notes alike. Click a row to go there. With **Hide completed** on, completed sources are not listed, since there would be nothing to jump to.
+The [info panel](#help/panel) lists every item that links to the one you are on, from titles and notes alike. Each row shows the line the link sits in, with the link highlighted, so you can tell why it is there without going to look. Click a row to go there. With **Hide completed** on, completed sources are not listed, since there would be nothing to jump to.
 
 ## Mirrors
 
