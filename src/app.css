@@ -208,6 +208,12 @@ a.crumb:hover{color:var(--accent);}
   transition:width calc(160ms * var(--motion)) ease, border-color calc(160ms * var(--motion)) ease;
 }
 #search:focus{width:260px; border-color:var(--accent);}
+#search-save{
+  font-size:15px; line-height:1; padding:3px 5px; border-radius:var(--radius);
+  color:var(--fg-dim);
+}
+#search-save:hover{background:var(--panel); color:var(--fg);}
+#search-save.on{color:var(--nc-yellow);}
 #search::placeholder{color:var(--fg-faint);}
 #menu-btn{
   font-size:16px; color:var(--fg-dim); padding:2px 8px; border-radius:var(--radius);
@@ -333,8 +339,12 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .bullet:hover .dot{transform:scale(1.35);}
 .node.collapsed > .row > .bullet .dot{box-shadow:0 0 0 3.5px var(--bullet-ring);}
-/* mirrors: the ⧉ badge marks a mirror row AND an original that has mirrors —
-   either way, this item lives in more than one place */
+/* mirrors (F82): two diamonds, drawn in CSS so they look the same on every
+   platform. The original of a mirrored item is a FILLED diamond — the real
+   thing — and each mirror is a HOLLOW one — a reflection of it. The two are
+   never on the same row (a mirror is not itself mirrored), so one box serves
+   both; it is transparent and carries only `color`, which the bullet-colour
+   rules below set, and the shapes read currentColor. */
 .node.mirror > .row > .bullet .dot,
 .node.mirrored > .row > .bullet .dot{
   width:12px; height:12px; border-radius:2px;
@@ -342,8 +352,18 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .node.mirror > .row > .bullet .dot::before,
 .node.mirrored > .row > .bullet .dot::before{
-  content:"⧉"; display:block;
-  font-size:13px; line-height:12px; text-align:center;
+  content:""; display:block; box-sizing:border-box;
+  width:8px; height:8px; margin:2px;
+  transform:rotate(45deg);
+}
+.node.mirrored > .row > .bullet .dot::before{background:currentColor;}
+.node.mirror > .row > .bullet .dot::before{border:1.5px solid currentColor;}
+/* the "has children, folded" ring follows the diamond instead of the box */
+.node.mirror.collapsed > .row > .bullet .dot,
+.node.mirrored.collapsed > .row > .bullet .dot{box-shadow:none;}
+.node.mirror.collapsed > .row > .bullet .dot::before,
+.node.mirrored.collapsed > .row > .bullet .dot::before{
+  box-shadow:0 0 0 3px var(--bullet-ring);
 }
 .node.mirror[data-color="red"] > .row > .bullet .dot,
 .node.mirrored[data-color="red"] > .row > .bullet .dot{background:transparent; color:var(--nc-red);}
@@ -608,6 +628,23 @@ body.ip-resizing #info-panel, body.ip-resizing #page{pointer-events:none;}
   font-size:12px; color:var(--nc-yellow); opacity:.55;
 }
 .ip-row-wrap:hover .ip-unstar, .ip-unstar:focus-visible{opacity:1;}
+/* saved searches: a row, then rename and remove, shown on hover */
+.ip-ss-btn{
+  flex:0 0 auto; padding:2px 5px; border-radius:var(--radius);
+  font-size:12px; color:var(--fg-dim); opacity:0;
+}
+.ip-row-wrap:hover .ip-ss-btn, .ip-ss-btn:focus-visible{opacity:.8;}
+.ip-ss-btn:hover{background:var(--panel-2); opacity:1;}
+.ip-ss-add{
+  display:block; width:100%; text-align:left; margin:0 0 4px; padding:5px 8px;
+  border-radius:var(--radius); font-size:12.5px; color:var(--accent);
+}
+.ip-ss-add:hover{background:var(--accent-soft);}
+.ip-ss-input{
+  flex:1; min-width:0; padding:4px 8px; font-size:13px; outline:none;
+  background:var(--panel); border:1px solid var(--accent); border-radius:var(--radius);
+}
+.ip-row.on .ip-row-main{color:var(--accent);}
 /* the tag vocabulary: uniform chips, count riding along */
 .ip-tags{display:flex; flex-wrap:wrap; gap:5px; padding:3px 4px 2px;}
 .ip-tag{
@@ -624,6 +661,12 @@ body.ip-resizing #info-panel, body.ip-resizing #page{pointer-events:none;}
   font-size:13px; color:var(--accent);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+.ip-row-ctx{
+  font-size:11.5px; line-height:1.35; color:var(--fg-dim); margin-top:2px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  word-break:break-word;
+}
+.ip-bl mark{color:var(--fg);}
 .ip-row-sub{
   font-size:11px; color:var(--fg-faint); margin-top:1px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -752,12 +795,76 @@ dialog h2{margin:0 0 10px; font-size:17px;}
 }
 .dialog-actions button:hover{background:var(--panel-2);}
 .dialog-actions button.danger{color:var(--danger); border-color:var(--danger);}
-#help-grid{
-  display:grid; grid-template-columns:auto 1fr; gap:6px 18px;
-  font-size:13px; margin:12px 0;
-}
-#help-grid em{color:var(--fg-dim); font-style:italic; font-size:12px;}
 .help-note{font-size:12.5px; color:var(--fg-dim); margin:10px 0 0;}
+
+/* ---------- help center (F72) ---------- */
+#help-dialog{max-width:920px; width:min(920px, calc(100vw - 32px)); padding:0;}
+#help-dialog[open]{display:flex; flex-direction:column; height:min(680px, 88vh);}
+.hc-head{display:flex; align-items:center; gap:14px; padding:14px 20px 10px; border-bottom:1px solid var(--line);}
+.hc-head h2{margin:0;}
+.hc-head .dialog-tagline{margin:0 0 0 auto;}
+#help-dialog .dialog-actions{margin:0; padding:10px 20px; border-top:1px solid var(--line);}
+#hc{flex:1; min-height:0; display:flex;}
+#hc-nav{
+  width:228px; flex:none; display:flex; flex-direction:column; gap:8px;
+  padding:12px 10px; border-right:1px solid var(--line); overflow:auto;
+}
+#hc-search{
+  width:100%; box-sizing:border-box; padding:5px 11px; font-size:13px;
+  background:var(--panel); border:1px solid var(--line); border-radius:999px; outline:none;
+}
+#hc-search:focus{border-color:var(--accent);}
+#hc-search::placeholder{color:var(--fg-faint);}
+#hc-topics{display:flex; flex-direction:column; gap:1px;}
+.hc-topic{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  text-align:left; padding:6px 10px; border-radius:var(--radius);
+  font-size:13.5px; color:var(--fg-dim);
+}
+.hc-topic:hover{background:var(--panel); color:var(--fg);}
+.hc-topic.on{background:var(--accent-soft); color:var(--fg);}
+.hc-pill, .menu-pill{
+  font-size:10.5px; line-height:1; padding:2px 6px; border-radius:999px;
+  background:var(--accent); color:var(--bg); font-weight:600;
+}
+.menu-pill{margin-left:auto;}
+.hc-empty{font-size:13px; color:var(--fg-dim); padding:6px 10px;}
+#hc-main{flex:1; min-width:0; overflow:auto; padding:18px 26px 26px; outline:none;}
+#hc-content h1{font-size:20px; margin:0 0 6px;}
+#hc-content h2{font-size:15px; margin:20px 0 6px;}
+.hc-lede{margin:0 0 16px; color:var(--fg-dim); font-size:14px;}
+.hc-md{font-size:14px; line-height:1.6; color:var(--fg);}
+.hc-md h1{font-size:20px; margin:0 0 6px;}
+.hc-md h2{font-size:15px; margin:20px 0 6px;}
+.hc-md p{margin:0 0 10px;}
+.hc-md ul, .hc-md ol{margin:0 0 10px; padding-left:22px;}
+.hc-md li{margin:3px 0;}
+.hc-md > h1 + p{color:var(--fg-dim); font-size:14.5px;}
+.hc-release h2{display:flex; align-items:center; gap:8px;}
+.hc-pill-new{font-size:10.5px;}
+.hc-cards{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px;}
+.hc-card{
+  display:flex; flex-direction:column; gap:4px; text-align:left;
+  padding:12px 14px; border:1px solid var(--line); border-radius:calc(var(--radius) * 1.5);
+  background:var(--panel);
+}
+.hc-card:hover{border-color:var(--accent); background:var(--panel-2);}
+.hc-card-title{font-size:14px; font-weight:600; color:var(--fg);}
+.hc-card-sum{font-size:12.5px; color:var(--fg-dim); line-height:1.45;}
+.hc-keys{border-collapse:collapse; width:100%; font-size:13.5px;}
+.hc-keys td{padding:6px 10px 6px 0; vertical-align:top; border-bottom:1px solid var(--line);}
+.hc-keys td:first-child{white-space:nowrap; width:1%; padding-right:20px;}
+.hc-combo{white-space:nowrap;}
+#menu-btn{position:relative;}
+#menu-btn.has-news::after{
+  content:""; position:absolute; top:2px; right:3px; width:7px; height:7px;
+  border-radius:50%; background:var(--accent);
+}
+@media (max-width:640px){
+  #hc{flex-direction:column;}
+  #hc-nav{width:auto; flex:none; max-height:34%; border-right:0; border-bottom:1px solid var(--line);}
+  .hc-head .dialog-tagline{display:none;}
+}
 
 /* ---------- jump palette (Ctrl+K) ---------- */
 #palette-dialog{margin-top:10vh; max-width:560px; padding:10px;}

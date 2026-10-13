@@ -10,10 +10,27 @@ no framework, no CDN, no fetch.
   with ids (`BUG-n`, `FR-n`), status, sizing, and the decision each one
   needs. Check it before starting new work; move an item to Done when it
   ships and gets its F-number in the PRD.
-- `PRD.md` — **the behavioural spec**, numbered `F1…F52`. It is the source of
-  truth for what the app does and why. When you add or change behaviour, add or
-  amend an F-item in the matching section.
+- `PRD.md` — **the behavioural spec**, numbered `F1`, `F2`, … in order of
+  creation, not by section: new items take the next free number and sit beside
+  the items they relate to, so the highest number is the newest (grep for it
+  before adding one). It is the source of truth for what the app does and
+  why. When you add or change behaviour, add or amend an F-item in the
+  matching section.
 - This file — how the code is put together, and the traps in it.
+
+## Definition of done
+
+A change to behaviour is not finished until all of these exist:
+
+1. an F-item in `PRD.md` (new or amended),
+2. a line in `src/help/whatsnew.md` under the current release, and a topic
+   page edit in `src/help/` if the behaviour changes how something is used,
+3. a row in `HELP_KEYS` (`18-help.js`) if it adds or changes a key, plus the
+   `<kbd>` hint on whatever menu row or tooltip exposes it,
+4. its `FEEDBACK.md` item moved to Done with the build and F-number.
+
+The Help Center is only as good as this list: it has no other way of learning
+that something shipped.
 
 ## Build
 
@@ -31,6 +48,13 @@ stamps `__BUILD__`/`__BUILT__`, bumps `build-number.txt`, and writes the result
 to both `37nodes.html` and `index.html` (byte-identical; `index.html` exists so
 a web host serves it by default). The build number shows at the bottom of the ☰
 menu — handy for confirming a browser is looking at your build.
+
+`build.ps1` also bundles `src/help/` into the file: `NN-slug.md` are the Help
+Center's topic pages (filename order is nav order, the slug is the topic id)
+and `whatsnew.md` is the release list, newest `##` section first. It replaces
+the `/*__HELP__*/` marker in `18-help.js`. Help text is rendered by the same
+DOM-only markdown renderer as notes; write `[[` and `((` inside code spans or
+they will be resolved as wikilinks against the *user's* document.
 
 `.gitattributes` forces LF everywhere. Don't let an editor rewrite line endings.
 
@@ -61,6 +85,7 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `02b-idb.js` | IndexedDB plumbing: one cached connection, stores `doc` + `kv` |
 | `03-store.js` | Document state, node index, ops-based undo, persistence, schema migrations, cross-tab guard, seed document |
 | `04-view.js` | All rendering: keyed reconciliation, search filter, note editors, banner, save indicator |
+| `04b-query.js` | The search language: tokenizer, parser, per-item matcher, highlight ranges. **Pure** — no DOM or store, so it can be run under Node on its own |
 | `05-search.js` | Search box wiring, tag-chip click filter |
 | `06-keyboard.js` | Every title/note event, delegated at `document` level |
 | `07-dnd.js` | Drag & drop by bullet |
@@ -74,6 +99,8 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `15-toolbar.js` | Floating format bar over a selection in an editing title; wrap/unwrap of inline syntax |
 | `16-panel.js` | Backlink index, right-hand info panel (collapsible sections: item / starred / tags), rename-rewrite offer |
 | `17-stars-tags.js` | Starred index + star gestures (row ★, `Alt+S`), tag vocabulary index |
+| `18-help.js` | Help Center dialog: overview, topic pages, keyboard table, What's new + its dot. Content is `src/help/*.md`, bundled at build |
+| `19-saved.js` | Saved + recent searches, the ☆ button and the search box dropdown. Local-only: lives in prefs, not the document |
 
 `app.css` is CSS-variable driven: `:root` holds the token set, each
 `[data-theme=…]` block overrides it. `--motion:0` and `--glow` let a theme opt
@@ -106,7 +133,7 @@ Titles are one line. Notes are markdown, rendered when not focused.
 | --- | --- | --- |
 | IndexedDB `37nodes` v2, store `doc` | `current` | The whole document, one record |
 | IndexedDB `37nodes` v2, store `kv` | `backupHandle` | `FileSystemFileHandle` for the file mirror |
-| localStorage | `37nodes:prefs` | UI prefs — **always** localStorage, never IDB |
+| localStorage | `37nodes:prefs` | UI prefs — **always** localStorage, never IDB. Also holds `savedSearches`, `recentSearches` and `whatsNewSeen`: none of it is in exports |
 | localStorage | `37nodes:doc` | Fallback backend when IDB is blocked; also the pre-migration location |
 | localStorage | `37nodes:doc:pre-idb` | Frozen copy left behind by the one-time IDB migration |
 
@@ -201,8 +228,14 @@ gone from the store and those links no longer resolve to the renamed item.
 - `under` — matches and everything beneath them; **this set is "visible"**
 - `filterExempt` — ids kept visible even though they don't match
 
-A pure `#tag` query matches whole tags only; anything else is a case-insensitive
-substring over title *and* note.
+The query is parsed by `04b-query.js` (PRD F75–F77): terms are ANDed per item,
+`-` negates, `is:starred`/`is:done` are flags, and a standalone `>` chains
+groups down the ancestors. `computeFilter` carries a *stage* — how many
+groups an ancestor has already satisfied — so it stays one linear pass.
+`matched` holds results only; scope anchors land in `anc`, shown dimmed. The
+filter also exposes `marks` (positive word/phrase terms, for highlighting) and
+`tags` (positive `#tags`, for chip state) — read those, never re-parse the
+query string in a view.
 
 ## Traps worth knowing
 
@@ -212,8 +245,13 @@ substring over title *and* note.
   actually see must consult that body class (`completedRowsHidden()` in
   `04-view.js`). Toggling the checkbox does not emit a store event, so anything
   derived from it needs an explicit re-render.
-- **A search filter forces every node expanded** (`view.filter ? true :
-  !n.collapsed`), so "is it expanded" is not the same question in search view.
+- **"Is this row expanded?" has two answers.** Outside a filter it is
+  `!own.collapsed`; under one it is `rowExpanded(own)` (`04-view.js`): a
+  session override from `view.filterOpen` wins, then mirrors stay folded, then
+  a row with a matching descendant is held open, else the stored flag. Never
+  read `.collapsed` directly for display. User toggles go through
+  `setRowCollapsed`, which routes to the override map in a filter and never
+  writes the document there.
 - **Text edits don't re-filter, structural edits do.** A title edited out of
   matching stays on screen until something emits `children`.
 - **`store.create()` emits before it returns.** The filtered rebuild triggered
@@ -232,6 +270,12 @@ Build first, then load `http://localhost:8137/37nodes.html` — the server has n
 knowledge of `src/`, so an unbuilt change simply won't be there. Check the build
 number in the ☰ menu if behaviour looks stale.
 
-Testing is manual: there is no test suite. Verify in the browser, and remember
-that the preview's IndexedDB is real persisted data — undo or clean up any
-document edits you make while poking at it.
+Testing is manual: there is no browser test suite. Verify in the browser, and
+remember that the preview's IndexedDB is real persisted data — undo or clean up
+any document edits you make while poking at it.
+
+The one exception is `src/js/04b-query.js`, which is pure (strings in, plain
+data out) and so can be loaded under Node: `node tests/query.test.js` runs its
+grammar tests and exits non-zero on a failure. Run it after any change to the
+search language, and add a case for every behaviour you add — it is the most
+regression-prone logic in the app.

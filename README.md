@@ -19,7 +19,7 @@ See [PRD.md](PRD.md) for the full product requirements.
 
 - A **guided tour** on first run — a spotlight walkthrough of the real UI,
   about a minute long, re-launchable any time from **☰ → Take the guided
-  tour** (or the help dialog). `←`/`→` step, `Esc` leaves.
+  tour** (or the Help Center). `←`/`→` step, `Esc` leaves.
 - The top-bar **tagline rotates every minute**, each new line arriving as a
   cipher decode that scrambles, slows and settles. Add your own to the
   `TAGLINES` list in `src/js/13-tagline.js`.
@@ -27,13 +27,24 @@ See [PRD.md](PRD.md) for the full product requirements.
   **markdown note** (edit raw, renders when you click away)
 - **Zoom** into any node (click its bullet) with breadcrumbs back out; zoom is
   in the URL hash, so browser back/forward navigate your zoom history
+- A **Help Center** (☰ → Help…): topic pages, search, a keyboard reference
+  (`?` opens it right there) and a **What's new** list that lights a dot on ☰
+  until you've read it. Content is plain markdown in `src/help/`
 - Full **keyboard operation** — press `?` in the app for the reference
-- Live **search/filter** with match highlighting (`Ctrl+F`)
+- Live **search/filter** (`Ctrl+F`) with a small query language: several words
+  ANDed, `"phrases"`, `-exclude`, `#tags`, `is:starred`, `is:done`, and
+  `acme > #urgent` to search inside matches, `links:"Title"` (`Alt+L`) for
+  an item and everything linked to or from it. Shift+click a tag chip to add it; ☆ saves a search (kept in this browser, not
+  in exports) and the box remembers recent ones
 - **Jump palette** (`Ctrl+K`): fuzzy-match any item's title and zoom straight
-  to it from anywhere
+  to it from anywhere. Type `Parent/Child` to pick between same-named items,
+  and with **Hide completed** on (`Alt+C`) finished items are left out
+- **Mirror to…** (`Alt+Shift+M`, or the ≡ menu): the same picker, but it leaves
+  the item where it is and puts a live mirror of it inside the one you pick
 - **Move to…** (`Alt+M`, or the ≡ menu): the same fuzzy search, but the item
   you pick is the *destination* — the current item (and everything under it)
   is filed inside it, in one undo step, with the cursor following it there
+  (or staying put: `Shift+Enter`, or the *After Move / Mirror to…* menu setting)
 - **#tags**: `#word` tokens in titles render as clickable chips — click one to
   filter by that exact tag, click it again to clear
 - **[[Internal links]]**: `[[Some title]]` in a title or note links to the item
@@ -116,6 +127,7 @@ src/js/02-markdown.js  safe markdown subset → DOM renderer (no innerHTML)
 src/js/02b-idb.js   shared IndexedDB plumbing (doc + kv stores)
 src/js/03-store.js  document state, ops-based undo, persistence, schema migrations
 src/js/04-view.js   incremental keyed rendering, notes, search filter
+src/js/04b-query.js the search language (pure parser + matcher)
 src/js/05-search.js search box wiring
 src/js/06-keyboard.js  keyboard model + editing events
 src/js/07-dnd.js    drag & drop
@@ -125,6 +137,8 @@ src/js/10-palette.js   Ctrl+K fuzzy jump palette
 src/js/11-linkauto.js  [[link]] autocomplete
 src/js/12-tour.js   first-run guided tour (spotlight + callout card)
 src/js/13-tagline.js   rotating top-bar tagline, cipher-decode reveal
+src/js/18-help.js   Help Center (content in src/help/*.md, bundled at build)
+src/js/19-saved.js  saved and recent searches (preferences, not the document)
 ```
 
 The logo is one traced `<path>` inside the `#logo-mark` symbol in
@@ -132,6 +146,9 @@ The logo is one traced `<path>` inside the `#logo-mark` symbol in
 favicon is generated from that same path at boot, so there is only ever one
 copy of the mark in the file. `37nodes_logo_huge_raw.png` is the master
 artwork it was vectorised from; the build does not read it.
+
+Tests: the search language is a pure module and has a Node test file —
+`node tests/query.test.js`. Everything else is verified in the browser.
 
 Build (PowerShell):
 

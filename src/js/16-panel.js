@@ -11,19 +11,21 @@
 
 const BL_RE = /\[\[([^\[\]]+)\]\]/g;
 let blDirty = true;
-let blIndex = null; // targetId -> [{id, inTitle, inNote}]
+let blIndex = null; // targetId -> [{id, inTitle, inNote, lines}] — lines: the note lines holding the link
 
 function scanLinks(text, fn) {
   if (!text) return;
   BL_RE.lastIndex = 0;
   for (let m; (m = BL_RE.exec(text)); ) fn(m[1]);
 }
-function blMark(map, targetId, sourceId, where) {
+function blMark(map, targetId, sourceId, where, line) {
   let arr = map.get(targetId);
   if (!arr) map.set(targetId, arr = []);
   let e = arr.find(x => x.id === sourceId); // few sources per target: linear is fine
-  if (!e) arr.push(e = { id: sourceId, inTitle: false, inNote: false });
+  if (!e) arr.push(e = { id: sourceId, inTitle: false, inNote: false, lines: [] });
   e[where] = true;
+  // the context shown under a backlink (F85): a few note lines, each once
+  if (line && e.lines.length < 3 && !e.lines.includes(line)) e.lines.push(line);
 }
 function backlinkIndex() {
   if (blIndex && !blDirty) return blIndex;
@@ -35,10 +37,17 @@ function backlinkIndex() {
           const id = resolveTitleLink(t);
           if (id && id !== c.id) blMark(map, id, c.id, 'inTitle'); // self-links aren't backlinks
         });
-        scanLinks(c.note, t => {
-          const id = resolveTitleLink(t);
-          if (id && id !== c.id) blMark(map, id, c.id, 'inNote');
-        });
+        // line by line, so each hit can carry the line it sits in
+        if (c.note) {
+          for (const raw of c.note.split('\n')) {
+            const line = raw.trim();
+            if (!line.includes('[[')) continue;
+            scanLinks(line, t => {
+              const id = resolveTitleLink(t);
+              if (id && id !== c.id) blMark(map, id, c.id, 'inNote', line);
+            });
+          }
+        }
       }
       walk(c);
     }
@@ -48,6 +57,37 @@ function backlinkIndex() {
   return blIndex;
 }
 function backlinksOf(id) { return backlinkIndex().get(id) || []; }
+
+/* With Hide completed on (F69) the panel does not list a source the outline
+   cannot show: a click on it would jump to a row that is not there. A source
+   is hidden when it, or anything above it, is completed — the CSS removes the
+   whole subtree. A mirror's completion is its original's. */
+function sourceHidden(id) {
+  if (!completedRowsHidden()) return false;
+  const done = x => { const c = store.mirrorContent(x) || x; return !!c.completed; };
+  const n = store.getNode(id);
+  if (!n) return false;
+  if (done(n)) return true;
+  return store.ancestorsOf(id).some(a => a.id !== ROOT_ID && done(a));
+}
+function shownBacklinks(id) { return backlinksOf(id).filter(s => !sourceHidden(s.id)); }
+function shownMirrors(id) { return store.mirrorsOf(id).filter(m => !sourceHidden(m.id)); }
+/* The ids the `links:` operator accepts for a title (F78): the item the title
+   names (resolved exactly as a [[link]] is, so duplicates go to the first),
+   everything that links to it, and everything it links to. A mirror row is
+   accepted through its content id, so mirrors of any of these come with them. */
+function linkedIdsFor(title) {
+  const ids = new Set();
+  const target = resolveTitleLink(title);
+  const n = target && store.getNode(target);
+  if (!n) return ids;
+  ids.add(target);
+  for (const s of backlinksOf(target)) ids.add(s.id);
+  const take = t => { const id = resolveTitleLink(t); if (id) ids.add(id); };
+  scanLinks(n.title, take);
+  scanLinks(n.note, take);
+  return ids;
+}
 function linksOutOf(n) {
   if (!n || n.mirrorOf) return 0;
   const seen = new Set();
@@ -64,6 +104,7 @@ const ipBodyEl = $('#ip-body');
 const ipStarEl = $('#ip-star');
 const ipBtnEl = $('#panel-btn'); // the top-bar switch, lit while the panel is out
 let ipActiveId = null; // the item the caret last visited (content id)
+let ipActiveRowId = null; // the row it was in (structural id): which instance of a mirrored item
 
 function panelOpen() { return !!prefs.infoPanel; }
 function syncPanelBtn() {
@@ -182,8 +223,46 @@ function jumpToNode(id) {
   revealNode(id);
   // point the panel at the destination outright: focusNodeTitle may not move
   // focus at all (the row can already hold it), and no focusin would follow
-  ipActiveId = id;
+  const landed = store.getNode(id);
+  ipActiveId = ((landed && store.mirrorContent(landed)) || landed).id; // a mirror row tracks its original
+  ipActiveRowId = id;
   focusNodeTitle(id, 'end');
+  renderInfoPanel();
+}
+
+/* Panel rows that name an ITEM (starred, linked from) — F84. By default they
+   zoom: an item with children becomes the page, and a leaf, which would make
+   an empty page with only a header, zooms to its parent with the leaf
+   focused, so you land among its siblings. The preference
+   (prefs.panelLinks === 'reveal') restores the older behaviour of revealing
+   the row where it lives without changing zoom; Alt+click does whichever one
+   the preference does not. Rows that name a PLACE (a mirror in "Also appears
+   in") always reveal: zooming to the original would be the same for all. */
+function panelZooms() { return prefs.panelLinks !== 'reveal'; }
+function panelGo(id, ev) {
+  const flip = !!(ev && ev.altKey);
+  if (panelZooms() !== flip) zoomToItem(id);
+  else jumpToNode(id);
+}
+function zoomToItem(id) {
+  const n = store.getNode(id);
+  if (!n || id === ROOT_ID) return;
+  const target = store.mirrorContent(n) || n; // a mirror zooms to its original
+  clearSearch(false);
+  let zoomId = target.id;
+  if (!target.children.length) {
+    const p = store.getParent(target.id);
+    zoomId = p ? p.id : ROOT_ID;
+  }
+  const hash = zoomId === ROOT_ID ? '' : '#' + zoomId;
+  if (view.focusId !== zoomId) {
+    location.hash = hash;
+    applyFocusFromHash(); // sync render; the later hashchange event no-ops
+  }
+  revealNode(target.id);
+  ipActiveId = target.id;
+  ipActiveRowId = target.id;
+  focusNodeTitle(target.id, 'end'); // the zoom header when it is the zoomed item
   renderInfoPanel();
 }
 
@@ -191,9 +270,70 @@ function ipTrackedId() {
   return (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
 }
 
-function ipItemBody(body, id, n) {
+/* A line of text with the links that point at `targetId` marked (F85). Other
+   links in the line stay as typed. A long line is cut to a window around the
+   first hit, so the link is always in view. List markers and quote/heading
+   prefixes are dropped — they are note formatting, not context. */
+function ctxFrag(text, targetId, max = 110) {
+  const t = String(text).replace(/^\s*(?:[-*+]|\d+\.|>+|#{1,6})\s+/, '');
+  const re = new RegExp(BL_RE.source, 'g');
+  const hits = [];
+  for (let m; (m = re.exec(t)); ) {
+    if (resolveTitleLink(m[1]) === targetId) hits.push([m.index, m.index + m[0].length]);
+  }
+  let from = 0, to = t.length;
+  if (t.length > max) {
+    from = Math.max(0, (hits.length ? hits[0][0] : 0) - 36);
+    to = Math.min(t.length, from + max);
+    from = Math.max(0, to - max);
+  }
+  const frag = document.createDocumentFragment();
+  if (from > 0) frag.append(document.createTextNode('…'));
+  let pos = from;
+  for (const [s, e] of hits) {
+    if (e <= from) continue;
+    if (s >= to) break;
+    const s0 = Math.max(s, from), e0 = Math.min(e, to);
+    if (s0 > pos) frag.append(document.createTextNode(t.slice(pos, s0)));
+    const mk = document.createElement('mark');
+    mk.textContent = t.slice(s0, e0);
+    frag.append(mk);
+    pos = e0;
+  }
+  if (pos < to) frag.append(document.createTextNode(t.slice(pos, to)));
+  if (to < t.length) frag.append(document.createTextNode('…'));
+  return frag;
+}
+
+/* One backlink: the source's title (with the link marked when it is in the
+   title), then the note line or lines the link sits in, then where it lives. */
+function ipBacklinkRow(s, targetId) {
+  const src = store.getNode(s.id);
+  const b = document.createElement('button');
+  b.className = 'ip-row ip-bl';
+  b.title = src.title || 'Untitled';
+  const m = document.createElement('div');
+  m.className = 'ip-row-main';
+  if (s.inTitle) m.append(ctxFrag(src.title, targetId, 70));
+  else m.textContent = truncate(src.title, 60) || 'Untitled';
+  b.append(m);
+  for (const line of s.lines || []) {
+    const c = document.createElement('div');
+    c.className = 'ip-row-ctx';
+    c.append(ctxFrag(line, targetId));
+    b.append(c);
+  }
+  const sub = document.createElement('div');
+  sub.className = 'ip-row-sub';
+  sub.textContent = ((s.lines || []).length || !s.inNote || s.inTitle ? '' : 'in a note · ') + pathOf(s.id);
+  b.append(sub);
+  b.addEventListener('click', e => panelGo(s.id, e));
+  return b;
+}
+
+function ipItemBody(body, id, n, rowId = null) {
   // --- linked from ---
-  const back = backlinksOf(id);
+  const back = shownBacklinks(id);
   body.append(ipLabel(back.length
     ? `Linked from ${back.length} item${back.length === 1 ? '' : 's'}`
     : 'Linked from'));
@@ -203,18 +343,31 @@ function ipItemBody(body, id, n) {
     for (const s of back) {
       const src = store.getNode(s.id);
       if (!src) continue;
-      const where = s.inNote && !s.inTitle ? 'in a note · ' : '';
-      body.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
-        () => jumpToNode(s.id)));
+      body.append(ipBacklinkRow(s, id));
     }
   }
 
-  // --- mirrors ---
-  const mirrors = store.mirrorsOf(id);
+  if (back.length || linksOutOf(n)) {
+    body.append(ipRow('Show only linked items', 'Alt+L', () => filterToLinked(id)));
+  }
+
+  // --- every place this item appears (F83) ---
+  // The original first, then each mirror, whichever of them the caret is in:
+  // a mirror row tracks its original, so without the original's own place in
+  // the list there would be no way to say where "the real one" lives, and no
+  // way to mark which row you are standing in.
+  const mirrors = shownMirrors(id);
   if (mirrors.length) {
-    body.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
-    for (const m of mirrors) {
-      body.append(ipRow('⧉ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
+    const places = [];
+    if (!sourceHidden(id)) places.push({ rowId: id, glyph: '◆', role: 'the original' });
+    for (const m of mirrors) places.push({ rowId: m.id, glyph: '◇', role: 'a mirror' });
+    body.append(ipLabel(`Also appears in ${places.length} place${places.length === 1 ? '' : 's'}`));
+    for (const p of places) {
+      const here = p.rowId === rowId;
+      const row = ipRow(`${p.glyph} ${pathOf(p.rowId)}`,
+        here ? `${p.role} · you are here` : p.role, () => jumpToNode(p.rowId));
+      if (here) row.classList.add('on');
+      body.append(row);
     }
   }
 
@@ -245,7 +398,7 @@ function ipStarredBody(body) {
     const wrap = document.createElement('div');
     wrap.className = 'ip-row-wrap';
     wrap.append(
-      ipRow(truncate(it.title, 40) || 'Untitled', pathOf(it.id), () => jumpToNode(it.id)));
+      ipRow(truncate(it.title, 40) || 'Untitled', pathOf(it.id), e => panelGo(it.id, e)));
     const un = document.createElement('button');
     un.className = 'ip-unstar';
     un.textContent = '★';
@@ -260,7 +413,7 @@ function ipStarredBody(body) {
    renders, with its item count riding along. Clicking one is exactly the
    chip-click in the outline (F43) — a filter you can click off again. */
 function ipTagsBody(body) {
-  const tags = tagsAlphabetical(view.focusId);
+  const tags = tagsForPanel(view.focusId);
   if (!tags.length) {
     body.append(ipHint(view.focusId === ROOT_ID
       ? 'No tags yet. Type # in any item to tag it — the list of tags you already use appears as you type.'
@@ -269,16 +422,16 @@ function ipTagsBody(body) {
   }
   const cloud = document.createElement('div');
   cloud.className = 'ip-tags';
-  const active = view.query.trim().toLowerCase();
+  const lit = view.filter ? view.filter.tags : null; // every positive tag in the query
   for (const t of tags) {
     const b = document.createElement('button');
-    b.className = 'ip-tag' + (active === t.tag.toLowerCase() ? ' active' : '');
-    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter`;
+    b.className = 'ip-tag' + (lit && lit.has(t.tag.toLowerCase()) ? ' active' : '');
+    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter · Shift+click to add to the search`;
     b.append(document.createTextNode(t.tag));
     const c = document.createElement('sup');
     c.textContent = String(t.count);
     b.append(c);
-    b.addEventListener('click', () => toggleTagFilter(t.tag));
+    b.addEventListener('click', e => toggleTagFilter(t.tag, e.shiftKey));
     cloud.append(b);
   }
   body.append(cloud);
@@ -301,7 +454,7 @@ function renderInfoPanel() {
 
   ipSection('item', 'This item', null, body => {
     if (!tracked) { body.append(ipHint('Click an item to see what links to it.')); return; }
-    ipItemBody(body, id, n);
+    ipItemBody(body, id, n, ipActiveRowId);
   });
   // The zoomed-into item gets the same treatment while the caret is on
   // something else inside it: its links and mirrors are the ones you came
@@ -310,7 +463,7 @@ function renderInfoPanel() {
   const fid = view.focusId;
   const fn = store.getNode(fid);
   if (fid !== ROOT_ID && fn && id !== fid) {
-    ipSection('zoom', 'Zoomed into', backlinksOf(fid).length + store.mirrorsOf(fid).length, body => {
+    ipSection('zoom', 'Zoomed into', shownBacklinks(fid).length + shownMirrors(fid).length, body => {
       const t = document.createElement('div');
       t.className = 'ip-zoom-title';
       t.textContent = truncate(fn.title, 60) || 'Untitled';
@@ -320,8 +473,9 @@ function renderInfoPanel() {
     });
   }
   ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
+  ipSection('saved', 'Saved searches', ssList().length, ipSavedBody);
   ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
-    tagsAlphabetical(view.focusId).length, ipTagsBody);
+    tagsForPanel(view.focusId).length, ipTagsBody);
 }
 const ipRefresh = debounce(renderInfoPanel, 120);
 
@@ -330,7 +484,15 @@ document.addEventListener('focusin', e => {
   const t = e.target.closest?.('.title');
   const ta = !t && e.target.closest?.('.note-edit');
   const id = t ? contentIdOfTitle(t) : ta ? contentIdOfNoteEditor(ta) : null;
-  if (id && id !== ipActiveId) { ipActiveId = id; ipRefresh(); }
+  // the structural row too: the same item can sit in several places
+  let rowId = null;
+  if (t) rowId = t === focusTitleEl ? view.focusId : idOfTitle(t);
+  else if (ta) rowId = ta.parentElement === focusNoteEl ? view.focusId : ta.closest('.node')?.dataset.id || null;
+  if (id && (id !== ipActiveId || rowId !== ipActiveRowId)) {
+    ipActiveId = id;
+    ipActiveRowId = rowId;
+    ipRefresh();
+  }
 });
 window.addEventListener('hashchange', () => {
   // zooming somewhere else is a change of subject: drop a tracked item that
@@ -338,6 +500,7 @@ window.addEventListener('hashchange', () => {
   // target. (Runs after 09's applyFocusFromHash, so view.focusId is current.)
   if (ipActiveId && ipActiveId !== view.focusId && !store.isDescendant(ipActiveId, view.focusId)) {
     ipActiveId = null;
+    ipActiveRowId = null;
   }
   ipRefresh();
 });
@@ -430,10 +593,7 @@ ipStarEl.addEventListener('click', () => {
   if (id && id !== ROOT_ID) store.toggleStarred(id);
 });
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts (some send a dead
-  // key or an accented character as e.key), so match the physical key too
-  if (e.code === 'KeyI' || e.key === 'i' || e.key === 'I') {
+  if (altChord(e, 'KeyI')) {
     e.preventDefault();
     setPanelOpen(!panelOpen());
   }

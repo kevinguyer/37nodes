@@ -218,6 +218,12 @@ a.crumb:hover{color:var(--accent);}
   transition:width calc(160ms * var(--motion)) ease, border-color calc(160ms * var(--motion)) ease;
 }
 #search:focus{width:260px; border-color:var(--accent);}
+#search-save{
+  font-size:15px; line-height:1; padding:3px 5px; border-radius:var(--radius);
+  color:var(--fg-dim);
+}
+#search-save:hover{background:var(--panel); color:var(--fg);}
+#search-save.on{color:var(--nc-yellow);}
 #search::placeholder{color:var(--fg-faint);}
 #menu-btn{
   font-size:16px; color:var(--fg-dim); padding:2px 8px; border-radius:var(--radius);
@@ -343,8 +349,12 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .bullet:hover .dot{transform:scale(1.35);}
 .node.collapsed > .row > .bullet .dot{box-shadow:0 0 0 3.5px var(--bullet-ring);}
-/* mirrors: the ⧉ badge marks a mirror row AND an original that has mirrors —
-   either way, this item lives in more than one place */
+/* mirrors (F82): two diamonds, drawn in CSS so they look the same on every
+   platform. The original of a mirrored item is a FILLED diamond — the real
+   thing — and each mirror is a HOLLOW one — a reflection of it. The two are
+   never on the same row (a mirror is not itself mirrored), so one box serves
+   both; it is transparent and carries only `color`, which the bullet-colour
+   rules below set, and the shapes read currentColor. */
 .node.mirror > .row > .bullet .dot,
 .node.mirrored > .row > .bullet .dot{
   width:12px; height:12px; border-radius:2px;
@@ -352,8 +362,18 @@ body.wide{--page-max:clamp(700px, 86vw, 1400px);}
 }
 .node.mirror > .row > .bullet .dot::before,
 .node.mirrored > .row > .bullet .dot::before{
-  content:"⧉"; display:block;
-  font-size:13px; line-height:12px; text-align:center;
+  content:""; display:block; box-sizing:border-box;
+  width:8px; height:8px; margin:2px;
+  transform:rotate(45deg);
+}
+.node.mirrored > .row > .bullet .dot::before{background:currentColor;}
+.node.mirror > .row > .bullet .dot::before{border:1.5px solid currentColor;}
+/* the "has children, folded" ring follows the diamond instead of the box */
+.node.mirror.collapsed > .row > .bullet .dot,
+.node.mirrored.collapsed > .row > .bullet .dot{box-shadow:none;}
+.node.mirror.collapsed > .row > .bullet .dot::before,
+.node.mirrored.collapsed > .row > .bullet .dot::before{
+  box-shadow:0 0 0 3px var(--bullet-ring);
 }
 .node.mirror[data-color="red"] > .row > .bullet .dot,
 .node.mirrored[data-color="red"] > .row > .bullet .dot{background:transparent; color:var(--nc-red);}
@@ -618,6 +638,23 @@ body.ip-resizing #info-panel, body.ip-resizing #page{pointer-events:none;}
   font-size:12px; color:var(--nc-yellow); opacity:.55;
 }
 .ip-row-wrap:hover .ip-unstar, .ip-unstar:focus-visible{opacity:1;}
+/* saved searches: a row, then rename and remove, shown on hover */
+.ip-ss-btn{
+  flex:0 0 auto; padding:2px 5px; border-radius:var(--radius);
+  font-size:12px; color:var(--fg-dim); opacity:0;
+}
+.ip-row-wrap:hover .ip-ss-btn, .ip-ss-btn:focus-visible{opacity:.8;}
+.ip-ss-btn:hover{background:var(--panel-2); opacity:1;}
+.ip-ss-add{
+  display:block; width:100%; text-align:left; margin:0 0 4px; padding:5px 8px;
+  border-radius:var(--radius); font-size:12.5px; color:var(--accent);
+}
+.ip-ss-add:hover{background:var(--accent-soft);}
+.ip-ss-input{
+  flex:1; min-width:0; padding:4px 8px; font-size:13px; outline:none;
+  background:var(--panel); border:1px solid var(--accent); border-radius:var(--radius);
+}
+.ip-row.on .ip-row-main{color:var(--accent);}
 /* the tag vocabulary: uniform chips, count riding along */
 .ip-tags{display:flex; flex-wrap:wrap; gap:5px; padding:3px 4px 2px;}
 .ip-tag{
@@ -634,6 +671,12 @@ body.ip-resizing #info-panel, body.ip-resizing #page{pointer-events:none;}
   font-size:13px; color:var(--accent);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+.ip-row-ctx{
+  font-size:11.5px; line-height:1.35; color:var(--fg-dim); margin-top:2px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  word-break:break-word;
+}
+.ip-bl mark{color:var(--fg);}
 .ip-row-sub{
   font-size:11px; color:var(--fg-faint); margin-top:1px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -762,12 +805,76 @@ dialog h2{margin:0 0 10px; font-size:17px;}
 }
 .dialog-actions button:hover{background:var(--panel-2);}
 .dialog-actions button.danger{color:var(--danger); border-color:var(--danger);}
-#help-grid{
-  display:grid; grid-template-columns:auto 1fr; gap:6px 18px;
-  font-size:13px; margin:12px 0;
-}
-#help-grid em{color:var(--fg-dim); font-style:italic; font-size:12px;}
 .help-note{font-size:12.5px; color:var(--fg-dim); margin:10px 0 0;}
+
+/* ---------- help center (F72) ---------- */
+#help-dialog{max-width:920px; width:min(920px, calc(100vw - 32px)); padding:0;}
+#help-dialog[open]{display:flex; flex-direction:column; height:min(680px, 88vh);}
+.hc-head{display:flex; align-items:center; gap:14px; padding:14px 20px 10px; border-bottom:1px solid var(--line);}
+.hc-head h2{margin:0;}
+.hc-head .dialog-tagline{margin:0 0 0 auto;}
+#help-dialog .dialog-actions{margin:0; padding:10px 20px; border-top:1px solid var(--line);}
+#hc{flex:1; min-height:0; display:flex;}
+#hc-nav{
+  width:228px; flex:none; display:flex; flex-direction:column; gap:8px;
+  padding:12px 10px; border-right:1px solid var(--line); overflow:auto;
+}
+#hc-search{
+  width:100%; box-sizing:border-box; padding:5px 11px; font-size:13px;
+  background:var(--panel); border:1px solid var(--line); border-radius:999px; outline:none;
+}
+#hc-search:focus{border-color:var(--accent);}
+#hc-search::placeholder{color:var(--fg-faint);}
+#hc-topics{display:flex; flex-direction:column; gap:1px;}
+.hc-topic{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  text-align:left; padding:6px 10px; border-radius:var(--radius);
+  font-size:13.5px; color:var(--fg-dim);
+}
+.hc-topic:hover{background:var(--panel); color:var(--fg);}
+.hc-topic.on{background:var(--accent-soft); color:var(--fg);}
+.hc-pill, .menu-pill{
+  font-size:10.5px; line-height:1; padding:2px 6px; border-radius:999px;
+  background:var(--accent); color:var(--bg); font-weight:600;
+}
+.menu-pill{margin-left:auto;}
+.hc-empty{font-size:13px; color:var(--fg-dim); padding:6px 10px;}
+#hc-main{flex:1; min-width:0; overflow:auto; padding:18px 26px 26px; outline:none;}
+#hc-content h1{font-size:20px; margin:0 0 6px;}
+#hc-content h2{font-size:15px; margin:20px 0 6px;}
+.hc-lede{margin:0 0 16px; color:var(--fg-dim); font-size:14px;}
+.hc-md{font-size:14px; line-height:1.6; color:var(--fg);}
+.hc-md h1{font-size:20px; margin:0 0 6px;}
+.hc-md h2{font-size:15px; margin:20px 0 6px;}
+.hc-md p{margin:0 0 10px;}
+.hc-md ul, .hc-md ol{margin:0 0 10px; padding-left:22px;}
+.hc-md li{margin:3px 0;}
+.hc-md > h1 + p{color:var(--fg-dim); font-size:14.5px;}
+.hc-release h2{display:flex; align-items:center; gap:8px;}
+.hc-pill-new{font-size:10.5px;}
+.hc-cards{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px;}
+.hc-card{
+  display:flex; flex-direction:column; gap:4px; text-align:left;
+  padding:12px 14px; border:1px solid var(--line); border-radius:calc(var(--radius) * 1.5);
+  background:var(--panel);
+}
+.hc-card:hover{border-color:var(--accent); background:var(--panel-2);}
+.hc-card-title{font-size:14px; font-weight:600; color:var(--fg);}
+.hc-card-sum{font-size:12.5px; color:var(--fg-dim); line-height:1.45;}
+.hc-keys{border-collapse:collapse; width:100%; font-size:13.5px;}
+.hc-keys td{padding:6px 10px 6px 0; vertical-align:top; border-bottom:1px solid var(--line);}
+.hc-keys td:first-child{white-space:nowrap; width:1%; padding-right:20px;}
+.hc-combo{white-space:nowrap;}
+#menu-btn{position:relative;}
+#menu-btn.has-news::after{
+  content:""; position:absolute; top:2px; right:3px; width:7px; height:7px;
+  border-radius:50%; background:var(--accent);
+}
+@media (max-width:640px){
+  #hc{flex-direction:column;}
+  #hc-nav{width:auto; flex:none; max-height:34%; border-right:0; border-bottom:1px solid var(--line);}
+  .hc-head .dialog-tagline{display:none;}
+}
 
 /* ---------- jump palette (Ctrl+K) ---------- */
 #palette-dialog{margin-top:10vh; max-width:560px; padding:10px;}
@@ -931,7 +1038,9 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <nav id="breadcrumbs" aria-label="Breadcrumbs"></nav>
   <div id="topbar-right">
     <span id="save-indicator" aria-live="polite">Saved</span>
-    <input id="search" type="search" placeholder="Search  (Ctrl+F)" autocomplete="off" spellcheck="false" aria-label="Search outline">
+    <input id="search" type="search" list="search-history" placeholder="Search  (Ctrl+F)" title="Words, &quot;phrases&quot;, #tags, -exclude, is:starred, is:done, links:&quot;Title&quot;, and a &gt; b to search inside matches of a" autocomplete="off" spellcheck="false" aria-label="Search outline">
+    <button id="search-save" hidden title="Save this search" aria-label="Save this search" aria-pressed="false">&#9734;</button>
+    <datalist id="search-history"></datalist>
     <button id="panel-btn" aria-pressed="false" title="Info panel: what links here, starred items, tags (Alt+I)" aria-label="Toggle info panel">&#9704;</button>
     <button id="menu-btn" aria-haspopup="true" aria-expanded="false" title="Menu">&#9776;</button>
   </div>
@@ -973,7 +1082,19 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
           <option value="wyse60">Wyse 60 terminal</option>
         </select>
       </label>
-      <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed</label>
+      <label class="menu-row menu-field"><input type="checkbox" id="hide-completed"> Hide completed <kbd>Alt+C</kbd></label>
+      <label class="menu-row menu-field" title="What clicking a starred item or a linked-from item in the info panel does. Alt+click does the other one.">Panel links
+        <select id="panel-links">
+          <option value="zoom">Zoom into the item</option>
+          <option value="reveal">Reveal where it is</option>
+        </select>
+      </label>
+      <label class="menu-row menu-field" title="Where the caret goes after Move to… and Mirror to…. Shift+Enter in the picker does the other one.">After Move / Mirror to&hellip;
+        <select id="after-move">
+          <option value="follow">Follow it</option>
+          <option value="stay">Stay where I am</option>
+        </select>
+      </label>
       <label class="menu-row menu-field" title="Let the outline follow the window width instead of holding a fixed reading column."><input type="checkbox" id="wide-layout"> Wide layout</label>
     </div>
   </section>
@@ -998,10 +1119,10 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
     <button class="menu-sec-head"><span class="menu-caret">&#9656;</span>Help</button>
     <div class="menu-sec-body">
       <button class="menu-row" id="show-tour">Take the guided tour&hellip;</button>
-      <button class="menu-row" id="show-help">Keyboard shortcuts&hellip; <kbd>?</kbd></button>
+      <button class="menu-row" id="show-help">Help&hellip; <span class="menu-pill" id="help-new-pill" hidden>New</span></button>
     </div>
   </section>
-  <div class="menu-note" id="build-readout">Build 52 &middot; 2026-09-02</div>
+  <div class="menu-note" id="build-readout">Build 99 &middot; 2026-10-13</div>
 </div>
 
 <aside id="info-panel" aria-label="Item info" hidden>
@@ -1036,10 +1157,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <button class="menu-row" id="nm-star">Star this item</button>
   <button class="menu-row" id="nm-complete">Complete</button>
   <button class="menu-row" id="nm-zoom">Zoom in</button>
+  <button class="menu-row" id="nm-links" title="Filter the outline to what links to this item and what it links to.">Show linked items <kbd>Alt+L</kbd></button>
   <button class="menu-row" id="nm-note">Add note</button>
   <button class="menu-row" id="nm-move" title="Search for another item and file this one inside it, as its last item.">Move to&hellip; <kbd>Alt+M</kbd></button>
   <button class="menu-row" id="nm-duplicate">Duplicate</button>
   <button class="menu-row" id="nm-mirror" title="Place a live mirror of this item right below it, then move it anywhere. Or type (( in any empty item.">Mirror this item</button>
+  <button class="menu-row" id="nm-mirrorto" title="Search for another item and show a live mirror of this one inside it. This item stays where it is.">Mirror to&hellip; <kbd>Alt+Shift+M</kbd></button>
   <button class="menu-row" id="nm-copy">Copy as markdown</button>
   <hr>
   <button class="menu-row danger" id="nm-delete">Delete</button>
@@ -1113,40 +1236,18 @@ button:focus-visible, a:focus-visible, select:focus-visible, input[type="checkbo
   <div id="palette-results" role="listbox" aria-label="Matching items"></div>
 </dialog>
 
-<dialog id="help-dialog">
-  <h2 class="help-brand"><svg width="28" height="23" aria-hidden="true"><use href="#logo-mark"/></svg>37nodes</h2>
-  <p class="dialog-tagline">Infinite depth. Zero chaos.</p>
-  <h3 class="help-subhead">Keyboard shortcuts</h3>
-  <div id="help-grid">
-    <span><kbd>Enter</kbd></span><span>New item (splits at cursor)</span>
-    <span><kbd>Shift</kbd>+<kbd>Enter</kbd></span><span>Add / edit the item's note</span>
-    <span><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></span><span>Indent / outdent</span>
-    <span><kbd>Alt</kbd>+<kbd>&uarr;</kbd> / <kbd>Alt</kbd>+<kbd>&darr;</kbd></span><span>Move item up / down</span>
-    <span><kbd>Ctrl</kbd>+<kbd>&uarr;</kbd> / <kbd>Ctrl</kbd>+<kbd>&darr;</kbd></span><span>Collapse / expand</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span><span>Complete / un-complete</span>
-    <span><kbd>Alt</kbd>+<kbd>&rarr;</kbd> / <kbd>Alt</kbd>+<kbd>&larr;</kbd></span><span>Zoom in / zoom out</span>
-    <span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>&larr;</kbd></span><span>Zoom all the way out to the top</span>
-    <span><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>Move between items</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Home</kbd> / <kbd>Ctrl</kbd>+<kbd>End</kbd></span><span>First / last item in view</span>
-    <span><kbd>Backspace</kbd> <em>on empty item</em></span><span>Delete item (children are kept)</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd></span><span>Delete item and everything under it</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span><span>Undo / redo</span>
-    <span><kbd>Ctrl</kbd>+<kbd>F</kbd></span><span>Search</span>
-    <span><kbd>Ctrl</kbd>+<kbd>K</kbd></span><span>Jump to any item (fuzzy match)</span>
-    <span><kbd>Alt</kbd>+<kbd>M</kbd></span><span>Move this item into another one &mdash; same fuzzy search, picks the destination</span>
-    <span><kbd>[[</kbd></span><span>Link to an item: pick from the list, <kbd>Enter</kbd> or <kbd>Tab</kbd> inserts</span>
-    <span><kbd>((</kbd> <em>on an empty item</em></span><span>Turn the item into a live <em>mirror</em> of another item (hollow bullet); also in the ≡ menu</span>
-    <span><kbd>#</kbd></span><span>Tag an item: the tags you already use are offered as you type</span>
-    <span><kbd>Alt</kbd>+<kbd>S</kbd></span><span>Star / unstar the item &mdash; starred items are listed in the info panel</span>
-    <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy item + subtree as markdown</span>
-    <span><kbd>Ctrl</kbd>+<kbd>.</kbd></span><span>Item menu (heading, color, more) &mdash; also on the ≡ handle or right-click the bullet</span>
-    <span><kbd>Ctrl</kbd>+<kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></span><span>Bold / italic / underline selected title text &mdash; select text while editing for the full format bar</span>
-    <span><kbd>Alt</kbd>+<kbd>I</kbd></span><span>Info panel: what links here, your starred items, every tag you use</span>
-    <span><kbd>Esc</kbd></span><span>Clear search / close note / close dialogs</span>
-    <span><kbd>?</kbd></span><span>This help</span>
+<dialog id="help-dialog" aria-label="Help">
+  <div class="hc-head">
+    <h2 class="help-brand"><svg width="28" height="23" aria-hidden="true"><use href="#logo-mark"/></svg>37nodes Help</h2>
+    <p class="dialog-tagline">Infinite depth. Zero chaos.</p>
   </div>
-  <p class="help-note">On macOS, use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>.</p>
-  <p class="help-note">Your outline lives in this browser's built-in database (IndexedDB). Browsers can evict site data under disk pressure or when clearing it manually. <strong>Export JSON</strong> from the menu is your real backup.</p>
+  <div id="hc">
+    <nav id="hc-nav" aria-label="Help topics">
+      <input id="hc-search" type="search" placeholder="Search help  ( / )" autocomplete="off" spellcheck="false" aria-label="Search help">
+      <div id="hc-topics"></div>
+    </nav>
+    <div id="hc-main" tabindex="-1"><div id="hc-content"></div></div>
+  </div>
   <div class="dialog-actions"><button id="help-tour">Take the tour</button><button id="help-close">Close</button></div>
 </dialog>
 
@@ -1184,6 +1285,28 @@ const uid = () => (crypto.randomUUID
 const nowISO = () => new Date().toISOString();
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 const truncate = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s);
+
+/* Is this keydown the Alt+<letter> chord `code` ('KeyL'), with Shift only if
+   asked for? Alt+letter reports differently across keyboard layouts — some
+   send a dead key or an accented character as e.key — so the physical key
+   (e.code) is accepted as well as the character. One place for the rule, so a
+   fix to how chords are recognised is made once.
+
+   Two places a chord must NOT fire, because it would act on the outline from
+   somewhere that is not the outline: while a modal dialog is open (the
+   palette, Help — the shortcut would change the page behind it), and inside
+   an ordinary text field (the search box, a picker's input, a rename box, a
+   <select>), where the keystroke belongs to the field. Titles are
+   contenteditable and note editors are the one textarea that is part of the
+   outline, so both still take chords: that is where they are meant to be used. */
+function altChord(e, code, { shift = false } = {}) {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey !== shift) return false;
+  if (e.code !== code && e.key.toLowerCase() !== code.slice(3).toLowerCase()) return false;
+  if (document.querySelector('dialog[open]')) return false;
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select') && !t.closest('.note-edit')) return false;
+  return true;
+}
 
 function debounce(fn, ms) {
   let t = null;
@@ -1747,11 +1870,11 @@ function deleteSubtree(id) {
   if (m) {
     const mp = getParent(id); // n's parent after promotion
     if (mp && mp.id !== p.id) emit({ type: 'children', id: mp.id });
-    emit({ type: 'node', id }); // may have lost its last mirror: ⧉ badge off
+    emit({ type: 'node', id }); // may have lost its last mirror: filled diamond off
   } else {
     // no promotion. Two kinds of fallout to repaint: mirrors pointing into
     // the deleted subtree broke (tombstones), and targets of mirrors that
-    // DIED with the subtree may have lost their ⧉ badge.
+    // DIED with the subtree may have lost their diamond.
     const gone = new Set(), lostTargets = new Set();
     (function collect(x) {
       gone.add(x.id);
@@ -1896,7 +2019,7 @@ function setMirror(id, targetId) {
   scheduleSave();
   emit({ type: 'node', id });
   emit({ type: 'children', id: p.id }); // the row changes shape: rebuild it
-  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
+  emit({ type: 'node', id: target.id }); // the original gains its diamond
   return true;
 }
 /* place a new mirror of targetId as its next sibling (the menu flow) */
@@ -1905,7 +2028,21 @@ function createMirror(targetId) {
   const anchor = getNode(targetId), p = getParent(targetId);
   if (!target || !anchor || !p) return null;
   const m = create(p.id, p.children.indexOf(anchor) + 1, { mirrorOf: target.id });
-  emit({ type: 'node', id: target.id }); // the original gains its ⧉ badge
+  emit({ type: 'node', id: target.id }); // the original gains its diamond
+  return m;
+}
+
+/* "Mirror to…" (F80): a new mirror of targetId's content as a child of
+   parentId. Refused where it would be a loop — inside the original's own
+   subtree, a mirror renders as a stub of itself — or under a mirror, which
+   has no children of its own. */
+function createMirrorIn(targetId, parentId, index = Infinity) {
+  const target = mirrorResolveTarget(targetId);
+  const p = getNode(parentId);
+  if (!target || !p || p.mirrorOf) return null;
+  if (p.id === target.id || isDescendant(p.id, target.id)) return null;
+  const m = create(p.id, Math.min(index, p.children.length), { mirrorOf: target.id });
+  emit({ type: 'node', id: target.id }); // the original gains its diamond
   return m;
 }
 
@@ -2275,7 +2412,7 @@ const store = {
   create, createTree, deletePromote, deleteSubtree,
   move, indent, outdent, moveSibling,
   setCollapsed, toggleCompleted, setFormat, setColor, toggleStarred, duplicate,
-  mirrorContent, mirrorsOf, hasMirrors, setMirror, createMirror,
+  mirrorContent, mirrorsOf, hasMirrors, setMirror, createMirror, createMirrorIn,
   undo, redo,
   load, saveNow, scheduleSave, setSavedFocus, // load and saveNow return promises
   migrateDoc,
@@ -2285,6 +2422,208 @@ const store = {
   get wasSeeded() { return seeded; },
   get backend() { return backend; }, // 'idb' | 'local' | 'memory' — diagnostics
 };
+
+/* ===== 04b query =====
+   The search query language (F75–F77). Pure: strings in, plain data out — no
+   DOM, no store — so it can be exercised on its own and its meaning cannot
+   drift with the renderer. computeFilter (04) walks the tree with it.
+
+   A query is whitespace-separated TERMS, ANDed per item:
+     word        case-insensitive substring of title or note
+     "a phrase"  the same, spaces literal (unterminated: runs to the end)
+     #tag        a whole tag (F43), in title or note
+     is:starred  / is:done — flags on the item's content
+     links:"Title"  items linked to or from that item (F78); the title is
+                 resolved like a [[link]], so it is matched by name
+   Any term takes a leading "-" to negate it. A standalone ">" splits the
+   query into GROUPS that must hold down a chain of ancestors (F76).
+   Inside quotes, \" is a literal quote and \\ a literal backslash.
+
+   The grammar is total: nothing is a syntax error. Text that only resembles
+   syntax (10:30, is:nonsense, a>b, a lone "-") is a plain word. */
+
+/* a quoted run starting at str[at] === '"' → { v, next }: the unescaped text
+   and the index after the closing quote (or the end, if it never closes) */
+function queryReadQuoted(str, at) {
+  let v = '';
+  let j = at + 1;
+  for (; j < str.length && str[j] !== '"'; j++) {
+    if (str[j] === '\\' && (str[j + 1] === '"' || str[j + 1] === '\\')) { v += str[j + 1]; j++; }
+    else v += str[j];
+  }
+  return { v, next: j < str.length ? j + 1 : str.length };
+}
+
+/* a string as one quoted term, escaping what the reader above unescapes */
+function queryQuote(s) {
+  return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+
+/* → [{start, end, neg, kind: 'text'|'tag'|'flag'|'links'|'sep', v}] with
+   source spans, so a token can be cut back out of the string it came from */
+function queryTokens(str) {
+  const out = [];
+  const n = str.length;
+  const isSpace = ch => /\s/.test(ch);
+  let i = 0;
+  while (i < n) {
+    if (isSpace(str[i])) { i++; continue; }
+    const start = i;
+    let neg = false;
+    if (str[i] === '-' && i + 1 < n && !isSpace(str[i + 1])) { neg = true; i++; }
+    if (str[i] === '"') {
+      const q = queryReadQuoted(str, i);
+      i = q.next;
+      if (q.v) out.push({ start, end: i, neg, kind: 'text', v: q.v.toLowerCase() });
+      continue;
+    }
+    // links:"A title" (or links:word): the value may be quoted, so it is read
+    // here, before the bare-word scan would stop at its first space
+    if (/^links:/i.test(str.slice(i, i + 6)) && i + 6 < n && !isSpace(str[i + 6])) {
+      let v;
+      if (str[i + 6] === '"') {
+        const q = queryReadQuoted(str, i + 6);
+        v = q.v;
+        i = q.next;
+      } else {
+        let j = i + 6;
+        while (j < n && !isSpace(str[j])) j++;
+        v = str.slice(i + 6, j);
+        i = j;
+      }
+      if (v.trim()) out.push({ start, end: i, neg, kind: 'links', v: v.trim().toLowerCase() });
+      continue;
+    }
+    let j = i;
+    while (j < n && !isSpace(str[j])) j++;
+    const raw = str.slice(i, j);
+    i = j;
+    const low = raw.toLowerCase();
+    if (raw === '>' && !neg) out.push({ start, end: i, neg: false, kind: 'sep', v: '>' });
+    else if (raw === '>' && neg) out.push({ start, end: i, neg: false, kind: 'text', v: '->' });
+    else if (/^#[\w-]+$/.test(raw)) out.push({ start, end: i, neg, kind: 'tag', v: low });
+    else if (low === 'is:starred') out.push({ start, end: i, neg, kind: 'flag', v: 'starred' });
+    else if (low === 'is:done') out.push({ start, end: i, neg, kind: 'flag', v: 'completed' });
+    else out.push({ start, end: i, neg, kind: 'text', v: low });
+  }
+  return out;
+}
+
+/* → { groups: [[term, …], …], marks: [string], tags: Set<'#tag'> }
+   `marks` and `tags` are the POSITIVE terms only — what to highlight.
+   Empty groups are dropped, so a half-typed "acme >" reads as "acme". */
+function parseQuery(str) {
+  const groups = [];
+  let cur = [];
+  const marks = [];
+  const tags = new Set();
+  for (const t of queryTokens(String(str || ''))) {
+    if (t.kind === 'sep') {
+      if (cur.length) groups.push(cur);
+      cur = [];
+      continue;
+    }
+    const term = { neg: t.neg, kind: t.kind, v: t.v };
+    if (t.kind === 'tag') {
+      // whole tags only: #todo must not hit #todos (tag chars are [\w-])
+      term.re = new RegExp('(^|\\s)' + t.v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])', 'i');
+    }
+    cur.push(term);
+    if (!t.neg) {
+      if (t.kind === 'text') marks.push(t.v);
+      else if (t.kind === 'tag') tags.add(t.v);
+    }
+  }
+  if (cur.length) groups.push(cur);
+  return { groups, marks, tags };
+}
+
+/* does one item satisfy every term of a group? `item` carries its id, the title
+   and note ALREADY lowercased, and the two flags the operators read */
+function queryGroupMatches(group, item) {
+  for (const t of group) {
+    let ok;
+    if (t.kind === 'text') ok = item.title.includes(t.v) || item.note.includes(t.v);
+    else if (t.kind === 'tag') ok = t.re.test(item.title) || t.re.test(item.note);
+    else if (t.kind === 'links') ok = !!(t.ids && t.ids.has(item.id)); // ids: set by computeFilter
+    else ok = !!item[t.v === 'starred' ? 'starred' : 'completed'];
+    if (ok === t.neg) return false;
+  }
+  return true;
+}
+
+/* toLowerCase can change a string's length ('İ' becomes two units), so an
+   offset found in the lowered text is not an offset into the original. This
+   lowers `text` and, only when the lengths differ, returns where each lowered
+   unit came from: `map[i]` is the index in `text` of the character that
+   produced low[i] (plus a final entry for the end). map is null in the
+   overwhelming case that lengths agree — no mapping, no cost. */
+function lowerWithMap(text) {
+  const low = text.toLowerCase();
+  if (low.length === text.length) return { low, map: null };
+  const map = [];
+  for (let i = 0; i < text.length; ) {
+    const ch = String.fromCodePoint(text.codePointAt(i));
+    for (let k = ch.toLowerCase().length; k > 0; k--) map.push(i);
+    i += ch.length;
+  }
+  map.push(text.length);
+  return { low, map };
+}
+/* [start, end) in lowered coordinates → [start, end) in the original */
+function lowerSpanBack(text, map, start, end) {
+  if (!map) return [start, end];
+  const last = map[Math.max(start, end - 1)];
+  return [map[start], last + (text.codePointAt(last) > 0xFFFF ? 2 : 1)];
+}
+
+/* highlight ranges for a title: every occurrence of every needle, merged
+   where they overlap or touch → [[start, end], …] in order */
+function queryMarkRanges(text, needles) {
+  const { low, map } = lowerWithMap(text);
+  const spans = [];
+  for (const nd of needles) {
+    if (!nd) continue;
+    for (let at = low.indexOf(nd); at >= 0; at = low.indexOf(nd, at + nd.length)) {
+      spans.push(lowerSpanBack(text, map, at, at + nd.length));
+    }
+  }
+  spans.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged = [];
+  for (const s of spans) {
+    const last = merged[merged.length - 1];
+    if (last && s[0] <= last[1]) last[1] = Math.max(last[1], s[1]);
+    else merged.push([s[0], s[1]]);
+  }
+  return merged;
+}
+
+/* Shift+click on a tag chip: add the tag as a term, or take it back out if the
+   query already has it (positive). Cuts by source span, so quotes, operators
+   and `>` elsewhere in the query are left exactly as typed. */
+function queryToggleTag(str, tag) {
+  const want = tag.toLowerCase();
+  const hits = queryTokens(str).filter(t => t.kind === 'tag' && !t.neg && t.v === want);
+  if (!hits.length) return (str.trim() ? str.trim() + ' ' : '') + tag;
+  let out = str;
+  for (const t of hits.reverse()) out = out.slice(0, t.start) + out.slice(t.end);
+  return out.replace(/\s{2,}/g, ' ').trim();
+}
+
+/* is the whole query exactly this one tag? (a plain chip click then clears) */
+function queryIsOnlyTag(str, tag) {
+  const p = parseQuery(str);
+  return p.groups.length === 1 && p.groups[0].length === 1
+    && p.groups[0][0].kind === 'tag' && !p.groups[0][0].neg
+    && p.groups[0][0].v === tag.toLowerCase();
+}
+
+/* is the whole query exactly links:"title"? (the gesture then toggles off) */
+function queryIsOnlyLinks(str, title) {
+  const p = parseQuery(str);
+  const t = p.groups.length === 1 && p.groups[0].length === 1 && p.groups[0][0];
+  return !!t && t.kind === 'links' && !t.neg && t.v === String(title).trim().toLowerCase();
+}
 
 /* ===== 04 view =====
    Incremental DOM rendering. Each node maps to one .node element keyed by
@@ -2306,8 +2645,9 @@ const BRAND_TAGLINE = 'Infinite depth. Zero chaos.';
 const view = {
   focusId: ROOT_ID,
   query: '',
-  filter: null, // { matched:Set, anc:Set, under:Set, q } while searching
+  filter: null, // { matched, anc, under: Set<id>, marks: [string], tags: Set<'#tag'> } while searching
   filterExempt: new Set(), // ids created during this search: shown though they don't match
+  filterOpen: new Map(),   // id -> bool: ▸ toggles made during this search (F74); never persisted
 };
 
 /* Instance maps: a node normally renders exactly once, but inside a mirror
@@ -2368,17 +2708,20 @@ function completedRowsHidden() {
   return document.body.classList.contains('hide-completed');
 }
 function computeFilter() {
-  const q = view.query.trim().toLowerCase();
-  if (!q) { view.filter = null; return; }
-  // a pure #tag query matches the exact tag only (#todo must not hit #todos)
-  const tagRe = /^#[\w-]+$/.test(q) ? new RegExp('(^|\\s)' + q + '(?![\\w-])', 'i') : null;
-  const test = tagRe
-    ? s => tagRe.test(s || '')
-    : s => (s || '').toLowerCase().includes(q);
+  const parsed = parseQuery(view.query);
+  const groups = parsed.groups;
+  if (!groups.length) { view.filter = null; return; }
+  const k = groups.length;
+  // links: terms resolve by title against the whole document, once per run
+  for (const g of groups) for (const t of g) if (t.kind === 'links') t.ids = linkedIdsFor(t.v);
   const skipCompleted = completedRowsHidden();
   const matched = new Set(), anc = new Set(), under = new Set();
   const focus = store.getNode(view.focusId);
-  (function walk(n, ancIds, underMatch) {
+  // `stage` = how many leading groups an ancestor has already satisfied
+  // (F76). Taking each anchor as early as possible is always sufficient, so
+  // one pass suffices and cost stays linear. With one group, stage is
+  // always k-1 and this is a plain search.
+  (function walk(n, ancIds, underMatch, stage) {
     const isFocus = n === focus;
     // a mirror matches on its target's text (it has none of its own); its
     // subtree is not walked here — the original reports the real hits
@@ -2386,7 +2729,15 @@ function computeFilter() {
     // an off-screen completed row can't be a result, and neither can anything
     // inside it (the CSS hides the subtree with it)
     if (!isFocus && skipCompleted && c.completed) return;
-    const hit = !isFocus && (test(c.title) || test(c.note));
+    let hit = false, nextStage = stage;
+    if (!isFocus) {
+      const item = {
+        id: c.id, title: (c.title || '').toLowerCase(), note: (c.note || '').toLowerCase(),
+        starred: !!c.starred, completed: !!c.completed,
+      };
+      if (stage === k - 1) hit = queryGroupMatches(groups[k - 1], item);
+      else if (queryGroupMatches(groups[stage], item)) nextStage = stage + 1;
+    }
     // items made during this search don't match it; keep them on screen anyway
     const kept = !isFocus && view.filterExempt.has(n.id);
     if (hit) matched.add(n.id);
@@ -2394,9 +2745,9 @@ function computeFilter() {
     const nowUnder = underMatch || hit || kept;
     if (nowUnder && !isFocus) under.add(n.id);
     const nextAnc = isFocus ? ancIds : ancIds.concat(n.id);
-    for (const c of n.children) walk(c, nextAnc, nowUnder);
-  })(focus, [], false);
-  view.filter = { matched, anc, under, q, tagQuery: !!tagRe };
+    for (const ch of n.children) walk(ch, nextAnc, nowUnder, nextStage);
+  })(focus, [], false, 0);
+  view.filter = { matched, anc, under, marks: parsed.marks, tags: parsed.tags };
 }
 function nodeVisibleInFilter(n) {
   if (!view.filter) return true;
@@ -2421,22 +2772,50 @@ function keepInFilter(ids) {
 }
 function clearFilterExempt() {
   view.filterExempt.clear();
+  view.filterOpen.clear(); // a new query starts from the outline as you left it
+}
+
+/* Is this row expanded? Outside a filter, that is the stored flag. Under one
+   (F74) the outline keeps the shape you left it, with two exceptions that are
+   there so no result can be hidden:
+   - a row with a matching descendant (`anc`) is held open;
+   - a mirror stays folded, since its subtree would duplicate what the
+     original already reports.
+   A ▸ toggle made during the search is a session override (`filterOpen`) that
+   beats both and is never written to the document — folding things away to
+   read a result list must not re-fold the outline underneath it.
+   `own` is the row's structural node: a mirror row's state is its own. */
+function rowExpanded(own) {
+  const f = view.filter;
+  if (!f) return !own.collapsed;
+  const o = view.filterOpen.get(own.id);
+  if (o !== undefined) return o;
+  if (own.mirrorOf) return false;
+  if (f.anc.has(own.id)) return true;
+  return !own.collapsed;
+}
+/* The one door for a person's expand/collapse gesture (▸, Ctrl+↑/↓). */
+function setRowCollapsed(id, collapsed) {
+  const n = store.getNode(id);
+  if (!n) return;
+  if (!view.filter) { store.setCollapsed(id, collapsed); return; }
+  if (rowExpanded(n) === !collapsed) return;
+  view.filterOpen.set(id, !collapsed);
+  refreshCollapse(id);
 }
 
 /* --- node rendering ---------------------------------------------------- */
-function highlightFrag(text, q) {
+function highlightFrag(text, ranges) { // ranges: sorted, merged [start, end] pairs
   const frag = document.createDocumentFragment();
-  const lower = text.toLowerCase();
-  let i = 0;
-  for (;;) {
-    const j = lower.indexOf(q, i);
-    if (j < 0) { frag.append(document.createTextNode(text.slice(i))); break; }
-    if (j > i) frag.append(document.createTextNode(text.slice(i, j)));
+  let at = 0;
+  for (const [s, e] of ranges) {
+    if (s > at) frag.append(document.createTextNode(text.slice(at, s)));
     const m = document.createElement('mark');
-    m.textContent = text.slice(j, j + q.length);
+    m.textContent = text.slice(s, e);
     frag.append(m);
-    i = j + q.length;
+    at = e;
   }
+  if (at < text.length) frag.append(document.createTextNode(text.slice(at)));
   return frag;
 }
 /* --- [[wikilinks]]: resolved by title, case-insensitive, at render time.
@@ -2547,6 +2926,7 @@ const TITLE_PATTERNS = [
   { re: /(^|\s)(#[\w-]+)/, isTag: true },
 ];
 
+/* activeTag: the Set of lowercase '#tags' the current query asks for (or null) */
 function titleParseInto(parent, text, rawBase, activeTag, S) {
   const emitText = (container, str, at) => {
     if (!str) return;
@@ -2574,7 +2954,7 @@ function titleParseInto(parent, text, rawBase, activeTag, S) {
       const chipAt = bestIdx + best[1].length; // keep the leading space plain
       emitText(parent, rest.slice(0, chipAt), base);
       const s = document.createElement('span');
-      s.className = 'tag' + (activeTag && best[2].toLowerCase() === activeTag ? ' active' : '');
+      s.className = 'tag' + (activeTag && activeTag.has(best[2].toLowerCase()) ? ' active' : '');
       s.textContent = best[2];
       s.title = 'Filter by ' + best[2];
       ctx.seg(s.firstChild, base + chipAt);
@@ -2618,11 +2998,13 @@ function titleRawOffset(el, renderedOff) {
 function setTitleContent(el, n) {
   el.textContent = '';
   const f = view.filter;
-  if (f && !f.tagQuery && f.matched.has(n.id) && (n.title || '').toLowerCase().includes(f.q)) {
+  const ranges = f && f.marks.length && f.matched.has(n.id)
+    ? queryMarkRanges(n.title || '', f.marks) : [];
+  if (ranges.length) {
     titleSegs.delete(el); // raw text + <mark>s: rendered offsets ARE raw offsets
-    el.append(highlightFrag(n.title, f.q)); // text search: marks win over formatting
+    el.append(highlightFrag(n.title, ranges)); // text hits: marks win over formatting
   } else {
-    el.append(titleFrag(el, n.title || '', f && f.tagQuery ? f.q : null));
+    el.append(titleFrag(el, n.title || '', f ? f.tags : null));
   }
 }
 /* n = the CONTENT node (what the row shows); own = the row's structural
@@ -2630,8 +3012,7 @@ function setTitleContent(el, n) {
    membership are their own while everything visible comes from the target. */
 function applyNodeState(el, n, own = n) {
   const hasKids = n.children.length > 0;
-  // mirrors sit collapsed in search view (their subtrees would duplicate results)
-  const expanded = view.filter ? !own.mirrorOf : !own.collapsed;
+  const expanded = rowExpanded(own);
   if (n.format) el.dataset.format = n.format; else delete el.dataset.format;
   if (n.color) el.dataset.color = n.color; else delete el.dataset.color;
   el.classList.toggle('completed', n.completed);
@@ -2640,7 +3021,8 @@ function applyNodeState(el, n, own = n) {
   el.classList.toggle('expanded', hasKids && expanded);
   if (hasKids) el.setAttribute('aria-expanded', String(expanded));
   else el.removeAttribute('aria-expanded');
-  // originals that have live mirrors wear the same ⧉ badge as their mirrors
+  // an original that has live mirrors is drawn as a filled diamond, each of
+  // its mirrors as a hollow one (app.css)
   const mirrored = !own.mirrorOf && store.hasMirrors(own.id);
   el.classList.toggle('mirrored', mirrored);
   if (!own.mirrorOf) {
@@ -2768,10 +3150,7 @@ function renderNode(n, level, suffix = '') {
   applyNodeState(el, content || n, n);
   const loop = isMirror && target && mirrorExpansionLoop(n, target, suffix);
   if (loop) el.classList.add('loop');
-  // mirrors stay collapsed while a search filter is up: their subtrees would
-  // duplicate results the original already reports
-  const expand = view.filter ? !isMirror : !n.collapsed;
-  if (expand && content && content.children.length && !loop) {
+  if (rowExpanded(n) && content && content.children.length && !loop) {
     fillChildren(kids, content, level, isMirror ? suffix + '@' + n.id : suffix);
   }
   return el;
@@ -3076,7 +3455,10 @@ function closeNoteEditor(ta) {
 /* --- focus helpers -------------------------------------------------------- */
 function revealNode(id) {
   for (const a of store.ancestorsOf(id)) {
-    if (a.id !== ROOT_ID && a.collapsed) store.setCollapsed(a.id, false);
+    if (a.id === ROOT_ID) continue;
+    if (view.filter) { // the stored flag is not what the screen is showing
+      if (!rowExpanded(a)) { view.filterOpen.set(a.id, true); refreshCollapse(a.id); }
+    } else if (a.collapsed) store.setCollapsed(a.id, false);
   }
 }
 function activateTitle(t, off = 0) {
@@ -3150,6 +3532,34 @@ function updateSaveIndicator(state) {
     ? 'Saving failed. Click to retry and see details' : '';
 }
 
+/* Bring every rendered instance of row `id` in line with rowExpanded():
+   fill a newly opened container lazily, and restyle the row. Shared by the
+   store's 'collapse' event and by search-view toggles, which never reach the
+   store. */
+function refreshCollapse(id) {
+  const n = store.getNode(id);
+  if (!n) return;
+  const content = store.mirrorContent(n) || n;
+  const open = rowExpanded(n);
+  for (const el of nodeInstances(id)) {
+    // collapse state belongs to the row's own node: mirror rows showing
+    // `id` as content keep their own state and are skipped here
+    if (el.dataset.id !== id) continue;
+    const kids = el.querySelector(':scope > .children');
+    const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
+    if (open && !kids.dataset.filled && content.children.length && !loop) {
+      const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+      fillChildren(kids, content, level,
+        n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
+    }
+    if (open) {
+      kids.classList.add('just-expanded');
+      setTimeout(() => kids.classList.remove('just-expanded'), 250);
+    }
+    applyNodeState(el, content, n);
+  }
+}
+
 /* --- store event wiring ----------------------------------------------------- */
 store.subscribe(ev => {
   switch (ev.type) {
@@ -3163,29 +3573,9 @@ store.subscribe(ev => {
         renderChildrenOf(ev.id);
       }
       break;
-    case 'collapse': {
-      const n = store.getNode(ev.id);
-      if (!n) break;
-      const content = store.mirrorContent(n) || n;
-      for (const el of nodeInstances(ev.id)) {
-        // collapse state belongs to the row's own node: mirror rows showing
-        // ev.id as content keep their own state and are skipped here
-        if (el.dataset.id !== ev.id) continue;
-        const kids = el.querySelector(':scope > .children');
-        const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
-        if (!n.collapsed && !kids.dataset.filled && content.children.length && !loop) {
-          const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-          fillChildren(kids, content, level,
-            n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
-        }
-        if (!n.collapsed) {
-          kids.classList.add('just-expanded');
-          setTimeout(() => kids.classList.remove('just-expanded'), 250);
-        }
-        applyNodeState(el, content, n);
-      }
+    case 'collapse':
+      refreshCollapse(ev.id);
       break;
-    }
     case 'doc':
       renderAll();
       break;
@@ -3218,6 +3608,7 @@ const applySearch = debounce(() => {
   renderAll();
   ipRefresh(); // the query is view state, not a mutation: the panel's tag
                // chips have no store event to ride
+  ssSync(); // the ☆ beside the box follows the query
 }, 150);
 
 function setSearch(q) {
@@ -3225,8 +3616,14 @@ function setSearch(q) {
   applySearch();
   applySearch.flush();
 }
-function toggleTagFilter(tag) {
-  if (view.query.trim().toLowerCase() === tag.toLowerCase()) clearSearch();
+/* A plain click replaces the query with the tag, or clears it when the tag is
+   already the whole query. Shift+click edits the query instead (F77): the tag
+   becomes one more term, or is taken back out — how a second tag narrows. */
+function toggleTagFilter(tag, add = false) {
+  if (add) {
+    const q = queryToggleTag(view.query, tag);
+    if (q.trim()) setSearch(q); else clearSearch();
+  } else if (queryIsOnlyTag(view.query, tag)) clearSearch();
   else setSearch(tag);
 }
 /* tag chips: clicking one filters by that tag; clicking it again clears */
@@ -3234,7 +3631,35 @@ document.addEventListener('click', e => {
   const tag = e.target.closest?.('.title .tag');
   if (!tag) return;
   e.preventDefault();
-  toggleTagFilter(tag.textContent);
+  toggleTagFilter(tag.textContent, e.shiftKey);
+});
+
+/* "Show only what links to or from this item" (F78): types links:"Title" into
+   the search box, so the filter is an ordinary query — visible, editable,
+   clearable with Esc, savable. Run it again on the same item to clear.
+   `links:` resolves by title, so the gesture is only honest when this item is
+   the one its title resolves to; otherwise it would quietly filter around a
+   different item, and it says so instead. */
+function filterToLinked(id) {
+  const n = store.getNode(id);
+  if (!n || id === ROOT_ID) return;
+  const title = (n.title || '').trim();
+  const say = msg => showBanner(msg, { kind: 'notice', action: { label: 'OK', onClick: () => hideBanner() } });
+  if (!title) { say('Give this item a title first — links are matched by title.'); return; }
+  if (resolveTitleLink(title) !== id) {
+    say(`Another item is also called “${truncate(title, 40)}”, and links resolve to the first one in the outline. Rename one of them to filter by this item's links.`);
+    return;
+  }
+  if (queryIsOnlyLinks(view.query, title)) clearSearch(false);
+  else setSearch('links:' + queryQuote(title));
+  focusNodeTitle(id, 'end'); // a no-op when the item sits outside the zoom
+}
+document.addEventListener('keydown', e => {
+  if (!altChord(e, 'KeyL')) return;
+  const id = starTargetId(); // the item the caret is in, else the one the panel tracks
+  if (!id) return;
+  e.preventDefault();
+  filterToLinked(id);
 });
 
 function clearSearch(refocusOutline = true) {
@@ -3244,6 +3669,7 @@ function clearSearch(refocusOutline = true) {
     view.query = '';
     renderAll();
     ipRefresh();
+    ssSync();
   }
   if (refocusOutline) {
     const first = visibleTitles()[0];
@@ -3456,8 +3882,9 @@ function onTitleKeydown(e, el) {
       }
       if (mod && !e.altKey && !e.shiftKey) {
         e.preventDefault();
-        if (el !== focusTitleEl && n.children.length) {
-          store.setCollapsed(id, key === 'ArrowUp');
+        // a mirror row has no children of its own: its expansion is its target's
+        if (el !== focusTitleEl && (store.mirrorContent(n) || n).children.length) {
+          setRowCollapsed(id, key === 'ArrowUp');
         }
         return;
       }
@@ -3602,7 +4029,7 @@ document.addEventListener('keydown', e => {
   }
   const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
   if (!inField) {
-    if (e.key === '?' && !mod) { e.preventDefault(); $('#help-dialog').showModal(); return; }
+    if (e.key === '?' && !mod) { e.preventDefault(); openHelp('keys'); return; }
     if (mod && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault();
       const fid = e.shiftKey ? store.redo() : store.undo();
@@ -3688,7 +4115,7 @@ treeEl.addEventListener('click', e => {
   if (tg) {
     const el = tg.closest('.node');
     const n = store.getNode(el.dataset.id);
-    if (n) store.setCollapsed(n.id, !n.collapsed);
+    if (n) setRowCollapsed(n.id, rowExpanded(n));
     return;
   }
   const noteWrap = e.target.closest('.note');
@@ -4086,13 +4513,35 @@ themeSelectEl.addEventListener('change', () => {
   applyTheme();
 });
 const hideCompletedEl = $('#hide-completed');
-hideCompletedEl.addEventListener('change', () => {
-  prefs.hideCompleted = hideCompletedEl.checked;
+/* The one switch (F69): the ☰ checkbox and Alt+C both land here. Everything
+   that cares about completed items — search, the jump palette, the panel's
+   tag counts — reads completedRowsHidden(), so there is no second setting. */
+function setHideCompleted(on) {
+  prefs.hideCompleted = !!on;
+  hideCompletedEl.checked = !!on;
   savePrefs();
   document.body.classList.toggle('hide-completed', prefs.hideCompleted);
   // hiding completed rows changes what can be a search result, so results
   // computed under the old setting have to be recomputed
   if (view.query) renderAll();
+  // toggling emits no store event, so the panel's derived counts need a nudge
+  renderInfoPanel();
+}
+hideCompletedEl.addEventListener('change', () => setHideCompleted(hideCompletedEl.checked));
+document.addEventListener('keydown', e => {
+  if (!altChord(e, 'KeyC') || e.defaultPrevented) return;
+  e.preventDefault();
+  setHideCompleted(!completedRowsHidden());
+});
+const panelLinksEl = $('#panel-links');
+panelLinksEl.addEventListener('change', () => {
+  prefs.panelLinks = panelLinksEl.value === 'reveal' ? 'reveal' : 'zoom';
+  savePrefs();
+});
+const afterMoveEl = $('#after-move');
+afterMoveEl.addEventListener('change', () => {
+  prefs.afterMove = afterMoveEl.value === 'stay' ? 'stay' : 'follow';
+  savePrefs();
 });
 const wideLayoutEl = $('#wide-layout');
 wideLayoutEl.addEventListener('change', () => {
@@ -4203,10 +4652,7 @@ for (const sec of $$('.menu-sec', menuPanelEl)) {
 $('#export-json').addEventListener('click', () => { exportJSON(); closeMenu(); });
 $('#export-md-view').addEventListener('click', () => { exportMarkdown(view.focusId); closeMenu(); });
 $('#export-md-all').addEventListener('click', () => { exportMarkdown(ROOT_ID); closeMenu(); });
-$('#show-help').addEventListener('click', () => { closeMenu(); $('#help-dialog').showModal(); });
-$('#help-close').addEventListener('click', () => $('#help-dialog').close());
-// the shortcut list is long enough that its close button can be a scroll away
-closeOnBackdropClick($('#help-dialog'));
+// the Help Center's own wiring (open, close, backdrop click) lives in 18-help.js
 $('#menu-panel').addEventListener('click', e => e.stopPropagation());
 
 /* --- banner buttons --- */
@@ -4302,6 +4748,8 @@ const bootReady = new Promise(r => { bootReadyResolve = r; });
   hideCompletedEl.checked = !!prefs.hideCompleted;
   document.body.classList.toggle('wide', !!prefs.wideLayout);
   wideLayoutEl.checked = !!prefs.wideLayout;
+  afterMoveEl.value = prefs.afterMove === 'stay' ? 'stay' : 'follow';
+  panelLinksEl.value = prefs.panelLinks === 'reveal' ? 'reveal' : 'zoom';
   // backup-reminder defaults: 14 days; never-exported counts from first use
   if (typeof prefs.exportWarnDays !== 'number') prefs.exportWarnDays = 14;
   if (!prefs.firstUseAt) prefs.firstUseAt = nowISO();
@@ -4345,18 +4793,28 @@ const palResultsEl = $('#palette-results');
 let palItems = [];  // [{id, title, path}] — every node except the root
 let palShown = [];  // scored results currently rendered
 let palSel = 0;
-let palMode = 'jump'; // 'jump' | 'move'
-let palMoveId = null; // in move mode: the node being moved
+let palMode = 'jump'; // 'jump' | 'move' | 'mirror'
+let palMoveId = null; // in move / mirror mode: the node being moved or mirrored
+let palFromId = null; // ...and the ROW the command was opened from (structural id)
 
+/* `up` is the index of the parent's entry (-1 at the top): the ancestor chain
+   for `Parent/Child` matching (F70) without a copied array per item. With Hide
+   completed on (F69) completed items and everything under them are left out —
+   the CSS hides the subtree, so a jump into one would land on nothing. */
 function paletteIndex() {
   const items = [];
-  (function walk(n, path) {
+  const skipDone = completedRowsHidden();
+  (function walk(n, path, up) {
     for (const c of n.children) {
-      items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      if (skipDone) {
+        const t = c.mirrorOf ? (store.getNode(c.mirrorOf) || c) : c;
+        if (t.completed) continue;
+      }
+      const at = items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt, up }) - 1;
       const label = truncate(c.title, 30) || 'Untitled';
-      walk(c, path ? `${path} › ${label}` : label);
+      walk(c, path ? `${path} › ${label}` : label, at);
     }
-  })(store.doc.root, '');
+  })(store.doc.root, '', -1);
   return items;
 }
 
@@ -4370,26 +4828,46 @@ function paletteIndex() {
    'Top level' has to be synthesised: the walk starts AT the root and so can
    never offer it, leaving no way to file something back out to the top. */
 function moveIndex(selfId) {
-  const items = [{ id: ROOT_ID, title: 'Top level', path: '', top: true }];
-  (function walk(n, path) {
+  const items = [{ id: ROOT_ID, title: 'Top level', path: '', top: true, up: -1 }];
+  (function walk(n, path, up) {
     for (const c of n.children) {
       if (c.id === selfId) continue; // the node itself, and all of its subtree
-      if (!c.mirrorOf) items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      let at = up;
+      if (!c.mirrorOf) at = items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt, up }) - 1;
       const label = truncate(c.title, 30) || 'Untitled';
-      walk(c, path ? `${path} › ${label}` : label);
+      walk(c, path ? `${path} › ${label}` : label, at);
     }
-  })(store.doc.root, '');
+  })(store.doc.root, '', -1);
   return items;
 }
 
 /* substring beats subsequence; word starts and tight runs beat scatter */
 function fuzzyMatch(q, title) {
-  const t = title.toLowerCase();
+  const { low: t, map } = lowerWithMap(title);
+  const m = fuzzyMatchLow(q, t, title.length);
+  // spans were found in the lowered text; the caller slices the original
+  if (m && map) m.spans = spansBack(title, map, m.spans);
+  return m;
+}
+/* [[start, length], …] in lowered coordinates → the same in the original,
+   merged where mapping made neighbours overlap (two lowered units that came
+   from one character) */
+function spansBack(text, map, spans) {
+  const out = [];
+  for (const [s, len] of spans) {
+    const [a, b] = lowerSpanBack(text, map, s, s + len);
+    const last = out[out.length - 1];
+    if (last && a < last[0] + last[1]) last[1] = Math.max(last[1], b - last[0]);
+    else out.push([a, b - a]);
+  }
+  return out;
+}
+function fuzzyMatchLow(q, t, titleLen) {
   const at = t.indexOf(q);
   if (at >= 0) {
     let score = 200 - Math.min(at, 50);
     if (at === 0 || /[^\w]/.test(t[at - 1])) score += 40;
-    return { score: score - Math.min(title.length, 100) / 5, spans: [[at, q.length]] };
+    return { score: score - Math.min(titleLen, 100) / 5, spans: [[at, q.length]] };
   }
   let ti = 0, score = 0;
   const spans = [];
@@ -4404,7 +4882,7 @@ function fuzzyMatch(q, title) {
     }
     ti = j + 1;
   }
-  return { score: score - Math.min(title.length, 100) / 5, spans };
+  return { score: score - Math.min(titleLen, 100) / 5, spans };
 }
 
 /* title text with the matched characters wrapped in <mark> (shared with the
@@ -4423,12 +4901,72 @@ function matchFrag(title, spans) {
   return frag;
 }
 
+/* which key does which, given the After-move preference (F81) */
+function palStayHint() {
+  return moveFollows()
+    ? 'Enter goes there · Shift+Enter stays here.'
+    : 'Enter stays here · Shift+Enter goes there.';
+}
 function palHint(text) {
   const el = document.createElement('div');
   el.className = 'pal-hint';
   el.textContent = text;
   palResultsEl.append(el);
 }
+/* --- scoring ------------------------------------------------------------- */
+function palScoreFlat(q) {
+  const scored = [];
+  for (let i = 0; i < palItems.length; i++) {
+    const m = fuzzyMatch(q, palItems[i].title);
+    if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
+  }
+  return scored;
+}
+
+/* `Parent/Log` (F70): everything before the last separator names ancestors,
+   outer to inner, each a substring of that ancestor's title; the last segment
+   fuzzy-matches the title. `/`, `>` and `›` (what the result path itself
+   shows) all separate. A query that finds nothing this way falls back to a
+   literal search (caller), so a title that really contains "/" is still
+   reachable. A trailing separator — `Parent/` — lists what lives under a
+   match. The shared fuzzyMatch is left alone: the [[link]] picker uses it and
+   must keep treating "/" literally. */
+function palScorePath(q) {
+  const segs = q.split(/[\/>›]/).map(s => s.trim());
+  if (segs.length < 2) return [];
+  const tail = segs.pop();
+  const heads = segs.filter(Boolean);
+  if (!heads.length) return [];
+  const scored = [];
+  for (let i = 0; i < palItems.length; i++) {
+    const it = palItems[i];
+    if (it.top) continue;
+    let m = { score: 0, spans: [] };
+    if (tail) { m = fuzzyMatch(tail, it.title); if (!m) continue; }
+    else if (!it.title) continue;
+    // ancestors outermost-first
+    const chain = [];
+    for (let u = it.up; u >= 0; u = palItems[u].up) chain.push(palItems[u].title);
+    chain.reverse();
+    let pos = 0, bonus = 0, ok = true;
+    for (const h of heads) {
+      // ancestors must contain the segment outright: subsequence matching is
+      // right for finding a title, but loose enough to match any long
+      // ancestor, which defeats the point of naming one
+      let hit = -1;
+      for (; pos < chain.length; pos++) {
+        const at = chain[pos].toLowerCase().indexOf(h);
+        if (at >= 0) { hit = at; pos++; break; }
+      }
+      if (hit < 0) { ok = false; break; }
+      bonus += hit === 0 ? 40 : 20; // a prefix of the ancestor reads as intended
+    }
+    if (!ok) continue;
+    scored.push({ id: it.id, title: it.title, path: it.path, score: m.score + bonus / 10, spans: m.spans, ord: i });
+  }
+  return scored;
+}
+
 function renderPalette() {
   const q = palInputEl.value.trim().toLowerCase();
   palResultsEl.textContent = '';
@@ -4441,22 +4979,21 @@ function renderPalette() {
     const recent = palItems.filter(it => it.title && !it.top)
       .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
       .slice(0, 12);
-    const top = palMode === 'move' ? palItems.filter(it => it.top) : [];
+    const top = palMode !== 'jump' ? palItems.filter(it => it.top) : [];
     palShown = [...top, ...recent]
       .map(it => ({ id: it.id, title: it.title, path: it.path, spans: [] }));
     palHint(palMode === 'move'
-      ? 'Pick where it should live — it becomes the last item inside.'
+      ? 'Pick where it should live — it becomes the last item inside. ' + palStayHint()
+      : palMode === 'mirror'
+      ? 'Pick where the mirror should appear — it becomes the last item inside. ' + palStayHint()
       : palShown.length ? 'Recently edited' : 'Type to jump to any item by title.');
   } else {
-    const scored = [];
-    for (let i = 0; i < palItems.length; i++) {
-      const m = fuzzyMatch(q, palItems[i].title);
-      if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
-    }
+    let scored = palScorePath(q);
+    if (!scored.length) scored = palScoreFlat(q);
     scored.sort((a, b) => b.score - a.score || a.title.length - b.title.length || a.ord - b.ord);
     palShown = scored.slice(0, 50);
     if (!palShown.length) {
-      palHint(palMode === 'move' ? 'No matching destination.' : 'No matching items.');
+      palHint(palMode !== 'jump' ? 'No matching destination.' : 'No matching items.');
       return;
     }
   }
@@ -4491,8 +5028,28 @@ function palSetSel(i) {
   if (sel) sel.scrollIntoView({ block: 'nearest' });
 }
 
-function paletteAccept(i) {
-  return palMode === 'move' ? paletteMove(i) : paletteGo(i);
+/* After Move to… / Mirror to… (F81): does the caret follow, or stay put?
+   One preference for both; Shift+Enter in the picker does the other thing. */
+function moveFollows() { return prefs.afterMove !== 'stay'; }
+
+/* Where the caret goes when it stays and the item leaves: the next visible row
+   after the item's subtree (its own children travel with it, so they do not
+   count), else the row before — what delete does. Read BEFORE the move: the
+   DOM is gone afterwards. null when there is no row (the zoom header). */
+function stayLandingId(id) {
+  const el = nodeEl(id);
+  const title = el && el.querySelector(':scope > .row > .title');
+  if (!title) return null;
+  let t = siblingTitle(title, 1);
+  while (t && el.contains(t)) t = siblingTitle(t, 1);
+  if (!t) t = siblingTitle(title, -1);
+  return t ? idOfTitle(t) : null;
+}
+
+function paletteAccept(i, follow = moveFollows()) {
+  if (palMode === 'move') return paletteMove(i, follow);
+  if (palMode === 'mirror') return paletteMirror(i, follow);
+  return paletteGo(i);
 }
 
 function paletteGo(i) {
@@ -4507,19 +5064,55 @@ function paletteGo(i) {
   focusNodeTitle(r.id, 'end');
 }
 
-function paletteMove(i) {
+function paletteMove(i, follow = true) {
   const r = palShown[i];
   const id = palMoveId;
   palDialogEl.close();
   if (!r || !id) return;
   const dest = store.getNode(r.id);
   if (!dest || !store.getNode(id)) return;
+  const landing = follow ? null : stayLandingId(id);
   store.move(id, dest.id, dest.children.length); // nest as the last item inside
-  // Land on it wherever it now is — the panel's own rule (expand what needs
-  // expanding, change zoom only if it left the scope). Unconditional: moving
-  // an item to the end of the parent it already ends is a no-op, and losing
-  // the caret over that would read as the command having failed.
-  jumpToNode(id);
+  if (follow) {
+    // Land on it wherever it now is — the panel's own rule (expand what needs
+    // expanding, change zoom only if it left the scope). Unconditional: moving
+    // an item to the end of the parent it already ends is a no-op, and losing
+    // the caret over that would read as the command having failed.
+    jumpToNode(id);
+  } else if (landing && store.getNode(landing)) {
+    focusNodeTitle(landing, 'end');
+  } else if (view.focusId !== ROOT_ID && store.getNode(view.focusId)) {
+    // no row left to stand on: the zoomed item is the nearest place you were
+    // (at the top level with nothing else in view there is nowhere to land,
+    // and the caret is simply left unplaced rather than thrown to row one)
+    focusNodeTitle(view.focusId, 'end');
+  }
+}
+
+/* Mirror to… (F80): the pick is a destination, and accepting creates a live
+   mirror of the item as its last child there. Nothing moves; the original
+   stays where it is. The caret follows the new mirror, as Move to… follows
+   its item — one rule for both, so the FR-4 follow/stay option can govern
+   them together later. */
+function paletteMirror(i, follow = true) {
+  const r = palShown[i];
+  const id = palMoveId;
+  palDialogEl.close();
+  if (!r || !id) return;
+  const dest = store.getNode(r.id);
+  if (!dest || !store.getNode(id)) return;
+  const from = palFromId;
+  const m = store.createMirrorIn(id, dest.id, dest.children.length);
+  if (m && follow) jumpToNode(m.id);
+  else if (m) {
+    // staying: nothing moved, and closing the dialog normally hands the caret
+    // back to the row it was opened from. When it was opened from the ≡ menu
+    // the thing focused before was the handle or nothing, so say where.
+    const a = document.activeElement;
+    if (!(a && a.closest && a.closest('.title, .note-edit')) && from && store.getNode(from)) {
+      focusNodeTitle(from, 'end');
+    }
+  }
 }
 
 /* --- opening ------------------------------------------------------------ */
@@ -4546,12 +5139,30 @@ function openMovePalette(id) {
   if (!n || id === ROOT_ID) return; // the root is the document, not an item
   palMode = 'move';
   palMoveId = id;
+  palFromId = id;
   palItems = moveIndex(id);
   // a mirror owns no text: name it by what the row shows, while still moving
   // the mirror itself
   const label = truncate((store.mirrorContent(n) || n).title, 30) || 'Untitled';
   palInputEl.placeholder = `Move “${label}” into…`;
   palDialogEl.setAttribute('aria-label', 'Move item into');
+  palShow();
+}
+
+function openMirrorPalette(id) {
+  if (palDialogEl.open) return;
+  const n = id && store.getNode(id);
+  if (!n || id === ROOT_ID) return;
+  // mirroring a mirror mirrors its original (chains are flattened), so the
+  // destinations are judged against the original: not inside its subtree
+  const orig = store.mirrorContent(n) || n;
+  palMode = 'mirror';
+  palMoveId = orig.id;
+  palFromId = id;
+  palItems = moveIndex(orig.id);
+  const label = truncate(orig.title, 30) || 'Untitled';
+  palInputEl.placeholder = `Mirror “${label}” into…`;
+  palDialogEl.setAttribute('aria-label', 'Mirror item into');
   palShow();
 }
 
@@ -4573,7 +5184,11 @@ palInputEl.addEventListener('input', renderPalette);
 palInputEl.addEventListener('keydown', e => {
   if (e.key === 'ArrowDown') { e.preventDefault(); palSetSel(palSel + 1); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); palSetSel(palSel - 1); }
-  else if (e.key === 'Enter') { e.preventDefault(); if (palShown.length) paletteAccept(palSel); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    // Shift+Enter does the opposite of the preference (a no-op for jumping)
+    if (palShown.length) paletteAccept(palSel, e.shiftKey ? !moveFollows() : moveFollows());
+  }
 });
 palResultsEl.addEventListener('click', e => {
   const row = e.target.closest('.pal-item');
@@ -4597,14 +5212,19 @@ document.addEventListener('keydown', e => {
    Deliberately not Ctrl+Shift+K — that is Firefox's web console, and N3
    claims Firefox support. */
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts (some send a dead
-  // key or an accented character as e.key), so match the physical key too
-  if (e.code !== 'KeyM' && e.key !== 'm' && e.key !== 'M') return;
+  if (!altChord(e, 'KeyM')) return;
   const id = moveTargetId();
   if (!id) return;
   e.preventDefault();
   openMovePalette(id);
+});
+/* Alt+Shift+M: the same picker, creating a mirror at the destination */
+document.addEventListener('keydown', e => {
+  if (!altChord(e, 'KeyM', { shift: true })) return;
+  const id = moveTargetId();
+  if (!id) return;
+  e.preventDefault();
+  openMirrorPalette(id);
 });
 
 /* ===== 11 [[link]], ((mirror)) and #tag autocomplete =====
@@ -5661,6 +6281,10 @@ nodeMenuEl.addEventListener('click', e => {
       closeNodeMenu();
       location.hash = '#' + cid;
       break;
+    case 'nm-links':
+      closeNodeMenu();
+      filterToLinked(cid);
+      break;
     case 'nm-note':
       closeNodeMenu();
       openNoteEditor(cid, host);
@@ -5674,6 +6298,10 @@ nodeMenuEl.addEventListener('click', e => {
       }
       break;
     }
+    case 'nm-mirrorto':
+      closeNodeMenu();
+      openMirrorPalette(id);
+      break;
     case 'nm-move':
       closeNodeMenu();
       openMovePalette(id); // structural: a mirror row moves the mirror
@@ -6066,19 +6694,21 @@ window.addEventListener('resize', () => closeLinkDialog());
 
 const BL_RE = /\[\[([^\[\]]+)\]\]/g;
 let blDirty = true;
-let blIndex = null; // targetId -> [{id, inTitle, inNote}]
+let blIndex = null; // targetId -> [{id, inTitle, inNote, lines}] — lines: the note lines holding the link
 
 function scanLinks(text, fn) {
   if (!text) return;
   BL_RE.lastIndex = 0;
   for (let m; (m = BL_RE.exec(text)); ) fn(m[1]);
 }
-function blMark(map, targetId, sourceId, where) {
+function blMark(map, targetId, sourceId, where, line) {
   let arr = map.get(targetId);
   if (!arr) map.set(targetId, arr = []);
   let e = arr.find(x => x.id === sourceId); // few sources per target: linear is fine
-  if (!e) arr.push(e = { id: sourceId, inTitle: false, inNote: false });
+  if (!e) arr.push(e = { id: sourceId, inTitle: false, inNote: false, lines: [] });
   e[where] = true;
+  // the context shown under a backlink (F85): a few note lines, each once
+  if (line && e.lines.length < 3 && !e.lines.includes(line)) e.lines.push(line);
 }
 function backlinkIndex() {
   if (blIndex && !blDirty) return blIndex;
@@ -6090,10 +6720,17 @@ function backlinkIndex() {
           const id = resolveTitleLink(t);
           if (id && id !== c.id) blMark(map, id, c.id, 'inTitle'); // self-links aren't backlinks
         });
-        scanLinks(c.note, t => {
-          const id = resolveTitleLink(t);
-          if (id && id !== c.id) blMark(map, id, c.id, 'inNote');
-        });
+        // line by line, so each hit can carry the line it sits in
+        if (c.note) {
+          for (const raw of c.note.split('\n')) {
+            const line = raw.trim();
+            if (!line.includes('[[')) continue;
+            scanLinks(line, t => {
+              const id = resolveTitleLink(t);
+              if (id && id !== c.id) blMark(map, id, c.id, 'inNote', line);
+            });
+          }
+        }
       }
       walk(c);
     }
@@ -6103,6 +6740,37 @@ function backlinkIndex() {
   return blIndex;
 }
 function backlinksOf(id) { return backlinkIndex().get(id) || []; }
+
+/* With Hide completed on (F69) the panel does not list a source the outline
+   cannot show: a click on it would jump to a row that is not there. A source
+   is hidden when it, or anything above it, is completed — the CSS removes the
+   whole subtree. A mirror's completion is its original's. */
+function sourceHidden(id) {
+  if (!completedRowsHidden()) return false;
+  const done = x => { const c = store.mirrorContent(x) || x; return !!c.completed; };
+  const n = store.getNode(id);
+  if (!n) return false;
+  if (done(n)) return true;
+  return store.ancestorsOf(id).some(a => a.id !== ROOT_ID && done(a));
+}
+function shownBacklinks(id) { return backlinksOf(id).filter(s => !sourceHidden(s.id)); }
+function shownMirrors(id) { return store.mirrorsOf(id).filter(m => !sourceHidden(m.id)); }
+/* The ids the `links:` operator accepts for a title (F78): the item the title
+   names (resolved exactly as a [[link]] is, so duplicates go to the first),
+   everything that links to it, and everything it links to. A mirror row is
+   accepted through its content id, so mirrors of any of these come with them. */
+function linkedIdsFor(title) {
+  const ids = new Set();
+  const target = resolveTitleLink(title);
+  const n = target && store.getNode(target);
+  if (!n) return ids;
+  ids.add(target);
+  for (const s of backlinksOf(target)) ids.add(s.id);
+  const take = t => { const id = resolveTitleLink(t); if (id) ids.add(id); };
+  scanLinks(n.title, take);
+  scanLinks(n.note, take);
+  return ids;
+}
 function linksOutOf(n) {
   if (!n || n.mirrorOf) return 0;
   const seen = new Set();
@@ -6119,6 +6787,7 @@ const ipBodyEl = $('#ip-body');
 const ipStarEl = $('#ip-star');
 const ipBtnEl = $('#panel-btn'); // the top-bar switch, lit while the panel is out
 let ipActiveId = null; // the item the caret last visited (content id)
+let ipActiveRowId = null; // the row it was in (structural id): which instance of a mirrored item
 
 function panelOpen() { return !!prefs.infoPanel; }
 function syncPanelBtn() {
@@ -6237,8 +6906,46 @@ function jumpToNode(id) {
   revealNode(id);
   // point the panel at the destination outright: focusNodeTitle may not move
   // focus at all (the row can already hold it), and no focusin would follow
-  ipActiveId = id;
+  const landed = store.getNode(id);
+  ipActiveId = ((landed && store.mirrorContent(landed)) || landed).id; // a mirror row tracks its original
+  ipActiveRowId = id;
   focusNodeTitle(id, 'end');
+  renderInfoPanel();
+}
+
+/* Panel rows that name an ITEM (starred, linked from) — F84. By default they
+   zoom: an item with children becomes the page, and a leaf, which would make
+   an empty page with only a header, zooms to its parent with the leaf
+   focused, so you land among its siblings. The preference
+   (prefs.panelLinks === 'reveal') restores the older behaviour of revealing
+   the row where it lives without changing zoom; Alt+click does whichever one
+   the preference does not. Rows that name a PLACE (a mirror in "Also appears
+   in") always reveal: zooming to the original would be the same for all. */
+function panelZooms() { return prefs.panelLinks !== 'reveal'; }
+function panelGo(id, ev) {
+  const flip = !!(ev && ev.altKey);
+  if (panelZooms() !== flip) zoomToItem(id);
+  else jumpToNode(id);
+}
+function zoomToItem(id) {
+  const n = store.getNode(id);
+  if (!n || id === ROOT_ID) return;
+  const target = store.mirrorContent(n) || n; // a mirror zooms to its original
+  clearSearch(false);
+  let zoomId = target.id;
+  if (!target.children.length) {
+    const p = store.getParent(target.id);
+    zoomId = p ? p.id : ROOT_ID;
+  }
+  const hash = zoomId === ROOT_ID ? '' : '#' + zoomId;
+  if (view.focusId !== zoomId) {
+    location.hash = hash;
+    applyFocusFromHash(); // sync render; the later hashchange event no-ops
+  }
+  revealNode(target.id);
+  ipActiveId = target.id;
+  ipActiveRowId = target.id;
+  focusNodeTitle(target.id, 'end'); // the zoom header when it is the zoomed item
   renderInfoPanel();
 }
 
@@ -6246,9 +6953,70 @@ function ipTrackedId() {
   return (ipActiveId && store.getNode(ipActiveId)) ? ipActiveId : view.focusId;
 }
 
-function ipItemBody(body, id, n) {
+/* A line of text with the links that point at `targetId` marked (F85). Other
+   links in the line stay as typed. A long line is cut to a window around the
+   first hit, so the link is always in view. List markers and quote/heading
+   prefixes are dropped — they are note formatting, not context. */
+function ctxFrag(text, targetId, max = 110) {
+  const t = String(text).replace(/^\s*(?:[-*+]|\d+\.|>+|#{1,6})\s+/, '');
+  const re = new RegExp(BL_RE.source, 'g');
+  const hits = [];
+  for (let m; (m = re.exec(t)); ) {
+    if (resolveTitleLink(m[1]) === targetId) hits.push([m.index, m.index + m[0].length]);
+  }
+  let from = 0, to = t.length;
+  if (t.length > max) {
+    from = Math.max(0, (hits.length ? hits[0][0] : 0) - 36);
+    to = Math.min(t.length, from + max);
+    from = Math.max(0, to - max);
+  }
+  const frag = document.createDocumentFragment();
+  if (from > 0) frag.append(document.createTextNode('…'));
+  let pos = from;
+  for (const [s, e] of hits) {
+    if (e <= from) continue;
+    if (s >= to) break;
+    const s0 = Math.max(s, from), e0 = Math.min(e, to);
+    if (s0 > pos) frag.append(document.createTextNode(t.slice(pos, s0)));
+    const mk = document.createElement('mark');
+    mk.textContent = t.slice(s0, e0);
+    frag.append(mk);
+    pos = e0;
+  }
+  if (pos < to) frag.append(document.createTextNode(t.slice(pos, to)));
+  if (to < t.length) frag.append(document.createTextNode('…'));
+  return frag;
+}
+
+/* One backlink: the source's title (with the link marked when it is in the
+   title), then the note line or lines the link sits in, then where it lives. */
+function ipBacklinkRow(s, targetId) {
+  const src = store.getNode(s.id);
+  const b = document.createElement('button');
+  b.className = 'ip-row ip-bl';
+  b.title = src.title || 'Untitled';
+  const m = document.createElement('div');
+  m.className = 'ip-row-main';
+  if (s.inTitle) m.append(ctxFrag(src.title, targetId, 70));
+  else m.textContent = truncate(src.title, 60) || 'Untitled';
+  b.append(m);
+  for (const line of s.lines || []) {
+    const c = document.createElement('div');
+    c.className = 'ip-row-ctx';
+    c.append(ctxFrag(line, targetId));
+    b.append(c);
+  }
+  const sub = document.createElement('div');
+  sub.className = 'ip-row-sub';
+  sub.textContent = ((s.lines || []).length || !s.inNote || s.inTitle ? '' : 'in a note · ') + pathOf(s.id);
+  b.append(sub);
+  b.addEventListener('click', e => panelGo(s.id, e));
+  return b;
+}
+
+function ipItemBody(body, id, n, rowId = null) {
   // --- linked from ---
-  const back = backlinksOf(id);
+  const back = shownBacklinks(id);
   body.append(ipLabel(back.length
     ? `Linked from ${back.length} item${back.length === 1 ? '' : 's'}`
     : 'Linked from'));
@@ -6258,18 +7026,31 @@ function ipItemBody(body, id, n) {
     for (const s of back) {
       const src = store.getNode(s.id);
       if (!src) continue;
-      const where = s.inNote && !s.inTitle ? 'in a note · ' : '';
-      body.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
-        () => jumpToNode(s.id)));
+      body.append(ipBacklinkRow(s, id));
     }
   }
 
-  // --- mirrors ---
-  const mirrors = store.mirrorsOf(id);
+  if (back.length || linksOutOf(n)) {
+    body.append(ipRow('Show only linked items', 'Alt+L', () => filterToLinked(id)));
+  }
+
+  // --- every place this item appears (F83) ---
+  // The original first, then each mirror, whichever of them the caret is in:
+  // a mirror row tracks its original, so without the original's own place in
+  // the list there would be no way to say where "the real one" lives, and no
+  // way to mark which row you are standing in.
+  const mirrors = shownMirrors(id);
   if (mirrors.length) {
-    body.append(ipLabel(`Mirrored in ${mirrors.length} place${mirrors.length === 1 ? '' : 's'}`));
-    for (const m of mirrors) {
-      body.append(ipRow('⧉ ' + pathOf(m.id), null, () => jumpToNode(m.id)));
+    const places = [];
+    if (!sourceHidden(id)) places.push({ rowId: id, glyph: '◆', role: 'the original' });
+    for (const m of mirrors) places.push({ rowId: m.id, glyph: '◇', role: 'a mirror' });
+    body.append(ipLabel(`Also appears in ${places.length} place${places.length === 1 ? '' : 's'}`));
+    for (const p of places) {
+      const here = p.rowId === rowId;
+      const row = ipRow(`${p.glyph} ${pathOf(p.rowId)}`,
+        here ? `${p.role} · you are here` : p.role, () => jumpToNode(p.rowId));
+      if (here) row.classList.add('on');
+      body.append(row);
     }
   }
 
@@ -6300,7 +7081,7 @@ function ipStarredBody(body) {
     const wrap = document.createElement('div');
     wrap.className = 'ip-row-wrap';
     wrap.append(
-      ipRow(truncate(it.title, 40) || 'Untitled', pathOf(it.id), () => jumpToNode(it.id)));
+      ipRow(truncate(it.title, 40) || 'Untitled', pathOf(it.id), e => panelGo(it.id, e)));
     const un = document.createElement('button');
     un.className = 'ip-unstar';
     un.textContent = '★';
@@ -6315,7 +7096,7 @@ function ipStarredBody(body) {
    renders, with its item count riding along. Clicking one is exactly the
    chip-click in the outline (F43) — a filter you can click off again. */
 function ipTagsBody(body) {
-  const tags = tagsAlphabetical(view.focusId);
+  const tags = tagsForPanel(view.focusId);
   if (!tags.length) {
     body.append(ipHint(view.focusId === ROOT_ID
       ? 'No tags yet. Type # in any item to tag it — the list of tags you already use appears as you type.'
@@ -6324,16 +7105,16 @@ function ipTagsBody(body) {
   }
   const cloud = document.createElement('div');
   cloud.className = 'ip-tags';
-  const active = view.query.trim().toLowerCase();
+  const lit = view.filter ? view.filter.tags : null; // every positive tag in the query
   for (const t of tags) {
     const b = document.createElement('button');
-    b.className = 'ip-tag' + (active === t.tag.toLowerCase() ? ' active' : '');
-    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter`;
+    b.className = 'ip-tag' + (lit && lit.has(t.tag.toLowerCase()) ? ' active' : '');
+    b.title = `${t.count} item${t.count === 1 ? '' : 's'} · click to filter · Shift+click to add to the search`;
     b.append(document.createTextNode(t.tag));
     const c = document.createElement('sup');
     c.textContent = String(t.count);
     b.append(c);
-    b.addEventListener('click', () => toggleTagFilter(t.tag));
+    b.addEventListener('click', e => toggleTagFilter(t.tag, e.shiftKey));
     cloud.append(b);
   }
   body.append(cloud);
@@ -6356,7 +7137,7 @@ function renderInfoPanel() {
 
   ipSection('item', 'This item', null, body => {
     if (!tracked) { body.append(ipHint('Click an item to see what links to it.')); return; }
-    ipItemBody(body, id, n);
+    ipItemBody(body, id, n, ipActiveRowId);
   });
   // The zoomed-into item gets the same treatment while the caret is on
   // something else inside it: its links and mirrors are the ones you came
@@ -6365,7 +7146,7 @@ function renderInfoPanel() {
   const fid = view.focusId;
   const fn = store.getNode(fid);
   if (fid !== ROOT_ID && fn && id !== fid) {
-    ipSection('zoom', 'Zoomed into', backlinksOf(fid).length + store.mirrorsOf(fid).length, body => {
+    ipSection('zoom', 'Zoomed into', shownBacklinks(fid).length + shownMirrors(fid).length, body => {
       const t = document.createElement('div');
       t.className = 'ip-zoom-title';
       t.textContent = truncate(fn.title, 60) || 'Untitled';
@@ -6375,8 +7156,9 @@ function renderInfoPanel() {
     });
   }
   ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
+  ipSection('saved', 'Saved searches', ssList().length, ipSavedBody);
   ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
-    tagsAlphabetical(view.focusId).length, ipTagsBody);
+    tagsForPanel(view.focusId).length, ipTagsBody);
 }
 const ipRefresh = debounce(renderInfoPanel, 120);
 
@@ -6385,7 +7167,15 @@ document.addEventListener('focusin', e => {
   const t = e.target.closest?.('.title');
   const ta = !t && e.target.closest?.('.note-edit');
   const id = t ? contentIdOfTitle(t) : ta ? contentIdOfNoteEditor(ta) : null;
-  if (id && id !== ipActiveId) { ipActiveId = id; ipRefresh(); }
+  // the structural row too: the same item can sit in several places
+  let rowId = null;
+  if (t) rowId = t === focusTitleEl ? view.focusId : idOfTitle(t);
+  else if (ta) rowId = ta.parentElement === focusNoteEl ? view.focusId : ta.closest('.node')?.dataset.id || null;
+  if (id && (id !== ipActiveId || rowId !== ipActiveRowId)) {
+    ipActiveId = id;
+    ipActiveRowId = rowId;
+    ipRefresh();
+  }
 });
 window.addEventListener('hashchange', () => {
   // zooming somewhere else is a change of subject: drop a tracked item that
@@ -6393,6 +7183,7 @@ window.addEventListener('hashchange', () => {
   // target. (Runs after 09's applyFocusFromHash, so view.focusId is current.)
   if (ipActiveId && ipActiveId !== view.focusId && !store.isDescendant(ipActiveId, view.focusId)) {
     ipActiveId = null;
+    ipActiveRowId = null;
   }
   ipRefresh();
 });
@@ -6485,10 +7276,7 @@ ipStarEl.addEventListener('click', () => {
   if (id && id !== ROOT_ID) store.toggleStarred(id);
 });
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts (some send a dead
-  // key or an accented character as e.key), so match the physical key too
-  if (e.code === 'KeyI' || e.key === 'i' || e.key === 'I') {
+  if (altChord(e, 'KeyI')) {
     e.preventDefault();
     setPanelOpen(!panelOpen());
   }
@@ -6606,30 +7394,48 @@ function tagIndex(scopeId) {
   const hit = tagCache.get(key);
   if (hit) return hit;
   const map = new Map();
-  (function walk(n) {
+  // `done` is true for a completed item and everything beneath it: the
+  // hide-completed rule takes the whole subtree off screen, so those uses
+  // count toward `count` (the vocabulary) but not `live` (what is visible).
+  (function walk(n, done) {
     for (const c of n.children) {
+      const here = done || !!c.completed;
       if (!c.mirrorOf) {
         const seen = new Set(); // an item using #todo twice is still one item
         const take = t => {
           const k = t.toLowerCase();
           if (seen.has(k)) return;
           seen.add(k);
-          const e = map.get(k);
-          if (e) e.count++;
-          else map.set(k, { tag: t, count: 1 });
+          let e = map.get(k);
+          if (!e) map.set(k, e = { tag: t, count: 0, live: 0 });
+          e.count++;
+          if (!here) e.live++;
         };
         scanTags(c.title, take);
         scanTags(c.note, take);
       }
-      walk(c);
+      walk(c, here);
     }
-  })(store.getNode(key) || store.doc.root);
+  })(store.getNode(key) || store.doc.root, false);
   tagCache.set(key, map);
   return map;
 }
 function tagsAlphabetical(scopeId) {
   return [...tagIndex(scopeId).values()]
     .sort((a, b) => a.tag.toLowerCase().localeCompare(b.tag.toLowerCase()));
+}
+/* What the panel lists (F71). With Hide completed on, a tag is counted by its
+   uses on items you can see, and one with none drops out — except the tag the
+   outline is currently filtered by, which must stay to be clicked off. Only
+   the panel narrows: tagsByUse feeds the `#` suggester, and a tag used only on
+   finished items is still one worth reusing. */
+function tagsForPanel(scopeId) {
+  const all = tagsAlphabetical(scopeId);
+  if (!completedRowsHidden()) return all;
+  const lit = view.filter ? view.filter.tags : null;
+  return all
+    .filter(t => t.live > 0 || (lit && lit.has(t.tag.toLowerCase())))
+    .map(t => ({ ...t, count: t.live }));
 }
 function tagsByUse(scopeId) {
   return [...tagIndex(scopeId).values()]
@@ -6667,15 +7473,597 @@ focusStarEl.addEventListener('click', () => {
 });
 
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts (some send a dead
-  // key or an accented character as e.key), so match the physical key too
-  if (e.code !== 'KeyS' && e.key !== 's' && e.key !== 'S') return;
+  if (!altChord(e, 'KeyS')) return;
   const id = starTargetId();
   if (!id) return;
   e.preventDefault();
   store.toggleStarred(id);
 });
+
+/* ===== 18 help center =====
+   The in-app manual (F72): an overview, topic pages, a keyboard reference, and
+   a "what's new" list, all inside the one file.
+
+   Authoring: topics are src/help/NN-slug.md and the release list is
+   src/help/whatsnew.md; build.ps1 bundles them into HELP_DATA below. They are
+   rendered with the same DOM-only markdown renderer as notes (02), so help
+   text is as XSS-safe as user text. Two help-only conventions are layered on
+   top, after rendering:
+     - a `code` span that is a key combo (`Alt+C`, `Enter`) becomes a <kbd>
+     - a link to `#help/<topic>` navigates inside the dialog
+   Keep `[[` and `((` inside code spans in the .md files: bare, the renderer
+   would try to resolve them as wikilinks against the user's own document.
+
+   Shortcuts are the one thing not authored as prose: HELP_KEYS is a table, so
+   the reference stays one scannable list and search can filter its rows.
+   "What's new" tracks the newest entry the user has opened in
+   prefs.whatsNewSeen (+ whatsNewHash), and lights a dot on the ☰ button until
+   they do. */
+
+// the build puts the real data (plus a comma) at the marker; unbuilt, the default stands
+const HELP_DATA = [{topics:[{id:"start",md:"# Getting started\n\nAn outline is a list where every item can hold its own list, as deep as you like. Everything stays in this browser; nothing is sent anywhere.\n\n## The basics\n\n- Click an item's text and type. There is no edit mode: the outline is always editable.\n- `Enter` makes a new item below. `Tab` indents it under the item above; `Shift+Tab` brings it back out.\n- Click a bullet to **zoom** into that item and make it the whole page. The breadcrumbs at the top lead back out.\n- `Shift+Enter` adds a **note** under an item: longer text that supports markdown.\n- `Ctrl+Z` undoes, about 200 steps back, including structural changes.\n\n## Find your way around\n\n- `Ctrl+K` jumps to any item by typing a few letters of its title.\n- `Ctrl+F` searches everything in view.\n- `Alt+I` opens the **info panel**: what links to the current item, your starred items, and every tag you use.\n- The **☰ menu** holds themes, export and import, and these help pages.\n\n## Where to go next\n\n- [Editing and structure](#help/editing) covers moving, completing and formatting items.\n- [Finding and moving around](#help/navigating) covers zoom, the jump palette and **Move to…**.\n- [Keyboard shortcuts](#help/keys) is the full list, also reachable any time with `?`.\n"},{id:"editing",md:"# Editing and structure\n\nEverything you do to an item's text and place in the outline.\n\n## Titles and notes\n\nA title is one line. A note is free-form markdown under it: `Shift+Enter` opens it, and it renders when you click away. Notes support bold, italic, `code`, links, lists, quotes and headings.\n\nPasting several lines at once turns them into structure: indentation becomes nesting, and `-`, `*` and `1.` list markers are stripped.\n\n## Moving things\n\n- `Tab` / `Shift+Tab` indent and outdent, bringing the item's children with it.\n- `Alt+↑` / `Alt+↓` move an item up or down among its siblings.\n- Drag an item by its **bullet** to reorder it, or drop it onto another item to nest it inside.\n- `Alt+M` files the item inside another one you pick by name. See [Finding and moving around](#help/navigating).\n\n## Completing, collapsing, deleting\n\n- `Ctrl+Enter` marks an item done. Completed items are struck through; a parent shows a `done/total` count of its children once any are checked.\n- `Alt+C` hides or shows completed items everywhere. It is one switch: search, the jump palette and the panel all follow it.\n- `Ctrl+↑` / `Ctrl+↓` collapse and expand. A ringed bullet means something is folded inside.\n- `Backspace` on an empty item deletes it and keeps its children. `Ctrl+Shift+Backspace` deletes the item *and everything under it*; undo is the safety net.\n\n## Making things stand out\n\nSelect text in a title and a small bar appears: bold, italic, underline, code, link, text colour and highlight. `Ctrl+B`, `Ctrl+I` and `Ctrl+U` do the first three directly.\n\nThe **≡ handle** that appears beside a row, or `Ctrl+.`, opens the item menu: heading size (H1–H3), bullet colour, duplicate, zoom in, copy as markdown, mirror and more.\n"},{id:"navigating",md:"# Finding and moving around\n\nZoom, jump, search and file things away without leaving the keyboard.\n\n## Zoom\n\nClick a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms out one level and `Alt+Shift+←` goes all the way to the top. The zoom lives in the page address, so your browser's back and forward buttons walk your zoom history, and you can bookmark any item.\n\n## The jump palette\n\n`Ctrl+K` opens a fuzzy finder over every item title. It works from anywhere, including while you are typing.\n\n- Type a few letters; they need not be contiguous. Matches at word starts rank higher.\n- With nothing typed it shows what you **edited most recently**, so `Ctrl+K` then `Enter` returns you to where you were.\n- **Same name in several places?** Type the path: `Projects/Log` finds the item called \"Log\" under an ancestor containing \"Projects\". `>` and `›` work as separators too, and `Projects/` lists everything inside a match. If a title really contains a slash, a query that finds nothing falls back to a literal search.\n- With **Hide completed** on, finished items are left out of the list.\n\n## Move to…\n\n`Alt+M` uses the same picker to choose a *destination*: the current item, with everything under it, becomes the last child of the one you pick. It is one undo step, and the caret follows the item. Choose **Top level** to file something back out to the root.\n\nBy default the caret follows the item to its new home. If you would rather stay where you were (handy when filing several items in a row), press `Shift+Enter` in the picker to do it once, or set **After Move / Mirror to…** in the ☰ menu under View to make staying the default; `Shift+Enter` then follows. The same setting covers **Mirror to…**.\n\n## Search\n\n`Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom. Every word you type must match, in any order, in an item's title or note.\n\n- `budget q3` finds items containing both words; each may be in the title or the note.\n- `\"q3 budget\"` finds that exact phrase, spaces included.\n- `#urgent` finds items tagged `#urgent`: the whole tag, so `#todo` does not match `#todos`.\n- `-draft` finds items that do **not** contain *draft*. It works on words, phrases, tags and flags: `-#later`, `-\"to do\"`.\n- `is:starred` finds starred items; `-is:starred` finds the rest.\n- `is:done` finds completed items (nothing shows while **Hide completed** is on).\n- `links:\"Project plan\"` finds the item called *Project plan* and everything linked to or from it. Press `Alt+L` on any item (or use **Show linked items** in its ≡ menu, or the panel) to fill this in for you, and press it again to clear.\n- `acme > #urgent` finds `#urgent` items somewhere inside an item matching *acme*. Chain it for more levels: `acme > launch > #urgent`.\n\n- `>` must stand alone with spaces around it; the matches to its left are shown dimmed for context.\n- To search for a word that begins with `-`, put it in quotes: `\"-5\"`. Inside quotes, `\\\"` is a literal quote mark.\n- Matches are shown with their ancestors dimmed. Items keep their folds: a collapsed item stays collapsed, unless something inside it matches. Use ▸ to open or close items while searching; that changes only the search view, not your outline.\n- **Click a tag chip** to search for just that tag, and click it again to clear. **Shift+click** a chip, in the outline or the panel, to add it to the search you already have, or to take it back out.\n- Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.\n- Items you create while a search is active stay visible until you change the search.\n- **Saved searches:** click the ☆ beside the search box to keep the query you are looking at. Saved searches are listed in the info panel under **Saved searches**: click one to run it, click it again to clear, ✎ to name it. The search box's dropdown offers your saved and recent searches.\n- `Esc` clears the search.\n"},{id:"links",md:"# Links, backlinks and mirrors\n\nConnect items to each other, and show one item in several places.\n\n## Links\n\nType `[[` in a title or note and pick an item from the list; `Enter` or `Tab` inserts its exact title. The link jumps to that item when clicked.\n\nLinks are matched by **title**, ignoring case. If two items share a title the link goes to the first one in document order. A link whose target does not exist is shown as broken until an item with that title appears.\n\nTo see only what an item is connected to, press `Alt+L` on it: the outline narrows to the item, everything that links to it, and everything it links to. Press it again to go back.\n\nIf you rename an item that others link to, 37nodes offers to update those links, so they do not quietly stop working.\n\n## Backlinks\n\nThe [info panel](#help/panel) lists every item that links to the one you are on, from titles and notes alike. Each row shows the line the link sits in, with the link highlighted, so you can tell why it is there without going to look. Click a row to go there. With **Hide completed** on, completed sources are not listed, since there would be nothing to jump to.\n\n## Mirrors\n\nA **mirror** is a live view of an item shown somewhere else. Edit it in either place and both change, because there is only one item. Completing it, formatting it and its notes all follow.\n\n- Type `((` in an empty item and pick the original from the list, or use **Mirror this item** in the ≡ menu.\n- To show an item somewhere else without moving it, press `Alt+Shift+M` (or **Mirror to…** in the ≡ menu) and pick the destination by name. The original stays where it is; a mirror appears as the last item inside the one you pick.\n- The mirror's *position* and its collapsed state are its own, so you can fold it away in one place and not the other.\n- An item that has mirrors shows a **filled diamond** for its bullet, and each mirror shows a **hollow diamond**, so you can tell the original from its reflections at a glance. The info panel's **Also appears in** list shows every place an item lives: the original first, then each mirror, with the one you are in marked *you are here*.\n- Deleting the original does not lose the content: the first mirror is promoted to hold it.\n"},{id:"organizing",md:"# Tags and starred items\n\nLightweight ways to group things that do not live under the same parent.\n\n## Tags\n\nAny `#word` in a title or note is a tag, shown as a clickable chip. Click one to filter the outline to it, and click it again to clear.\n\nTyping `#` offers the tags you already use, most-used first, so a vocabulary stays a vocabulary instead of drifting into `#todo`, `#todos` and `#to-do`.\n\nThe panel's **Tags** section lists every tag in view with a count of the items using it. With **Hide completed** on, the count covers only items you can see, and a tag used only on finished items drops out of the list (it is still offered when you type `#`).\n\n## Starred items\n\n`Alt+S` stars the item you are on, or use ★ in the panel or the ≡ menu. A star marks the item at the right edge of its row, and the panel's **Starred** section keeps every starred item one click away, wherever it lives in the outline. It is a shortlist you curate, in document order.\n\n## Headings and colour\n\nThe ≡ menu gives an item a heading size (H1, H2, H3) and a bullet colour from a six-colour palette. Both are purely visual and do not change the structure.\n"},{id:"panel",md:"# The info panel\n\nA side strip that follows your caret and answers \"what is this connected to?\".\n\nOpen it with the ◨ button in the top bar or `Alt+I`. Drag its left edge to resize it, and double-click the edge to reset.\n\n## Sections\n\nEach section collapses, and the panel remembers which are open.\n\n- **This item** lists what links to the item you are on (each with the line it sits in, link highlighted), where it is mirrored, and its details: created, edited, how many items are inside and how many links go out.\n- **Zoomed into** appears when your caret is on something inside the item you have zoomed into. It shows that parent's links and mirrors, which are the ones you came here for, without moving the caret.\n- **Starred** is your shortlist. Click a row to go there; click its ★ to unstar it.\n- **Tags** lists the tags in the current view with counts. Click a tag to filter, click it again to clear.\n\n## Notes on behaviour\n\n- The panel tracks the caret. With nothing focused it shows the item you are zoomed into.\n- Clicking a **starred** or **linked-from** row zooms to that item. An item with things inside becomes the page; one without opens its parent with the item selected. Hold `Alt` while clicking to reveal it where it lives instead, without changing your zoom, or make that the default with **☰ → View → Panel links**. The places listed under **Also appears in** always just take you there.\n- **Hide completed** (`Alt+C`) applies here too: completed sources and their tags are not counted.\n"},{id:"data",md:"# Your data, backups and themes\n\nWhere your outline lives, and how to keep it safe.\n\n## Where it is stored\n\nYour outline is saved in this browser's built-in database (IndexedDB), on this device. Nothing is uploaded; the app makes no network requests at all.\n\nBrowsers can still clear site data under disk pressure, or when you clear it yourself. **An export is your real backup.**\n\n## Export and import\n\n- **☰ → Export JSON** writes everything, losslessly, including colours, stars and mirrors. This is the one to keep.\n- **☰ → Export Markdown** writes the current view, or the whole outline, as plain nested text.\n- **☰ → Import JSON…** reads a JSON export back in. To bring in plain text, paste it: indented or bulleted lines become items. `Ctrl+Shift+C` copies the item you are on, with everything under it, as markdown.\n\nA gentle reminder appears when your last JSON export is more than 14 days old; you can change or turn it off in the menu.\n\n## What an export does not contain\n\nYour **saved searches**, theme, panel layout and other preferences belong to this browser, not to the outline, so they are not in an export and do not follow you to another browser. Everything in the outline itself is.\n\n## Mirror to a file\n\nIn Chromium browsers (Chrome, Edge), **☰ → Mirror to a file on disk…** keeps a JSON file continuously up to date on every save: a live backup that survives cleared browser data. After a restart the browser may ask you to click **Resume** once.\n\n## More than one tab\n\nOpening the outline in two tabs at once raises a warning banner. The last save wins between tabs, so it is best to use one.\n\n## Themes and layout\n\n**☰ → View** has the themes: Nordic, Light, Dark, E-ink, Parchment, Evergreen, and three terminal tributes (green CRT, IBM 5151 sepia and Wyse 60 white phosphor, with glow and scanlines). **Wide layout** lets the outline follow the window instead of a fixed reading column.\n"}],news:"## v2.5 · 2026-10-12\n\n- **A Help Center.** This window: topic pages, search, a full keyboard reference and this list. `?` still jumps straight to the shortcuts.\n- **`Alt+C` shows or hides completed items.** It is the same switch as ☰ → Hide completed, and it now governs more: the jump palette, the panel's backlinks and mirrors, and its tag counts.\n- **Jump palette: `Parent/Child`.** Type `Projects/Log` to pick the right \"Log\" when several items share a name. Completed items are left out while they are hidden.\n- **Tag counts ignore hidden completed items.** A tag used only on finished work leaves the panel list (not the `#` suggester).\n- **A real search language.** Several words now all have to match, `\"quotes\"` make a phrase, `-` excludes, `is:starred` and `is:done` filter by flag, and `acme > #urgent` searches *inside* matches of `acme`. Shift+click a tag chip to add it to your search. **One change to know about:** `foo bar` used to look for that exact text; it now finds items with both words, so put it in quotes if you want the phrase. See Finding and moving around.\n- **Show only linked items (`Alt+L`).** On any item, narrow the whole outline to it plus everything that links to it or from it. It is just a search (`links:\"Title\"`), so `Esc` clears it and you can combine it with other terms.\n- **Saved and recent searches.** Click ☆ beside the search box to keep a search, then find it under **Saved searches** in the info panel (rename it with ✎). The search box also drops down your saved and recent searches. They stay in this browser: they are not part of an export.\n- **Backlinks show their context.** Each \"Linked from\" row now shows the line the link sits in, with the link highlighted.\n- **Starred and linked-from rows zoom.** Clicking one now takes you into the item (or, for an item with nothing inside, into its parent with the item selected). `Alt`+click, or **☰ → View → Panel links**, gives you the old reveal-in-place.\n- **\"Also appears in\" for mirrored items.** The info panel now lists the original and every mirror, marks the place you are in, and each row takes you there.\n- **Mirrors have their own symbols.** An item that has mirrors shows a filled diamond; each mirror shows a hollow one. `Ctrl+↑`/`Ctrl+↓` also fold a mirror's contents now.\n- **Stay where you are after Move / Mirror to….** `Shift+Enter` in the picker does the opposite of the default for that one move, and **☰ → View → After Move / Mirror to…** sets the default, so filing a run of items no longer carries you away.\n- **Mirror to… (`Alt+Shift+M`).** Show an item inside any other one as a live mirror, picked by name, without moving the original.\n- **Searching keeps your folds.** A filter no longer opens every item: collapsed items stay collapsed unless something inside them matches, and the ▸ arrows work inside a search without changing your outline.\n- **Move to… (`Alt+M`).** File an item inside any other one by name, with the caret following it there.\n- **`Ctrl+Home` / `Ctrl+End`** jump to the first and last item in view.\n- **The caret survives zooming**, whichever way you zoom, so you do not lose your place.\n- **Resizable info panel**: drag its left edge. It also gained a **Zoomed into** section.\n- **Fixes:** Move to… no longer leaves a ghost copy behind, and jumping with Ctrl+K from a zoom header no longer shows the old title.\n\n## v2.4 · starred items and tags\n\n- **Starred items** (`Alt+S`): a shortlist, listed in the panel.\n- **Tag index** with counts, and **tag autocomplete** as you type `#`.\n- A tidier, grouped ☰ menu.\n\n## v2.0–v2.3 · foundations\n\n- **Backlinks and the info panel** (v2.3), with an offer to update inbound links when you rename an item.\n- **Mirrors** (v2.2): one item, shown in several places.\n- **Item menu, headings, bullet colours and inline formatting** (v2.1).\n- **A real database** (v2.0): IndexedDB storage and migration, so large outlines and future upgrades are safe.\n"},{ topics: [], news: '' }][0];
+
+/* [keys, what] — `keys` is a list of alternatives, each a combo joined by "+" */
+const HELP_KEYS = [
+  { cat: 'Editing', rows: [
+    [['Enter'], 'New item below (splits the title at the caret)'],
+    [['Shift+Enter'], 'Add or edit the item\'s note'],
+    [['Tab', 'Shift+Tab'], 'Indent / outdent'],
+    [['Alt+↑', 'Alt+↓'], 'Move the item up / down'],
+    [['Ctrl+Enter'], 'Complete / un-complete'],
+    [['Ctrl+↑', 'Ctrl+↓'], 'Collapse / expand'],
+    [['Backspace'], 'On an empty item: delete it (its children are kept)'],
+    [['Ctrl+Shift+Backspace'], 'Delete the item and everything under it'],
+    [['Ctrl+Z', 'Ctrl+Shift+Z'], 'Undo / redo'],
+    [['Ctrl+Shift+C'], 'Copy the item and its subtree as markdown'],
+  ] },
+  { cat: 'Formatting', rows: [
+    [['Ctrl+B', 'Ctrl+I', 'Ctrl+U'], 'Bold / italic / underline the selected title text. Select text for the full format bar'],
+    [['Ctrl+.'], 'Item menu: heading, colour and more. Also the ≡ handle, or right-click a bullet'],
+  ] },
+  { cat: 'Moving around', rows: [
+    [['↑', '↓', '←', '→'], 'Move between items'],
+    [['Ctrl+Home', 'Ctrl+End'], 'First / last item in view'],
+    [['Alt+→', 'Alt+←'], 'Zoom in / zoom out'],
+    [['Alt+Shift+←'], 'Zoom all the way out to the top'],
+  ] },
+  { cat: 'Finding and filing', rows: [
+    [['Ctrl+F'], 'Search the outline'],
+    [['Ctrl+K'], 'Jump to any item by title. Type Parent/Child to choose between items with the same name'],
+    [['Alt+M'], 'Move this item inside another one you pick'],
+    [['Alt+Shift+M'], 'Show this item inside another one you pick, as a live mirror (the original stays put)'],
+    [['Alt+C'], 'Show / hide completed items'],
+    [['Shift+Enter'], 'In the Move to… / Mirror to… picker: do the opposite of your After-move setting (go with it, or stay here)'],
+    [['Alt+L'], 'Show only the items linked to or from this one (again to clear)'],
+  ] },
+  { cat: 'Linking and organising', rows: [
+    [['[['], 'Link to an item: pick from the list; Enter or Tab inserts it'],
+    [['(('], 'On an empty item: turn it into a live mirror of another item'],
+    [['#'], 'Tag an item: the tags you already use are offered as you type'],
+    [['Alt+S'], 'Star / unstar the item'],
+    [['Alt+I'], 'Open or close the info panel'],
+  ] },
+  { cat: 'General', rows: [
+    [['Esc'], 'Clear the search, close a note, close a dialog'],
+    [['?'], 'This keyboard reference'],
+  ] },
+];
+
+const hcEl = $('#help-dialog');
+const hcSearchEl = $('#hc-search');
+const hcNavEl = $('#hc-topics');
+const hcMainEl = $('#hc-main');
+const hcContentEl = $('#hc-content');
+
+let hcCur = 'home';
+let hcQuery = '';
+
+/* --- content model ------------------------------------------------------- */
+let hcTopicCache = null;
+function hcTopics() {
+  if (hcTopicCache) return hcTopicCache;
+  return (hcTopicCache = HELP_DATA.topics.map(t => {
+    const lines = t.md.replace(/\r\n?/g, '\n').split('\n');
+    const title = (lines[0] || '').replace(/^#\s+/, '').trim() || t.id;
+    // the first paragraph after the title is the one-line summary on the overview
+    let i = 1;
+    while (i < lines.length && !lines[i].trim()) i++;
+    const sum = [];
+    while (i < lines.length && lines[i].trim() && !/^(#|[-*>\d`])/.test(lines[i])) sum.push(lines[i++].trim());
+    return { id: t.id, title, summary: sum.join(' '), md: t.md, text: t.md.toLowerCase() };
+  }));
+}
+let hcNewsCache = null;
+function hcNews() { // newest first, as written: [{id, title, md}]
+  if (hcNewsCache) return hcNewsCache;
+  const out = [];
+  let cur = null;
+  for (const line of HELP_DATA.news.replace(/\r\n?/g, '\n').split('\n')) {
+    const m = line.match(/^##\s+(.*)$/);
+    if (m) { cur = { id: m[1].trim(), title: m[1].trim(), lines: [] }; out.push(cur); }
+    else if (cur) cur.lines.push(line);
+  }
+  return (hcNewsCache = out.map(e => ({ id: e.id, title: e.title, md: e.lines.join('\n').trim() })));
+}
+const HELP_KEYS_TEXT = HELP_KEYS.map(g => g.cat + ' ' + g.rows.map(r => r[0].join(' ') + ' ' + r[1]).join(' ')).join(' ').toLowerCase();
+
+/* Everything the nav can show, in order. `text` is what the search looks in. */
+function hcEntries() {
+  const news = hcNews();
+  return [
+    { id: 'home', title: 'Overview', text: 'overview help' },
+    { id: 'news', title: 'What’s new', text: news.map(e => e.title + ' ' + e.md).join(' ').toLowerCase() },
+    ...hcTopics().map(t => ({ id: t.id, title: t.title, text: t.title.toLowerCase() + ' ' + t.text })),
+    { id: 'keys', title: 'Keyboard shortcuts', text: 'keyboard shortcuts keys ' + HELP_KEYS_TEXT },
+  ];
+}
+
+/* --- what's new bookkeeping ---------------------------------------------- */
+/* A short stable fingerprint of an entry's text (djb2, base 36). A release
+   grows bullet by bullet under one header, so the header alone cannot say
+   whether you have read THIS version of it: the seen marker is the newest
+   header plus the fingerprint of its text when it was opened. */
+function hcFingerprint(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+/* → { fresh, updated, count }: `fresh` entries are newer than the one last
+   seen; `updated` says the last-seen entry itself has grown since. */
+function hcUnseen() {
+  const news = hcNews();
+  if (!news.length) return { fresh: 0, updated: false, count: 0 };
+  const seen = prefs.whatsNewSeen;
+  const at = seen ? news.findIndex(e => e.id === seen) : -1;
+  if (at < 0) return { fresh: news.length, updated: false, count: news.length };
+  const updated = prefs.whatsNewHash !== hcFingerprint(news[at].md);
+  return { fresh: at, updated, count: at + (updated ? 1 : 0) };
+}
+function hcUnseenCount() { return hcUnseen().count; }
+function hcRememberSeen() {
+  const top = hcNews()[0];
+  prefs.whatsNewSeen = top.id;
+  prefs.whatsNewHash = hcFingerprint(top.md);
+}
+function hcMarkSeen() {
+  if (!hcNews().length || !hcUnseen().count) return;
+  hcRememberSeen();
+  savePrefs();
+  hcSyncDot();
+}
+function hcSyncDot() {
+  const n = hcUnseenCount();
+  $('#menu-btn').classList.toggle('has-news', n > 0);
+  const pill = $('#help-new-pill');
+  if (pill) pill.hidden = n === 0;
+}
+
+/* --- rendering ----------------------------------------------------------- */
+const KEY_NAMES = new Set(['Enter', 'Tab', 'Esc', 'Backspace', 'Delete', 'Home', 'End', '?', '#', '[[', '((',
+  '↑', '↓', '←', '→']);
+function isKeyCombo(t) {
+  return /^(?:Ctrl|Alt|Shift|Cmd)\+\S+/.test(t) || KEY_NAMES.has(t);
+}
+function hcKbd(combo) {
+  const wrap = document.createElement('span');
+  wrap.className = 'hc-combo';
+  const parts = /^(?:Ctrl|Alt|Shift|Cmd)\+/.test(combo) ? combo.split('+') : [combo];
+  parts.forEach((p, i) => {
+    if (i) wrap.append(document.createTextNode('+'));
+    const k = document.createElement('kbd');
+    k.textContent = p;
+    wrap.append(k);
+  });
+  return wrap;
+}
+function hcKeysCell(alts) {
+  const frag = document.createDocumentFragment();
+  alts.forEach((a, i) => {
+    if (i) frag.append(document.createTextNode(' / '));
+    frag.append(hcKbd(a));
+  });
+  return frag;
+}
+
+/* post-render touch-ups on a markdown subtree */
+function hcDecorate(root) {
+  for (const c of $$('code', root)) {
+    if (c.closest('pre') || !isKeyCombo(c.textContent)) continue;
+    c.replaceWith(hcKbd(c.textContent));
+  }
+  for (const a of $$('a', root)) {
+    const h = a.getAttribute('href') || '';
+    if (!h.startsWith('#help/')) continue;
+    a.removeAttribute('target');
+    a.removeAttribute('rel');
+    a.dataset.help = h.slice(6);
+  }
+  return root;
+}
+function hcMd(src) {
+  const el = hcDecorate(mdRender(src));
+  el.classList.add('hc-md');
+  return el;
+}
+
+function hcRenderNav() {
+  const q = hcQuery;
+  const unseen = hcUnseenCount();
+  hcNavEl.textContent = '';
+  let shown = 0;
+  for (const e of hcEntries()) {
+    if (q && !(e.title.toLowerCase().includes(q) || e.text.includes(q))) continue;
+    shown++;
+    const b = document.createElement('button');
+    b.className = 'hc-topic' + (e.id === hcCur ? ' on' : '');
+    b.dataset.topic = e.id;
+    b.append(document.createTextNode(e.title));
+    if (e.id === 'news' && unseen > 0) {
+      const p = document.createElement('span');
+      p.className = 'hc-pill';
+      p.textContent = String(unseen);
+      p.title = `${unseen} new`;
+      b.append(p);
+    }
+    hcNavEl.append(b);
+  }
+  if (!shown) {
+    const d = document.createElement('div');
+    d.className = 'hc-empty';
+    d.textContent = 'Nothing matches that.';
+    hcNavEl.append(d);
+  }
+}
+
+function hcCard(id, title, summary) {
+  const b = document.createElement('button');
+  b.className = 'hc-card';
+  b.dataset.topic = id;
+  const t = document.createElement('span');
+  t.className = 'hc-card-title';
+  t.textContent = title;
+  b.append(t);
+  if (summary) {
+    const s = document.createElement('span');
+    s.className = 'hc-card-sum';
+    s.textContent = summary;
+    b.append(s);
+  }
+  return b;
+}
+
+function hcShowHome(root) {
+  const h = document.createElement('h1');
+  h.textContent = 'How can we help?';
+  const p = document.createElement('p');
+  p.className = 'hc-lede';
+  p.textContent = 'Pick a topic, or search from the box on the left. Your outline never leaves this browser, and neither does anything you read here.';
+  root.append(h, p);
+  const grid = document.createElement('div');
+  grid.className = 'hc-cards';
+  if (hcNews().length) {
+    const n = hcUnseenCount();
+    grid.append(hcCard('news', n ? `What’s new (${n})` : 'What’s new', 'What changed in each release, newest first.'));
+  }
+  for (const t of hcTopics()) grid.append(hcCard(t.id, t.title, t.summary));
+  grid.append(hcCard('keys', 'Keyboard shortcuts', 'Every key, grouped by what you are doing. Also reachable with ?.'));
+  root.append(grid);
+}
+
+function hcShowNews(root, markRead = true) {
+  const unseen = hcUnseen();
+  const h = document.createElement('h1');
+  h.textContent = 'What’s new';
+  root.append(h);
+  hcNews().forEach((e, i) => {
+    const sec = document.createElement('section');
+    sec.className = 'hc-release';
+    const h2 = document.createElement('h2');
+    h2.textContent = e.title;
+    if (i < unseen.fresh || (i === unseen.fresh && unseen.updated)) {
+      const p = document.createElement('span');
+      p.className = 'hc-pill hc-pill-new';
+      p.textContent = i < unseen.fresh ? 'New' : 'Updated';
+      h2.append(p);
+    }
+    sec.append(h2, hcMd(e.md));
+    root.append(sec);
+  });
+  // after the badges are drawn: this is the moment they are read — but only
+  // when the person chose this page. Landing here as a search result is not
+  // reading it.
+  if (markRead) hcMarkSeen();
+}
+
+function hcShowKeys(root) {
+  const h = document.createElement('h1');
+  h.textContent = 'Keyboard shortcuts';
+  const note = document.createElement('p');
+  note.className = 'hc-lede';
+  note.append(document.createTextNode('On macOS, use '), hcKbd('⌘'), document.createTextNode(' in place of '), hcKbd('Ctrl'),
+    document.createTextNode('. The Alt shortcuts use the Option key there, which means Option+C, L, M, S and I no longer type the characters they normally would (ç, ¬, µ, ß, ˆ); use the Character Viewer for those.'));
+  root.append(h, note);
+  let any = false;
+  for (const g of HELP_KEYS) {
+    const rows = g.rows.filter(r => !hcQuery || (r[0].join(' ') + ' ' + r[1] + ' ' + g.cat).toLowerCase().includes(hcQuery));
+    if (!rows.length) continue;
+    any = true;
+    const h2 = document.createElement('h2');
+    h2.textContent = g.cat;
+    const table = document.createElement('table');
+    table.className = 'hc-keys';
+    for (const [keys, what] of rows) {
+      const tr = document.createElement('tr');
+      const k = document.createElement('td');
+      k.append(hcKeysCell(keys));
+      const w = document.createElement('td');
+      w.textContent = what;
+      tr.append(k, w);
+      table.append(tr);
+    }
+    root.append(h2, table);
+  }
+  if (!any) {
+    const d = document.createElement('p');
+    d.className = 'hc-empty';
+    d.textContent = 'No shortcut matches that.';
+    root.append(d);
+  }
+}
+
+function hcShowTopic(root, t) {
+  root.append(hcMd(t.md));
+}
+
+/* `read` is false when the page was chosen FOR the person (a search result
+   landing on it), as opposed to opened by them: only the latter counts as
+   reading What's new. */
+function hcShow(id, read = true) {
+  const entries = hcEntries();
+  if (!entries.some(e => e.id === id)) id = 'home';
+  hcCur = id;
+  hcContentEl.textContent = '';
+  if (id === 'home') hcShowHome(hcContentEl);
+  else if (id === 'news') hcShowNews(hcContentEl, read);
+  else if (id === 'keys') hcShowKeys(hcContentEl);
+  else hcShowTopic(hcContentEl, hcTopics().find(t => t.id === id));
+  hcMainEl.scrollTop = 0;
+  hcRenderNav();
+}
+
+/* --- open / wiring -------------------------------------------------------- */
+function openHelp(id) {
+  hcQuery = '';
+  hcSearchEl.value = '';
+  if (!hcEl.open) hcEl.showModal();
+  hcShow(id || 'home');
+  hcMainEl.focus({ preventScroll: true }); // arrows scroll the page; typing does not land in a field
+}
+
+hcNavEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-topic]');
+  if (b) hcShow(b.dataset.topic);
+});
+hcMainEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-topic], a[data-help]');
+  if (!b) return;
+  e.preventDefault();
+  hcShow(b.dataset.topic || b.dataset.help);
+});
+hcSearchEl.addEventListener('input', () => {
+  hcQuery = hcSearchEl.value.trim().toLowerCase();
+  if (hcQuery) {
+    // keep the page you are on if it still matches; otherwise the first hit
+    const hits = hcEntries().filter(en => en.title.toLowerCase().includes(hcQuery) || en.text.includes(hcQuery));
+    if (hits.length && !hits.some(en => en.id === hcCur)) { hcShow(hits[0].id, false); return; }
+  }
+  hcShow(hcCur, false);
+});
+hcEl.addEventListener('keydown', e => {
+  // "/" jumps to the search box, as in most docs sites
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && e.target !== hcSearchEl) {
+    e.preventDefault();
+    hcSearchEl.focus();
+    hcSearchEl.select();
+  }
+});
+$('#show-help').addEventListener('click', () => { closeMenu(); openHelp('home'); });
+$('#help-close').addEventListener('click', () => hcEl.close());
+closeOnBackdropClick(hcEl);
+
+// on a first run the tour has the screen and nothing here is news; for anyone
+// with a document already, the dot says there is something to read
+bootReady.then(() => {
+  const news = hcNews();
+  if (news.length && prefs.whatsNewSeen === undefined && store.wasSeeded) {
+    hcRememberSeen();
+    savePrefs();
+  }
+  hcSyncDot();
+});
+
+/* ===== 19 saved and recent searches =====
+   A query is just a string (04b), so remembering one is remembering a string.
+   Two lists, both kept in prefs — this browser's localStorage — and so
+   deliberately NOT part of the document: they are not in JSON exports, the
+   file mirror, or undo. Adding them to the document later is one optional
+   field and a schema step; nothing here would have to change shape.
+
+   - Saved searches: kept on purpose (☆ beside the search box, or the panel's
+     "Save current search"), optionally named, shown in the panel's "Saved
+     searches" section.
+   - Recent searches: queries you committed (Enter, or leaving the box), the
+     last few, offered in the search box's native dropdown alongside the saved
+     ones. Typing alone never records: every keystroke is a different query. */
+
+const SS_MAX = 100;
+const SS_RECENT_MAX = 15;
+const ssSaveBtnEl = $('#search-save');
+const ssListEl = $('#search-history');
+
+/* one canonical spelling per query, so "a  b" and "a b " are the same search */
+function ssKey(q) { return String(q || '').trim().replace(/\s+/g, ' '); }
+
+/* Does this query filter anything? A lone ">" or an empty "" is non-blank text
+   but parses to no terms at all — the outline stays unfiltered — so it is not
+   worth saving, recording, or offering a ☆ for. */
+function ssMeaningful(q) { return parseQuery(q).groups.length > 0; }
+
+function ssList() { // [{q, name}] — sanitised: prefs come from a text file
+  const raw = Array.isArray(prefs.savedSearches) ? prefs.savedSearches : [];
+  return raw
+    .filter(e => e && typeof e.q === 'string' && ssKey(e.q) && ssMeaningful(e.q))
+    .map(e => ({ q: ssKey(e.q), name: typeof e.name === 'string' ? e.name.trim() : '' }))
+    .slice(0, SS_MAX);
+}
+function ssRecentList() {
+  const raw = Array.isArray(prefs.recentSearches) ? prefs.recentSearches : [];
+  return raw.filter(q => typeof q === 'string' && ssKey(q) && ssMeaningful(q)).map(ssKey).slice(0, SS_RECENT_MAX);
+}
+function ssIndexOf(q) {
+  const k = ssKey(q);
+  return ssList().findIndex(e => e.q === k);
+}
+function ssStore(list) {
+  prefs.savedSearches = list;
+  savePrefs();
+  ssSync();
+  renderInfoPanel();
+}
+
+function ssSave(q, name = '') {
+  const k = ssKey(q);
+  if (!k || !ssMeaningful(k) || ssIndexOf(k) >= 0) return;
+  ssStore([...ssList(), { q: k, name }]);
+}
+function ssRemove(i) {
+  const list = ssList();
+  if (i < 0 || i >= list.length) return;
+  list.splice(i, 1);
+  ssStore(list);
+}
+function ssRename(i, name) {
+  const list = ssList();
+  if (!list[i]) return;
+  list[i].name = String(name).trim();
+  ssStore(list);
+}
+/* the ☆ beside the search box: save the query on screen, or forget it */
+function ssToggleCurrent() {
+  const k = ssKey(view.query);
+  if (!k) return;
+  const at = ssIndexOf(k);
+  if (at >= 0) ssRemove(at);
+  else ssSave(k);
+}
+/* clicking a saved search runs it; clicking the one that is running clears it */
+function ssApply(q) {
+  if (ssKey(view.query) === ssKey(q)) clearSearch(false);
+  else setSearch(q);
+}
+
+function ssRecord(q) {
+  const k = ssKey(q);
+  if (!k || !ssMeaningful(k)) return;
+  const list = [k, ...ssRecentList().filter(x => x !== k)].slice(0, SS_RECENT_MAX);
+  prefs.recentSearches = list;
+  savePrefs();
+  ssSync();
+}
+
+/* --- view: the ☆ button and the dropdown ---------------------------------- */
+function ssSync() {
+  const k = ssKey(view.query);
+  const meaningful = !!k && ssMeaningful(k);
+  const saved = meaningful && ssIndexOf(k) >= 0;
+  ssSaveBtnEl.hidden = !meaningful;
+  ssSaveBtnEl.textContent = saved ? '★' : '☆';
+  ssSaveBtnEl.classList.toggle('on', !!saved);
+  ssSaveBtnEl.title = saved ? 'Saved — click to remove from saved searches' : 'Save this search';
+  ssSaveBtnEl.setAttribute('aria-pressed', String(!!saved));
+  // saved ones first (with their names), then recents not already saved
+  ssListEl.textContent = '';
+  const seen = new Set();
+  for (const e of ssList()) {
+    seen.add(e.q);
+    const o = document.createElement('option');
+    o.value = e.q;
+    if (e.name) o.label = e.name;
+    ssListEl.append(o);
+  }
+  for (const q of ssRecentList()) {
+    if (seen.has(q)) continue;
+    const o = document.createElement('option');
+    o.value = q;
+    ssListEl.append(o);
+  }
+}
+
+/* the panel's section body */
+function ipSavedBody(body) {
+  const list = ssList();
+  const cur = ssKey(view.query);
+  if (cur && ssMeaningful(cur) && ssIndexOf(cur) < 0) {
+    const b = document.createElement('button');
+    b.className = 'ip-ss-add';
+    b.textContent = '☆ Save current search';
+    b.title = cur;
+    b.addEventListener('click', () => ssSave(cur));
+    body.append(b);
+  }
+  if (!list.length) {
+    body.append(ipHint('Nothing saved yet. Run a search, then click ☆ beside the search box. Saved searches stay in this browser; they are not part of an export.'));
+    return;
+  }
+  list.forEach((e, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'ip-row-wrap';
+    const row = ipRow(e.name || e.q, e.name ? e.q : null, () => ssApply(e.q));
+    if (ssKey(view.query) === e.q) row.classList.add('on');
+    row.title = e.q;
+    const edit = document.createElement('button');
+    edit.className = 'ip-ss-btn';
+    edit.textContent = '✎';
+    edit.title = 'Rename';
+    edit.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.className = 'ip-ss-input';
+      input.value = e.name || '';
+      input.placeholder = e.q;
+      input.setAttribute('aria-label', 'Name for this saved search');
+      let done = false;
+      const finish = commit => {
+        if (done) return;
+        done = true;
+        if (commit) ssRename(i, input.value);
+        else renderInfoPanel();
+      };
+      input.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); finish(false); }
+      });
+      input.addEventListener('blur', () => finish(true));
+      wrap.textContent = '';
+      wrap.append(input);
+      input.focus();
+      input.select();
+    });
+    const del = document.createElement('button');
+    del.className = 'ip-ss-btn';
+    del.textContent = '✕';
+    del.title = 'Remove';
+    del.addEventListener('click', () => ssRemove(i));
+    wrap.append(row, edit, del);
+    body.append(wrap);
+  });
+}
+
+/* --- wiring ---------------------------------------------------------------- */
+ssSaveBtnEl.addEventListener('click', ssToggleCurrent);
+// `change` fires on Enter or on leaving the box with a new value — a commit,
+// where `input` fires on every keystroke
+searchEl.addEventListener('change', () => ssRecord(searchEl.value));
+bootReady.then(ssSync);
 
 })();
 </script>

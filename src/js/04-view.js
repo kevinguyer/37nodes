@@ -18,8 +18,9 @@ const BRAND_TAGLINE = 'Infinite depth. Zero chaos.';
 const view = {
   focusId: ROOT_ID,
   query: '',
-  filter: null, // { matched:Set, anc:Set, under:Set, q } while searching
+  filter: null, // { matched, anc, under: Set<id>, marks: [string], tags: Set<'#tag'> } while searching
   filterExempt: new Set(), // ids created during this search: shown though they don't match
+  filterOpen: new Map(),   // id -> bool: ▸ toggles made during this search (F74); never persisted
 };
 
 /* Instance maps: a node normally renders exactly once, but inside a mirror
@@ -80,17 +81,20 @@ function completedRowsHidden() {
   return document.body.classList.contains('hide-completed');
 }
 function computeFilter() {
-  const q = view.query.trim().toLowerCase();
-  if (!q) { view.filter = null; return; }
-  // a pure #tag query matches the exact tag only (#todo must not hit #todos)
-  const tagRe = /^#[\w-]+$/.test(q) ? new RegExp('(^|\\s)' + q + '(?![\\w-])', 'i') : null;
-  const test = tagRe
-    ? s => tagRe.test(s || '')
-    : s => (s || '').toLowerCase().includes(q);
+  const parsed = parseQuery(view.query);
+  const groups = parsed.groups;
+  if (!groups.length) { view.filter = null; return; }
+  const k = groups.length;
+  // links: terms resolve by title against the whole document, once per run
+  for (const g of groups) for (const t of g) if (t.kind === 'links') t.ids = linkedIdsFor(t.v);
   const skipCompleted = completedRowsHidden();
   const matched = new Set(), anc = new Set(), under = new Set();
   const focus = store.getNode(view.focusId);
-  (function walk(n, ancIds, underMatch) {
+  // `stage` = how many leading groups an ancestor has already satisfied
+  // (F76). Taking each anchor as early as possible is always sufficient, so
+  // one pass suffices and cost stays linear. With one group, stage is
+  // always k-1 and this is a plain search.
+  (function walk(n, ancIds, underMatch, stage) {
     const isFocus = n === focus;
     // a mirror matches on its target's text (it has none of its own); its
     // subtree is not walked here — the original reports the real hits
@@ -98,7 +102,15 @@ function computeFilter() {
     // an off-screen completed row can't be a result, and neither can anything
     // inside it (the CSS hides the subtree with it)
     if (!isFocus && skipCompleted && c.completed) return;
-    const hit = !isFocus && (test(c.title) || test(c.note));
+    let hit = false, nextStage = stage;
+    if (!isFocus) {
+      const item = {
+        id: c.id, title: (c.title || '').toLowerCase(), note: (c.note || '').toLowerCase(),
+        starred: !!c.starred, completed: !!c.completed,
+      };
+      if (stage === k - 1) hit = queryGroupMatches(groups[k - 1], item);
+      else if (queryGroupMatches(groups[stage], item)) nextStage = stage + 1;
+    }
     // items made during this search don't match it; keep them on screen anyway
     const kept = !isFocus && view.filterExempt.has(n.id);
     if (hit) matched.add(n.id);
@@ -106,9 +118,9 @@ function computeFilter() {
     const nowUnder = underMatch || hit || kept;
     if (nowUnder && !isFocus) under.add(n.id);
     const nextAnc = isFocus ? ancIds : ancIds.concat(n.id);
-    for (const c of n.children) walk(c, nextAnc, nowUnder);
-  })(focus, [], false);
-  view.filter = { matched, anc, under, q, tagQuery: !!tagRe };
+    for (const ch of n.children) walk(ch, nextAnc, nowUnder, nextStage);
+  })(focus, [], false, 0);
+  view.filter = { matched, anc, under, marks: parsed.marks, tags: parsed.tags };
 }
 function nodeVisibleInFilter(n) {
   if (!view.filter) return true;
@@ -133,22 +145,50 @@ function keepInFilter(ids) {
 }
 function clearFilterExempt() {
   view.filterExempt.clear();
+  view.filterOpen.clear(); // a new query starts from the outline as you left it
+}
+
+/* Is this row expanded? Outside a filter, that is the stored flag. Under one
+   (F74) the outline keeps the shape you left it, with two exceptions that are
+   there so no result can be hidden:
+   - a row with a matching descendant (`anc`) is held open;
+   - a mirror stays folded, since its subtree would duplicate what the
+     original already reports.
+   A ▸ toggle made during the search is a session override (`filterOpen`) that
+   beats both and is never written to the document — folding things away to
+   read a result list must not re-fold the outline underneath it.
+   `own` is the row's structural node: a mirror row's state is its own. */
+function rowExpanded(own) {
+  const f = view.filter;
+  if (!f) return !own.collapsed;
+  const o = view.filterOpen.get(own.id);
+  if (o !== undefined) return o;
+  if (own.mirrorOf) return false;
+  if (f.anc.has(own.id)) return true;
+  return !own.collapsed;
+}
+/* The one door for a person's expand/collapse gesture (▸, Ctrl+↑/↓). */
+function setRowCollapsed(id, collapsed) {
+  const n = store.getNode(id);
+  if (!n) return;
+  if (!view.filter) { store.setCollapsed(id, collapsed); return; }
+  if (rowExpanded(n) === !collapsed) return;
+  view.filterOpen.set(id, !collapsed);
+  refreshCollapse(id);
 }
 
 /* --- node rendering ---------------------------------------------------- */
-function highlightFrag(text, q) {
+function highlightFrag(text, ranges) { // ranges: sorted, merged [start, end] pairs
   const frag = document.createDocumentFragment();
-  const lower = text.toLowerCase();
-  let i = 0;
-  for (;;) {
-    const j = lower.indexOf(q, i);
-    if (j < 0) { frag.append(document.createTextNode(text.slice(i))); break; }
-    if (j > i) frag.append(document.createTextNode(text.slice(i, j)));
+  let at = 0;
+  for (const [s, e] of ranges) {
+    if (s > at) frag.append(document.createTextNode(text.slice(at, s)));
     const m = document.createElement('mark');
-    m.textContent = text.slice(j, j + q.length);
+    m.textContent = text.slice(s, e);
     frag.append(m);
-    i = j + q.length;
+    at = e;
   }
+  if (at < text.length) frag.append(document.createTextNode(text.slice(at)));
   return frag;
 }
 /* --- [[wikilinks]]: resolved by title, case-insensitive, at render time.
@@ -259,6 +299,7 @@ const TITLE_PATTERNS = [
   { re: /(^|\s)(#[\w-]+)/, isTag: true },
 ];
 
+/* activeTag: the Set of lowercase '#tags' the current query asks for (or null) */
 function titleParseInto(parent, text, rawBase, activeTag, S) {
   const emitText = (container, str, at) => {
     if (!str) return;
@@ -286,7 +327,7 @@ function titleParseInto(parent, text, rawBase, activeTag, S) {
       const chipAt = bestIdx + best[1].length; // keep the leading space plain
       emitText(parent, rest.slice(0, chipAt), base);
       const s = document.createElement('span');
-      s.className = 'tag' + (activeTag && best[2].toLowerCase() === activeTag ? ' active' : '');
+      s.className = 'tag' + (activeTag && activeTag.has(best[2].toLowerCase()) ? ' active' : '');
       s.textContent = best[2];
       s.title = 'Filter by ' + best[2];
       ctx.seg(s.firstChild, base + chipAt);
@@ -330,11 +371,13 @@ function titleRawOffset(el, renderedOff) {
 function setTitleContent(el, n) {
   el.textContent = '';
   const f = view.filter;
-  if (f && !f.tagQuery && f.matched.has(n.id) && (n.title || '').toLowerCase().includes(f.q)) {
+  const ranges = f && f.marks.length && f.matched.has(n.id)
+    ? queryMarkRanges(n.title || '', f.marks) : [];
+  if (ranges.length) {
     titleSegs.delete(el); // raw text + <mark>s: rendered offsets ARE raw offsets
-    el.append(highlightFrag(n.title, f.q)); // text search: marks win over formatting
+    el.append(highlightFrag(n.title, ranges)); // text hits: marks win over formatting
   } else {
-    el.append(titleFrag(el, n.title || '', f && f.tagQuery ? f.q : null));
+    el.append(titleFrag(el, n.title || '', f ? f.tags : null));
   }
 }
 /* n = the CONTENT node (what the row shows); own = the row's structural
@@ -342,8 +385,7 @@ function setTitleContent(el, n) {
    membership are their own while everything visible comes from the target. */
 function applyNodeState(el, n, own = n) {
   const hasKids = n.children.length > 0;
-  // mirrors sit collapsed in search view (their subtrees would duplicate results)
-  const expanded = view.filter ? !own.mirrorOf : !own.collapsed;
+  const expanded = rowExpanded(own);
   if (n.format) el.dataset.format = n.format; else delete el.dataset.format;
   if (n.color) el.dataset.color = n.color; else delete el.dataset.color;
   el.classList.toggle('completed', n.completed);
@@ -352,7 +394,8 @@ function applyNodeState(el, n, own = n) {
   el.classList.toggle('expanded', hasKids && expanded);
   if (hasKids) el.setAttribute('aria-expanded', String(expanded));
   else el.removeAttribute('aria-expanded');
-  // originals that have live mirrors wear the same ⧉ badge as their mirrors
+  // an original that has live mirrors is drawn as a filled diamond, each of
+  // its mirrors as a hollow one (app.css)
   const mirrored = !own.mirrorOf && store.hasMirrors(own.id);
   el.classList.toggle('mirrored', mirrored);
   if (!own.mirrorOf) {
@@ -480,10 +523,7 @@ function renderNode(n, level, suffix = '') {
   applyNodeState(el, content || n, n);
   const loop = isMirror && target && mirrorExpansionLoop(n, target, suffix);
   if (loop) el.classList.add('loop');
-  // mirrors stay collapsed while a search filter is up: their subtrees would
-  // duplicate results the original already reports
-  const expand = view.filter ? !isMirror : !n.collapsed;
-  if (expand && content && content.children.length && !loop) {
+  if (rowExpanded(n) && content && content.children.length && !loop) {
     fillChildren(kids, content, level, isMirror ? suffix + '@' + n.id : suffix);
   }
   return el;
@@ -788,7 +828,10 @@ function closeNoteEditor(ta) {
 /* --- focus helpers -------------------------------------------------------- */
 function revealNode(id) {
   for (const a of store.ancestorsOf(id)) {
-    if (a.id !== ROOT_ID && a.collapsed) store.setCollapsed(a.id, false);
+    if (a.id === ROOT_ID) continue;
+    if (view.filter) { // the stored flag is not what the screen is showing
+      if (!rowExpanded(a)) { view.filterOpen.set(a.id, true); refreshCollapse(a.id); }
+    } else if (a.collapsed) store.setCollapsed(a.id, false);
   }
 }
 function activateTitle(t, off = 0) {
@@ -862,6 +905,34 @@ function updateSaveIndicator(state) {
     ? 'Saving failed. Click to retry and see details' : '';
 }
 
+/* Bring every rendered instance of row `id` in line with rowExpanded():
+   fill a newly opened container lazily, and restyle the row. Shared by the
+   store's 'collapse' event and by search-view toggles, which never reach the
+   store. */
+function refreshCollapse(id) {
+  const n = store.getNode(id);
+  if (!n) return;
+  const content = store.mirrorContent(n) || n;
+  const open = rowExpanded(n);
+  for (const el of nodeInstances(id)) {
+    // collapse state belongs to the row's own node: mirror rows showing
+    // `id` as content keep their own state and are skipped here
+    if (el.dataset.id !== id) continue;
+    const kids = el.querySelector(':scope > .children');
+    const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
+    if (open && !kids.dataset.filled && content.children.length && !loop) {
+      const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
+      fillChildren(kids, content, level,
+        n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
+    }
+    if (open) {
+      kids.classList.add('just-expanded');
+      setTimeout(() => kids.classList.remove('just-expanded'), 250);
+    }
+    applyNodeState(el, content, n);
+  }
+}
+
 /* --- store event wiring ----------------------------------------------------- */
 store.subscribe(ev => {
   switch (ev.type) {
@@ -875,29 +946,9 @@ store.subscribe(ev => {
         renderChildrenOf(ev.id);
       }
       break;
-    case 'collapse': {
-      const n = store.getNode(ev.id);
-      if (!n) break;
-      const content = store.mirrorContent(n) || n;
-      for (const el of nodeInstances(ev.id)) {
-        // collapse state belongs to the row's own node: mirror rows showing
-        // ev.id as content keep their own state and are skipped here
-        if (el.dataset.id !== ev.id) continue;
-        const kids = el.querySelector(':scope > .children');
-        const loop = n.mirrorOf && mirrorExpansionLoop(n, content, suffixOf(el));
-        if (!n.collapsed && !kids.dataset.filled && content.children.length && !loop) {
-          const level = parseInt(el.getAttribute('aria-level'), 10) || 1;
-          fillChildren(kids, content, level,
-            n.mirrorOf ? suffixOf(el) + '@' + n.id : suffixOf(el));
-        }
-        if (!n.collapsed) {
-          kids.classList.add('just-expanded');
-          setTimeout(() => kids.classList.remove('just-expanded'), 250);
-        }
-        applyNodeState(el, content, n);
-      }
+    case 'collapse':
+      refreshCollapse(ev.id);
       break;
-    }
     case 'doc':
       renderAll();
       break;

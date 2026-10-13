@@ -84,6 +84,10 @@ nodeMenuEl.addEventListener('click', e => {
       closeNodeMenu();
       location.hash = '#' + cid;
       break;
+    case 'nm-links':
+      closeNodeMenu();
+      filterToLinked(cid);
+      break;
     case 'nm-note':
       closeNodeMenu();
       openNoteEditor(cid, host);
@@ -97,6 +101,10 @@ nodeMenuEl.addEventListener('click', e => {
       }
       break;
     }
+    case 'nm-mirrorto':
+      closeNodeMenu();
+      openMirrorPalette(id);
+      break;
     case 'nm-move':
       closeNodeMenu();
       openMovePalette(id); // structural: a mirror row moves the mirror

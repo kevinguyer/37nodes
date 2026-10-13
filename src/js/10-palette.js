@@ -13,18 +13,28 @@ const palResultsEl = $('#palette-results');
 let palItems = [];  // [{id, title, path}] — every node except the root
 let palShown = [];  // scored results currently rendered
 let palSel = 0;
-let palMode = 'jump'; // 'jump' | 'move'
-let palMoveId = null; // in move mode: the node being moved
+let palMode = 'jump'; // 'jump' | 'move' | 'mirror'
+let palMoveId = null; // in move / mirror mode: the node being moved or mirrored
+let palFromId = null; // ...and the ROW the command was opened from (structural id)
 
+/* `up` is the index of the parent's entry (-1 at the top): the ancestor chain
+   for `Parent/Child` matching (F70) without a copied array per item. With Hide
+   completed on (F69) completed items and everything under them are left out —
+   the CSS hides the subtree, so a jump into one would land on nothing. */
 function paletteIndex() {
   const items = [];
-  (function walk(n, path) {
+  const skipDone = completedRowsHidden();
+  (function walk(n, path, up) {
     for (const c of n.children) {
-      items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      if (skipDone) {
+        const t = c.mirrorOf ? (store.getNode(c.mirrorOf) || c) : c;
+        if (t.completed) continue;
+      }
+      const at = items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt, up }) - 1;
       const label = truncate(c.title, 30) || 'Untitled';
-      walk(c, path ? `${path} › ${label}` : label);
+      walk(c, path ? `${path} › ${label}` : label, at);
     }
-  })(store.doc.root, '');
+  })(store.doc.root, '', -1);
   return items;
 }
 
@@ -38,26 +48,46 @@ function paletteIndex() {
    'Top level' has to be synthesised: the walk starts AT the root and so can
    never offer it, leaving no way to file something back out to the top. */
 function moveIndex(selfId) {
-  const items = [{ id: ROOT_ID, title: 'Top level', path: '', top: true }];
-  (function walk(n, path) {
+  const items = [{ id: ROOT_ID, title: 'Top level', path: '', top: true, up: -1 }];
+  (function walk(n, path, up) {
     for (const c of n.children) {
       if (c.id === selfId) continue; // the node itself, and all of its subtree
-      if (!c.mirrorOf) items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt });
+      let at = up;
+      if (!c.mirrorOf) at = items.push({ id: c.id, title: c.title, path, updatedAt: c.updatedAt, up }) - 1;
       const label = truncate(c.title, 30) || 'Untitled';
-      walk(c, path ? `${path} › ${label}` : label);
+      walk(c, path ? `${path} › ${label}` : label, at);
     }
-  })(store.doc.root, '');
+  })(store.doc.root, '', -1);
   return items;
 }
 
 /* substring beats subsequence; word starts and tight runs beat scatter */
 function fuzzyMatch(q, title) {
-  const t = title.toLowerCase();
+  const { low: t, map } = lowerWithMap(title);
+  const m = fuzzyMatchLow(q, t, title.length);
+  // spans were found in the lowered text; the caller slices the original
+  if (m && map) m.spans = spansBack(title, map, m.spans);
+  return m;
+}
+/* [[start, length], …] in lowered coordinates → the same in the original,
+   merged where mapping made neighbours overlap (two lowered units that came
+   from one character) */
+function spansBack(text, map, spans) {
+  const out = [];
+  for (const [s, len] of spans) {
+    const [a, b] = lowerSpanBack(text, map, s, s + len);
+    const last = out[out.length - 1];
+    if (last && a < last[0] + last[1]) last[1] = Math.max(last[1], b - last[0]);
+    else out.push([a, b - a]);
+  }
+  return out;
+}
+function fuzzyMatchLow(q, t, titleLen) {
   const at = t.indexOf(q);
   if (at >= 0) {
     let score = 200 - Math.min(at, 50);
     if (at === 0 || /[^\w]/.test(t[at - 1])) score += 40;
-    return { score: score - Math.min(title.length, 100) / 5, spans: [[at, q.length]] };
+    return { score: score - Math.min(titleLen, 100) / 5, spans: [[at, q.length]] };
   }
   let ti = 0, score = 0;
   const spans = [];
@@ -72,7 +102,7 @@ function fuzzyMatch(q, title) {
     }
     ti = j + 1;
   }
-  return { score: score - Math.min(title.length, 100) / 5, spans };
+  return { score: score - Math.min(titleLen, 100) / 5, spans };
 }
 
 /* title text with the matched characters wrapped in <mark> (shared with the
@@ -91,12 +121,72 @@ function matchFrag(title, spans) {
   return frag;
 }
 
+/* which key does which, given the After-move preference (F81) */
+function palStayHint() {
+  return moveFollows()
+    ? 'Enter goes there · Shift+Enter stays here.'
+    : 'Enter stays here · Shift+Enter goes there.';
+}
 function palHint(text) {
   const el = document.createElement('div');
   el.className = 'pal-hint';
   el.textContent = text;
   palResultsEl.append(el);
 }
+/* --- scoring ------------------------------------------------------------- */
+function palScoreFlat(q) {
+  const scored = [];
+  for (let i = 0; i < palItems.length; i++) {
+    const m = fuzzyMatch(q, palItems[i].title);
+    if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
+  }
+  return scored;
+}
+
+/* `Parent/Log` (F70): everything before the last separator names ancestors,
+   outer to inner, each a substring of that ancestor's title; the last segment
+   fuzzy-matches the title. `/`, `>` and `›` (what the result path itself
+   shows) all separate. A query that finds nothing this way falls back to a
+   literal search (caller), so a title that really contains "/" is still
+   reachable. A trailing separator — `Parent/` — lists what lives under a
+   match. The shared fuzzyMatch is left alone: the [[link]] picker uses it and
+   must keep treating "/" literally. */
+function palScorePath(q) {
+  const segs = q.split(/[\/>›]/).map(s => s.trim());
+  if (segs.length < 2) return [];
+  const tail = segs.pop();
+  const heads = segs.filter(Boolean);
+  if (!heads.length) return [];
+  const scored = [];
+  for (let i = 0; i < palItems.length; i++) {
+    const it = palItems[i];
+    if (it.top) continue;
+    let m = { score: 0, spans: [] };
+    if (tail) { m = fuzzyMatch(tail, it.title); if (!m) continue; }
+    else if (!it.title) continue;
+    // ancestors outermost-first
+    const chain = [];
+    for (let u = it.up; u >= 0; u = palItems[u].up) chain.push(palItems[u].title);
+    chain.reverse();
+    let pos = 0, bonus = 0, ok = true;
+    for (const h of heads) {
+      // ancestors must contain the segment outright: subsequence matching is
+      // right for finding a title, but loose enough to match any long
+      // ancestor, which defeats the point of naming one
+      let hit = -1;
+      for (; pos < chain.length; pos++) {
+        const at = chain[pos].toLowerCase().indexOf(h);
+        if (at >= 0) { hit = at; pos++; break; }
+      }
+      if (hit < 0) { ok = false; break; }
+      bonus += hit === 0 ? 40 : 20; // a prefix of the ancestor reads as intended
+    }
+    if (!ok) continue;
+    scored.push({ id: it.id, title: it.title, path: it.path, score: m.score + bonus / 10, spans: m.spans, ord: i });
+  }
+  return scored;
+}
+
 function renderPalette() {
   const q = palInputEl.value.trim().toLowerCase();
   palResultsEl.textContent = '';
@@ -109,22 +199,21 @@ function renderPalette() {
     const recent = palItems.filter(it => it.title && !it.top)
       .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
       .slice(0, 12);
-    const top = palMode === 'move' ? palItems.filter(it => it.top) : [];
+    const top = palMode !== 'jump' ? palItems.filter(it => it.top) : [];
     palShown = [...top, ...recent]
       .map(it => ({ id: it.id, title: it.title, path: it.path, spans: [] }));
     palHint(palMode === 'move'
-      ? 'Pick where it should live — it becomes the last item inside.'
+      ? 'Pick where it should live — it becomes the last item inside. ' + palStayHint()
+      : palMode === 'mirror'
+      ? 'Pick where the mirror should appear — it becomes the last item inside. ' + palStayHint()
       : palShown.length ? 'Recently edited' : 'Type to jump to any item by title.');
   } else {
-    const scored = [];
-    for (let i = 0; i < palItems.length; i++) {
-      const m = fuzzyMatch(q, palItems[i].title);
-      if (m) scored.push({ id: palItems[i].id, title: palItems[i].title, path: palItems[i].path, score: m.score, spans: m.spans, ord: i });
-    }
+    let scored = palScorePath(q);
+    if (!scored.length) scored = palScoreFlat(q);
     scored.sort((a, b) => b.score - a.score || a.title.length - b.title.length || a.ord - b.ord);
     palShown = scored.slice(0, 50);
     if (!palShown.length) {
-      palHint(palMode === 'move' ? 'No matching destination.' : 'No matching items.');
+      palHint(palMode !== 'jump' ? 'No matching destination.' : 'No matching items.');
       return;
     }
   }
@@ -159,8 +248,28 @@ function palSetSel(i) {
   if (sel) sel.scrollIntoView({ block: 'nearest' });
 }
 
-function paletteAccept(i) {
-  return palMode === 'move' ? paletteMove(i) : paletteGo(i);
+/* After Move to… / Mirror to… (F81): does the caret follow, or stay put?
+   One preference for both; Shift+Enter in the picker does the other thing. */
+function moveFollows() { return prefs.afterMove !== 'stay'; }
+
+/* Where the caret goes when it stays and the item leaves: the next visible row
+   after the item's subtree (its own children travel with it, so they do not
+   count), else the row before — what delete does. Read BEFORE the move: the
+   DOM is gone afterwards. null when there is no row (the zoom header). */
+function stayLandingId(id) {
+  const el = nodeEl(id);
+  const title = el && el.querySelector(':scope > .row > .title');
+  if (!title) return null;
+  let t = siblingTitle(title, 1);
+  while (t && el.contains(t)) t = siblingTitle(t, 1);
+  if (!t) t = siblingTitle(title, -1);
+  return t ? idOfTitle(t) : null;
+}
+
+function paletteAccept(i, follow = moveFollows()) {
+  if (palMode === 'move') return paletteMove(i, follow);
+  if (palMode === 'mirror') return paletteMirror(i, follow);
+  return paletteGo(i);
 }
 
 function paletteGo(i) {
@@ -175,19 +284,55 @@ function paletteGo(i) {
   focusNodeTitle(r.id, 'end');
 }
 
-function paletteMove(i) {
+function paletteMove(i, follow = true) {
   const r = palShown[i];
   const id = palMoveId;
   palDialogEl.close();
   if (!r || !id) return;
   const dest = store.getNode(r.id);
   if (!dest || !store.getNode(id)) return;
+  const landing = follow ? null : stayLandingId(id);
   store.move(id, dest.id, dest.children.length); // nest as the last item inside
-  // Land on it wherever it now is — the panel's own rule (expand what needs
-  // expanding, change zoom only if it left the scope). Unconditional: moving
-  // an item to the end of the parent it already ends is a no-op, and losing
-  // the caret over that would read as the command having failed.
-  jumpToNode(id);
+  if (follow) {
+    // Land on it wherever it now is — the panel's own rule (expand what needs
+    // expanding, change zoom only if it left the scope). Unconditional: moving
+    // an item to the end of the parent it already ends is a no-op, and losing
+    // the caret over that would read as the command having failed.
+    jumpToNode(id);
+  } else if (landing && store.getNode(landing)) {
+    focusNodeTitle(landing, 'end');
+  } else if (view.focusId !== ROOT_ID && store.getNode(view.focusId)) {
+    // no row left to stand on: the zoomed item is the nearest place you were
+    // (at the top level with nothing else in view there is nowhere to land,
+    // and the caret is simply left unplaced rather than thrown to row one)
+    focusNodeTitle(view.focusId, 'end');
+  }
+}
+
+/* Mirror to… (F80): the pick is a destination, and accepting creates a live
+   mirror of the item as its last child there. Nothing moves; the original
+   stays where it is. The caret follows the new mirror, as Move to… follows
+   its item — one rule for both, so the FR-4 follow/stay option can govern
+   them together later. */
+function paletteMirror(i, follow = true) {
+  const r = palShown[i];
+  const id = palMoveId;
+  palDialogEl.close();
+  if (!r || !id) return;
+  const dest = store.getNode(r.id);
+  if (!dest || !store.getNode(id)) return;
+  const from = palFromId;
+  const m = store.createMirrorIn(id, dest.id, dest.children.length);
+  if (m && follow) jumpToNode(m.id);
+  else if (m) {
+    // staying: nothing moved, and closing the dialog normally hands the caret
+    // back to the row it was opened from. When it was opened from the ≡ menu
+    // the thing focused before was the handle or nothing, so say where.
+    const a = document.activeElement;
+    if (!(a && a.closest && a.closest('.title, .note-edit')) && from && store.getNode(from)) {
+      focusNodeTitle(from, 'end');
+    }
+  }
 }
 
 /* --- opening ------------------------------------------------------------ */
@@ -214,12 +359,30 @@ function openMovePalette(id) {
   if (!n || id === ROOT_ID) return; // the root is the document, not an item
   palMode = 'move';
   palMoveId = id;
+  palFromId = id;
   palItems = moveIndex(id);
   // a mirror owns no text: name it by what the row shows, while still moving
   // the mirror itself
   const label = truncate((store.mirrorContent(n) || n).title, 30) || 'Untitled';
   palInputEl.placeholder = `Move “${label}” into…`;
   palDialogEl.setAttribute('aria-label', 'Move item into');
+  palShow();
+}
+
+function openMirrorPalette(id) {
+  if (palDialogEl.open) return;
+  const n = id && store.getNode(id);
+  if (!n || id === ROOT_ID) return;
+  // mirroring a mirror mirrors its original (chains are flattened), so the
+  // destinations are judged against the original: not inside its subtree
+  const orig = store.mirrorContent(n) || n;
+  palMode = 'mirror';
+  palMoveId = orig.id;
+  palFromId = id;
+  palItems = moveIndex(orig.id);
+  const label = truncate(orig.title, 30) || 'Untitled';
+  palInputEl.placeholder = `Mirror “${label}” into…`;
+  palDialogEl.setAttribute('aria-label', 'Mirror item into');
   palShow();
 }
 
@@ -241,7 +404,11 @@ palInputEl.addEventListener('input', renderPalette);
 palInputEl.addEventListener('keydown', e => {
   if (e.key === 'ArrowDown') { e.preventDefault(); palSetSel(palSel + 1); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); palSetSel(palSel - 1); }
-  else if (e.key === 'Enter') { e.preventDefault(); if (palShown.length) paletteAccept(palSel); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    // Shift+Enter does the opposite of the preference (a no-op for jumping)
+    if (palShown.length) paletteAccept(palSel, e.shiftKey ? !moveFollows() : moveFollows());
+  }
 });
 palResultsEl.addEventListener('click', e => {
   const row = e.target.closest('.pal-item');
@@ -265,12 +432,17 @@ document.addEventListener('keydown', e => {
    Deliberately not Ctrl+Shift+K — that is Firefox's web console, and N3
    claims Firefox support. */
 document.addEventListener('keydown', e => {
-  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-  // Alt+letter reports differently across keyboard layouts (some send a dead
-  // key or an accented character as e.key), so match the physical key too
-  if (e.code !== 'KeyM' && e.key !== 'm' && e.key !== 'M') return;
+  if (!altChord(e, 'KeyM')) return;
   const id = moveTargetId();
   if (!id) return;
   e.preventDefault();
   openMovePalette(id);
+});
+/* Alt+Shift+M: the same picker, creating a mirror at the destination */
+document.addEventListener('keydown', e => {
+  if (!altChord(e, 'KeyM', { shift: true })) return;
+  const id = moveTargetId();
+  if (!id) return;
+  e.preventDefault();
+  openMirrorPalette(id);
 });

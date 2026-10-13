@@ -185,8 +185,9 @@ function onTitleKeydown(e, el) {
       }
       if (mod && !e.altKey && !e.shiftKey) {
         e.preventDefault();
-        if (el !== focusTitleEl && n.children.length) {
-          store.setCollapsed(id, key === 'ArrowUp');
+        // a mirror row has no children of its own: its expansion is its target's
+        if (el !== focusTitleEl && (store.mirrorContent(n) || n).children.length) {
+          setRowCollapsed(id, key === 'ArrowUp');
         }
         return;
       }
@@ -331,7 +332,7 @@ document.addEventListener('keydown', e => {
   }
   const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
   if (!inField) {
-    if (e.key === '?' && !mod) { e.preventDefault(); $('#help-dialog').showModal(); return; }
+    if (e.key === '?' && !mod) { e.preventDefault(); openHelp('keys'); return; }
     if (mod && (e.key === 'z' || e.key === 'Z')) {
       e.preventDefault();
       const fid = e.shiftKey ? store.redo() : store.undo();
@@ -417,7 +418,7 @@ treeEl.addEventListener('click', e => {
   if (tg) {
     const el = tg.closest('.node');
     const n = store.getNode(el.dataset.id);
-    if (n) store.setCollapsed(n.id, !n.collapsed);
+    if (n) setRowCollapsed(n.id, rowExpanded(n));
     return;
   }
   const noteWrap = e.target.closest('.note');

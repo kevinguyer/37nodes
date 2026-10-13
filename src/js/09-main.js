@@ -46,13 +46,35 @@ themeSelectEl.addEventListener('change', () => {
   applyTheme();
 });
 const hideCompletedEl = $('#hide-completed');
-hideCompletedEl.addEventListener('change', () => {
-  prefs.hideCompleted = hideCompletedEl.checked;
+/* The one switch (F69): the ☰ checkbox and Alt+C both land here. Everything
+   that cares about completed items — search, the jump palette, the panel's
+   tag counts — reads completedRowsHidden(), so there is no second setting. */
+function setHideCompleted(on) {
+  prefs.hideCompleted = !!on;
+  hideCompletedEl.checked = !!on;
   savePrefs();
   document.body.classList.toggle('hide-completed', prefs.hideCompleted);
   // hiding completed rows changes what can be a search result, so results
   // computed under the old setting have to be recomputed
   if (view.query) renderAll();
+  // toggling emits no store event, so the panel's derived counts need a nudge
+  renderInfoPanel();
+}
+hideCompletedEl.addEventListener('change', () => setHideCompleted(hideCompletedEl.checked));
+document.addEventListener('keydown', e => {
+  if (!altChord(e, 'KeyC') || e.defaultPrevented) return;
+  e.preventDefault();
+  setHideCompleted(!completedRowsHidden());
+});
+const panelLinksEl = $('#panel-links');
+panelLinksEl.addEventListener('change', () => {
+  prefs.panelLinks = panelLinksEl.value === 'reveal' ? 'reveal' : 'zoom';
+  savePrefs();
+});
+const afterMoveEl = $('#after-move');
+afterMoveEl.addEventListener('change', () => {
+  prefs.afterMove = afterMoveEl.value === 'stay' ? 'stay' : 'follow';
+  savePrefs();
 });
 const wideLayoutEl = $('#wide-layout');
 wideLayoutEl.addEventListener('change', () => {
@@ -163,10 +185,7 @@ for (const sec of $$('.menu-sec', menuPanelEl)) {
 $('#export-json').addEventListener('click', () => { exportJSON(); closeMenu(); });
 $('#export-md-view').addEventListener('click', () => { exportMarkdown(view.focusId); closeMenu(); });
 $('#export-md-all').addEventListener('click', () => { exportMarkdown(ROOT_ID); closeMenu(); });
-$('#show-help').addEventListener('click', () => { closeMenu(); $('#help-dialog').showModal(); });
-$('#help-close').addEventListener('click', () => $('#help-dialog').close());
-// the shortcut list is long enough that its close button can be a scroll away
-closeOnBackdropClick($('#help-dialog'));
+// the Help Center's own wiring (open, close, backdrop click) lives in 18-help.js
 $('#menu-panel').addEventListener('click', e => e.stopPropagation());
 
 /* --- banner buttons --- */
@@ -262,6 +281,8 @@ const bootReady = new Promise(r => { bootReadyResolve = r; });
   hideCompletedEl.checked = !!prefs.hideCompleted;
   document.body.classList.toggle('wide', !!prefs.wideLayout);
   wideLayoutEl.checked = !!prefs.wideLayout;
+  afterMoveEl.value = prefs.afterMove === 'stay' ? 'stay' : 'follow';
+  panelLinksEl.value = prefs.panelLinks === 'reveal' ? 'reveal' : 'zoom';
   // backup-reminder defaults: 14 days; never-exported counts from first use
   if (typeof prefs.exportWarnDays !== 'number') prefs.exportWarnDays = 14;
   if (!prefs.firstUseAt) prefs.firstUseAt = nowISO();
