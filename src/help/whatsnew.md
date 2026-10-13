@@ -6,6 +6,7 @@
 - **Tag counts ignore hidden completed items.** A tag used only on finished work leaves the panel list (not the `#` suggester).
 - **A real search language.** Several words now all have to match, `"quotes"` make a phrase, `-` excludes, `is:starred` and `is:done` filter by flag, and `acme > #urgent` searches *inside* matches of `acme`. Shift+click a tag chip to add it to your search. **One change to know about:** `foo bar` used to look for that exact text; it now finds items with both words, so put it in quotes if you want the phrase. See Finding and moving around.
 - **Show only linked items (`Alt+L`).** On any item, narrow the whole outline to it plus everything that links to it or from it. It is just a search (`links:"Title"`), so `Esc` clears it and you can combine it with other terms.
+- **Saved and recent searches.** Click ☆ beside the search box to keep a search, then find it under **Saved searches** in the info panel (rename it with ✎). The search box also drops down your saved and recent searches. They stay in this browser: they are not part of an export.
 - **Searching keeps your folds.** A filter no longer opens every item: collapsed items stay collapsed unless something inside them matches, and the ▸ arrows work inside a search without changing your outline.
 - **Move to… (`Alt+M`).** File an item inside any other one by name, with the caret following it there.
 - **`Ctrl+Home` / `Ctrl+End`** jump to the first and last item in view.

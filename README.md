@@ -34,7 +34,8 @@ See [PRD.md](PRD.md) for the full product requirements.
 - Live **search/filter** (`Ctrl+F`) with a small query language: several words
   ANDed, `"phrases"`, `-exclude`, `#tags`, `is:starred`, `is:done`, and
   `acme > #urgent` to search inside matches, `links:"Title"` (`Alt+L`) for
-  an item and everything linked to or from it. Shift+click a tag chip to add it
+  an item and everything linked to or from it. Shift+click a tag chip to add it; ☆ saves a search (kept in this browser, not
+  in exports) and the box remembers recent ones
 - **Jump palette** (`Ctrl+K`): fuzzy-match any item's title and zoom straight
   to it from anywhere. Type `Parent/Child` to pick between same-named items,
   and with **Hide completed** on (`Alt+C`) finished items are left out
@@ -134,6 +135,7 @@ src/js/11-linkauto.js  [[link]] autocomplete
 src/js/12-tour.js   first-run guided tour (spotlight + callout card)
 src/js/13-tagline.js   rotating top-bar tagline, cipher-decode reveal
 src/js/18-help.js   Help Center (content in src/help/*.md, bundled at build)
+src/js/19-saved.js  saved and recent searches (preferences, not the document)
 ```
 
 The logo is one traced `<path>` inside the `#logo-mark` symbol in

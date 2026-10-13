@@ -132,7 +132,8 @@ mechanism that keeps it current.
 | FR-14 | Hide completed items in the Ctrl+K jump palette | Done (build 60, F70) | S | Low | Follows the global toggle |
 | FR-15 | Jump palette: `Parent/Log` path syntax to disambiguate | Done (build 60, F70) | S–M | Low | Palette-only; shared matcher untouched |
 | FR-16 | One-key filter to items linked to/from the selected item | Done (build 74, F78) | M | Medium | `links:"Title"` operator; `Alt+L`, ≡ menu, panel |
-| FR-17 | Saved searches | Approved | M | Medium | Stored **in the document** and carried by export/import (decided 2026-10-12); after FR-18 |
+| FR-17 | Saved searches (and recent searches) | Done (build 76, F79) | S–M | Low | Shipped **local-only**, in prefs; the export-embedded half is FR-17b |
+| FR-17b | Saved searches embedded in the document and exports | Deferred | M | Medium | An optional document field + schema step; revisit if you want them to travel between browsers or survive cleared site data |
 | FR-18 | Chained / multi-term search with operators | Done (build 68, F75–F77) | M–L | Medium | Same-item AND **and** scoped `>` (decided 2026-10-12); grammar into the PRD before code |
 | FR-19 | Filter by starred / unstarred | Done (build 68, F75) | S | Low | `is:starred` / `-is:starred`; specified in F75 |
 | FR-20 | Distinct glyph for mirrors (diamond) | Discuss | S | Low | Yes, CSS only; confirm what he sees today |
@@ -566,3 +567,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-12 | FR-12 shipped: filters keep collapse state; ▸ works inside a search as a session override (F74). |
 | 2026-10-12 | FR-18 shipped with FR-1 and FR-19: the query language (terms, `-`, `is:`, `>` scope), Shift+click chips (F75–F77). FR-16 (`links:`) and FR-17 (saved searches) now unblocked. |
 | 2026-10-13 | FR-16 shipped: `links:"Title"` and `Alt+L` / ≡ menu / panel gesture (F78); quoted terms gained `\"` and `\\` escapes. FR-17 (saved searches) is next. |
+| 2026-10-13 | FR-17 shipped as local-only saved searches plus a recent-searches dropdown (F79). The in-document, exportable variant is split out as FR-17b and deferred: it is the only remaining change that touches the on-disk format, and nothing in F79 forecloses it. |

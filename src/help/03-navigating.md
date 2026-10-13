@@ -38,4 +38,5 @@ Click a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms 
 - **Click a tag chip** to search for just that tag, and click it again to clear. **Shift+click** a chip, in the outline or the panel, to add it to the search you already have, or to take it back out.
 - Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.
 - Items you create while a search is active stay visible until you change the search.
+- **Saved searches:** click the ☆ beside the search box to keep the query you are looking at. Saved searches are listed in the info panel under **Saved searches**: click one to run it, click it again to clear, ✎ to name it. The search box's dropdown offers your saved and recent searches.
 - `Esc` clears the search.

@@ -8,6 +8,7 @@ const applySearch = debounce(() => {
   renderAll();
   ipRefresh(); // the query is view state, not a mutation: the panel's tag
                // chips have no store event to ride
+  ssSync(); // the ☆ beside the box follows the query
 }, 150);
 
 function setSearch(q) {
@@ -70,6 +71,7 @@ function clearSearch(refocusOutline = true) {
     view.query = '';
     renderAll();
     ipRefresh();
+    ssSync();
   }
   if (refocusOutline) {
     const first = visibleTitles()[0];

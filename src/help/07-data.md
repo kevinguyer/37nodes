@@ -16,6 +16,10 @@ Browsers can still clear site data under disk pressure, or when you clear it you
 
 A gentle reminder appears when your last JSON export is more than 14 days old; you can change or turn it off in the menu.
 
+## What an export does not contain
+
+Your **saved searches**, theme, panel layout and other preferences belong to this browser, not to the outline, so they are not in an export and do not follow you to another browser. Everything in the outline itself is.
+
 ## Mirror to a file
 
 In Chromium browsers (Chrome, Edge), **☰ → Mirror to a file on disk…** keeps a JSON file continuously up to date on every save: a live backup that survives cleared browser data. After a restart the browser may ask you to click **Resume** once.

@@ -355,6 +355,7 @@ function renderInfoPanel() {
     });
   }
   ipSection('starred', 'Starred', starredItems().length, ipStarredBody);
+  ipSection('saved', 'Saved searches', ssList().length, ipSavedBody);
   ipSection('tags', view.focusId === ROOT_ID ? 'Tags' : 'Tags in this view',
     tagsForPanel(view.focusId).length, ipTagsBody);
 }

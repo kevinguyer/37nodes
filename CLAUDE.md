@@ -96,6 +96,7 @@ All JS is concatenated into a single `<script>` wrapped in one IIFE with
 | `15-toolbar.js` | Floating format bar over a selection in an editing title; wrap/unwrap of inline syntax |
 | `16-panel.js` | Backlink index, right-hand info panel (collapsible sections: item / starred / tags), rename-rewrite offer |
 | `17-stars-tags.js` | Starred index + star gestures (row ★, `Alt+S`), tag vocabulary index |
+| `19-saved.js` | Saved + recent searches, the ☆ button and the search box dropdown. Local-only: lives in prefs, not the document |
 | `18-help.js` | Help Center dialog: overview, topic pages, keyboard table, What's new + its dot. Content is `src/help/*.md`, bundled at build |
 
 `app.css` is CSS-variable driven: `:root` holds the token set, each
@@ -129,7 +130,7 @@ Titles are one line. Notes are markdown, rendered when not focused.
 | --- | --- | --- |
 | IndexedDB `37nodes` v2, store `doc` | `current` | The whole document, one record |
 | IndexedDB `37nodes` v2, store `kv` | `backupHandle` | `FileSystemFileHandle` for the file mirror |
-| localStorage | `37nodes:prefs` | UI prefs — **always** localStorage, never IDB |
+| localStorage | `37nodes:prefs` | UI prefs — **always** localStorage, never IDB. Also holds `savedSearches`, `recentSearches` and `whatsNewSeen`: none of it is in exports |
 | localStorage | `37nodes:doc` | Fallback backend when IDB is blocked; also the pre-migration location |
 | localStorage | `37nodes:doc:pre-idb` | Frozen copy left behind by the one-time IDB migration |
 
