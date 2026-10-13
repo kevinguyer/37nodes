@@ -15,7 +15,8 @@
    Shortcuts are the one thing not authored as prose: HELP_KEYS is a table, so
    the reference stays one scannable list and search can filter its rows.
    "What's new" tracks the newest entry the user has opened in
-   prefs.whatsNewSeen, and lights a dot on the ☰ button until they do. */
+   prefs.whatsNewSeen (+ whatsNewHash), and lights a dot on the ☰ button until
+   they do. */
 
 // the build puts the real data (plus a comma) at the marker; unbuilt, the default stands
 const HELP_DATA = [/*__HELP__*/{ topics: [], news: '' }][0];
@@ -116,18 +117,35 @@ function hcEntries() {
 }
 
 /* --- what's new bookkeeping ---------------------------------------------- */
-function hcUnseenCount() {
+/* A short stable fingerprint of an entry's text (djb2, base 36). A release
+   grows bullet by bullet under one header, so the header alone cannot say
+   whether you have read THIS version of it: the seen marker is the newest
+   header plus the fingerprint of its text when it was opened. */
+function hcFingerprint(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+/* → { fresh, updated, count }: `fresh` entries are newer than the one last
+   seen; `updated` says the last-seen entry itself has grown since. */
+function hcUnseen() {
   const news = hcNews();
-  if (!news.length) return 0;
+  if (!news.length) return { fresh: 0, updated: false, count: 0 };
   const seen = prefs.whatsNewSeen;
-  if (!seen) return news.length;
-  const at = news.findIndex(e => e.id === seen);
-  return at < 0 ? news.length : at;
+  const at = seen ? news.findIndex(e => e.id === seen) : -1;
+  if (at < 0) return { fresh: news.length, updated: false, count: news.length };
+  const updated = prefs.whatsNewHash !== hcFingerprint(news[at].md);
+  return { fresh: at, updated, count: at + (updated ? 1 : 0) };
+}
+function hcUnseenCount() { return hcUnseen().count; }
+function hcRememberSeen() {
+  const top = hcNews()[0];
+  prefs.whatsNewSeen = top.id;
+  prefs.whatsNewHash = hcFingerprint(top.md);
 }
 function hcMarkSeen() {
-  const news = hcNews();
-  if (!news.length || prefs.whatsNewSeen === news[0].id) return;
-  prefs.whatsNewSeen = news[0].id;
+  if (!hcNews().length || !hcUnseen().count) return;
+  hcRememberSeen();
   savePrefs();
   hcSyncDot();
 }
@@ -251,7 +269,7 @@ function hcShowHome(root) {
 }
 
 function hcShowNews(root) {
-  const unseen = hcUnseenCount();
+  const unseen = hcUnseen();
   const h = document.createElement('h1');
   h.textContent = 'What’s new';
   root.append(h);
@@ -260,10 +278,10 @@ function hcShowNews(root) {
     sec.className = 'hc-release';
     const h2 = document.createElement('h2');
     h2.textContent = e.title;
-    if (i < unseen) {
+    if (i < unseen.fresh || (i === unseen.fresh && unseen.updated)) {
       const p = document.createElement('span');
       p.className = 'hc-pill hc-pill-new';
-      p.textContent = 'New';
+      p.textContent = i < unseen.fresh ? 'New' : 'Updated';
       h2.append(p);
     }
     sec.append(h2, hcMd(e.md));
@@ -369,7 +387,7 @@ closeOnBackdropClick(hcEl);
 bootReady.then(() => {
   const news = hcNews();
   if (news.length && prefs.whatsNewSeen === undefined && store.wasSeeded) {
-    prefs.whatsNewSeen = news[0].id;
+    hcRememberSeen();
     savePrefs();
   }
   hcSyncDot();
