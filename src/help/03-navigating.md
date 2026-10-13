@@ -19,6 +19,8 @@ Click a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms 
 
 `Alt+M` uses the same picker to choose a *destination*: the current item, with everything under it, becomes the last child of the one you pick. It is one undo step, and the caret follows the item. Choose **Top level** to file something back out to the root.
 
+By default the caret follows the item to its new home. If you would rather stay where you were (handy when filing several items in a row), press `Shift+Enter` in the picker to do it once, or set **After Move / Mirror to…** in the ☰ menu under View to make staying the default; `Shift+Enter` then follows. The same setting covers **Mirror to…**.
+
 ## Search
 
 `Ctrl+F` focuses the search box and filters the outline as you type, within the current zoom. Every word you type must match, in any order, in an item's title or note.

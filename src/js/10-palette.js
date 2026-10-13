@@ -101,6 +101,12 @@ function matchFrag(title, spans) {
   return frag;
 }
 
+/* which key does which, given the After-move preference (F81) */
+function palStayHint() {
+  return moveFollows()
+    ? 'Enter goes there · Shift+Enter stays here.'
+    : 'Enter stays here · Shift+Enter goes there.';
+}
 function palHint(text) {
   const el = document.createElement('div');
   el.className = 'pal-hint';
@@ -177,9 +183,9 @@ function renderPalette() {
     palShown = [...top, ...recent]
       .map(it => ({ id: it.id, title: it.title, path: it.path, spans: [] }));
     palHint(palMode === 'move'
-      ? 'Pick where it should live — it becomes the last item inside.'
+      ? 'Pick where it should live — it becomes the last item inside. ' + palStayHint()
       : palMode === 'mirror'
-      ? 'Pick where the mirror should appear — it becomes the last item inside.'
+      ? 'Pick where the mirror should appear — it becomes the last item inside. ' + palStayHint()
       : palShown.length ? 'Recently edited' : 'Type to jump to any item by title.');
   } else {
     let scored = palScorePath(q);
@@ -222,9 +228,27 @@ function palSetSel(i) {
   if (sel) sel.scrollIntoView({ block: 'nearest' });
 }
 
-function paletteAccept(i) {
-  if (palMode === 'move') return paletteMove(i);
-  if (palMode === 'mirror') return paletteMirror(i);
+/* After Move to… / Mirror to… (F81): does the caret follow, or stay put?
+   One preference for both; Shift+Enter in the picker does the other thing. */
+function moveFollows() { return prefs.afterMove !== 'stay'; }
+
+/* Where the caret goes when it stays and the item leaves: the next visible row
+   after the item's subtree (its own children travel with it, so they do not
+   count), else the row before — what delete does. Read BEFORE the move: the
+   DOM is gone afterwards. null when there is no row (the zoom header). */
+function stayLandingId(id) {
+  const el = nodeEl(id);
+  const title = el && el.querySelector(':scope > .row > .title');
+  if (!title) return null;
+  let t = siblingTitle(title, 1);
+  while (t && el.contains(t)) t = siblingTitle(t, 1);
+  if (!t) t = siblingTitle(title, -1);
+  return t ? idOfTitle(t) : null;
+}
+
+function paletteAccept(i, follow = moveFollows()) {
+  if (palMode === 'move') return paletteMove(i, follow);
+  if (palMode === 'mirror') return paletteMirror(i, follow);
   return paletteGo(i);
 }
 
@@ -240,19 +264,27 @@ function paletteGo(i) {
   focusNodeTitle(r.id, 'end');
 }
 
-function paletteMove(i) {
+function paletteMove(i, follow = true) {
   const r = palShown[i];
   const id = palMoveId;
   palDialogEl.close();
   if (!r || !id) return;
   const dest = store.getNode(r.id);
   if (!dest || !store.getNode(id)) return;
+  const landing = follow ? null : stayLandingId(id);
   store.move(id, dest.id, dest.children.length); // nest as the last item inside
-  // Land on it wherever it now is — the panel's own rule (expand what needs
-  // expanding, change zoom only if it left the scope). Unconditional: moving
-  // an item to the end of the parent it already ends is a no-op, and losing
-  // the caret over that would read as the command having failed.
-  jumpToNode(id);
+  if (follow) {
+    // Land on it wherever it now is — the panel's own rule (expand what needs
+    // expanding, change zoom only if it left the scope). Unconditional: moving
+    // an item to the end of the parent it already ends is a no-op, and losing
+    // the caret over that would read as the command having failed.
+    jumpToNode(id);
+  } else if (landing && store.getNode(landing)) {
+    focusNodeTitle(landing, 'end');
+  } else {
+    const first = visibleTitles()[0]; // nowhere sensible: the dialog's focus target left
+    if (first) activateTitle(first, 0);
+  }
 }
 
 /* Mirror to… (F80): the pick is a destination, and accepting creates a live
@@ -260,7 +292,7 @@ function paletteMove(i) {
    stays where it is. The caret follows the new mirror, as Move to… follows
    its item — one rule for both, so the FR-4 follow/stay option can govern
    them together later. */
-function paletteMirror(i) {
+function paletteMirror(i, follow = true) {
   const r = palShown[i];
   const id = palMoveId;
   palDialogEl.close();
@@ -268,7 +300,9 @@ function paletteMirror(i) {
   const dest = store.getNode(r.id);
   if (!dest || !store.getNode(id)) return;
   const m = store.createMirrorIn(id, dest.id, dest.children.length);
-  if (m) jumpToNode(m.id);
+  // staying needs no work: nothing moved, and closing the dialog hands the
+  // caret back to the row it was opened from
+  if (m && follow) jumpToNode(m.id);
 }
 
 /* --- opening ------------------------------------------------------------ */
@@ -338,7 +372,11 @@ palInputEl.addEventListener('input', renderPalette);
 palInputEl.addEventListener('keydown', e => {
   if (e.key === 'ArrowDown') { e.preventDefault(); palSetSel(palSel + 1); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); palSetSel(palSel - 1); }
-  else if (e.key === 'Enter') { e.preventDefault(); if (palShown.length) paletteAccept(palSel); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    // Shift+Enter does the opposite of the preference (a no-op for jumping)
+    if (palShown.length) paletteAccept(palSel, e.shiftKey ? !moveFollows() : moveFollows());
+  }
 });
 palResultsEl.addEventListener('click', e => {
   const row = e.target.closest('.pal-item');

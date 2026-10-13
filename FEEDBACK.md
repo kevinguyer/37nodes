@@ -119,7 +119,7 @@ mechanism that keeps it current.
 | FR-1 | Filter by several tags at once | Done (build 68, F75–F77) | S–M | Low | AND, `Shift`+click chip; specified in F75/F77 |
 | FR-2 | Resizable side panel | Done (build 51, F61) | S | Low | Yes |
 | FR-3 | Richer backlinks view (context, collapsible children) | Discuss | M–L | Low | Yes in two phases; need a concrete picture of phase 2 |
-| FR-4 | Option: don't jump after "Move to…" | Discuss | S | Low | Yes; decide pref vs modifier key |
+| FR-4 | Option: don't jump after "Move to…" | Done (build 84, F81) | S | Low | Both: a ☰ preference and `Shift+Enter` in the picker; covers Mirror to… too |
 | FR-5 | Hide completed items in the backlinks list | Done (build 60, F69) | S | Low | Yes; follows the global Hide-completed toggle |
 | FR-6 | "Mirror to…" command | Done (build 78, F80) | S–M | Low | `Alt+Shift+M`; rides on the Move-to picker |
 | FR-7 | Multi-line (multi-item) selection | Discuss | XL | Medium | Yes, but as its own release, scoped to sibling ranges |
@@ -569,3 +569,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-13 | FR-16 shipped: `links:"Title"` and `Alt+L` / ≡ menu / panel gesture (F78); quoted terms gained `\"` and `\\` escapes. FR-17 (saved searches) is next. |
 | 2026-10-13 | FR-17 shipped as local-only saved searches plus a recent-searches dropdown (F79). The in-document, exportable variant is split out as FR-17b and deferred: it is the only remaining change that touches the on-disk format, and nothing in F79 forecloses it. |
 | 2026-10-13 | FR-6 shipped: Mirror to… (`Alt+Shift+M`, ≡ menu), F80. It follows the new mirror like Move to… follows its item; FR-4 will govern both. |
+| 2026-10-13 | FR-4 shipped (F81): After Move / Mirror to… preference plus Shift+Enter in the picker. Stay lands on the next visible row after the item's subtree, else the previous one. |

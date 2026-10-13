@@ -69,6 +69,11 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
   setHideCompleted(!completedRowsHidden());
 });
+const afterMoveEl = $('#after-move');
+afterMoveEl.addEventListener('change', () => {
+  prefs.afterMove = afterMoveEl.value === 'stay' ? 'stay' : 'follow';
+  savePrefs();
+});
 const wideLayoutEl = $('#wide-layout');
 wideLayoutEl.addEventListener('change', () => {
   prefs.wideLayout = wideLayoutEl.checked;
@@ -274,6 +279,7 @@ const bootReady = new Promise(r => { bootReadyResolve = r; });
   hideCompletedEl.checked = !!prefs.hideCompleted;
   document.body.classList.toggle('wide', !!prefs.wideLayout);
   wideLayoutEl.checked = !!prefs.wideLayout;
+  afterMoveEl.value = prefs.afterMove === 'stay' ? 'stay' : 'follow';
   // backup-reminder defaults: 14 days; never-exported counts from first use
   if (typeof prefs.exportWarnDays !== 'number') prefs.exportWarnDays = 14;
   if (!prefs.firstUseAt) prefs.firstUseAt = nowISO();
