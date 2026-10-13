@@ -131,7 +131,7 @@ mechanism that keeps it current.
 | FR-13 | Keyboard shortcut to toggle Hide completed | Done (build 60, F69) | S | Low | `Alt+C`; one global switch |
 | FR-14 | Hide completed items in the Ctrl+K jump palette | Done (build 60, F70) | S | Low | Follows the global toggle |
 | FR-15 | Jump palette: `Parent/Log` path syntax to disambiguate | Done (build 60, F70) | S–M | Low | Palette-only; shared matcher untouched |
-| FR-16 | One-key filter to items linked to/from the selected item | Discuss | M | Medium | Yes, but as an operator of FR-18's grammar, not a one-off |
+| FR-16 | One-key filter to items linked to/from the selected item | Done (build 74, F78) | M | Medium | `links:"Title"` operator; `Alt+L`, ≡ menu, panel |
 | FR-17 | Saved searches | Approved | M | Medium | Stored **in the document** and carried by export/import (decided 2026-10-12); after FR-18 |
 | FR-18 | Chained / multi-term search with operators | Done (build 68, F75–F77) | M–L | Medium | Same-item AND **and** scoped `>` (decided 2026-10-12); grammar into the PRD before code |
 | FR-19 | Filter by starred / unstarred | Done (build 68, F75) | S | Low | `is:starred` / `-is:starred`; specified in F75 |
@@ -565,3 +565,4 @@ Mirrors zoom into the original's subtree; the breadcrumb should say so.
 | 2026-10-12 | DOC-1 shipped: the Help Center (overview, topics, keyboard reference, What's new). |
 | 2026-10-12 | FR-12 shipped: filters keep collapse state; ▸ works inside a search as a session override (F74). |
 | 2026-10-12 | FR-18 shipped with FR-1 and FR-19: the query language (terms, `-`, `is:`, `>` scope), Shift+click chips (F75–F77). FR-16 (`links:`) and FR-17 (saved searches) now unblocked. |
+| 2026-10-13 | FR-16 shipped: `links:"Title"` and `Alt+L` / ≡ menu / panel gesture (F78); quoted terms gained `\"` and `\\` escapes. FR-17 (saved searches) is next. |

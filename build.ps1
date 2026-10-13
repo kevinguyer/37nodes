@@ -20,7 +20,7 @@ $js    = (Get-ChildItem "$root\src\js\*.js" | Sort-Object Name | ForEach-Object 
 # nav order; the slug after the number is the topic id), whatsnew.md is the
 # release list. Bundled as one JS object literal at /*__HELP__*/ in 18-help.js.
 function Js-Str($t) {
-  '"' + $t.Replace('\', '\').Replace('"', '\"').Replace("`r", '').Replace("`n", '\n').Replace('<', '\x3c') + '"'
+  '"' + $t.Replace('\', '\\').Replace('"', '\"').Replace("`r", '').Replace("`n", '\n').Replace('<', '\x3c') + '"'
 }
 $topics = Get-ChildItem "$root\src\help\[0-9]*.md" | Sort-Object Name | ForEach-Object {
   $id = ($_.BaseName -replace '^\d+-', '')

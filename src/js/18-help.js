@@ -49,6 +49,7 @@ const HELP_KEYS = [
     [['Ctrl+K'], 'Jump to any item by title. Type Parent/Child to choose between items with the same name'],
     [['Alt+M'], 'Move this item inside another one you pick'],
     [['Alt+C'], 'Show / hide completed items'],
+    [['Alt+L'], 'Show only the items linked to or from this one (again to clear)'],
   ] },
   { cat: 'Linking and organising', rows: [
     [['[['], 'Link to an item: pick from the list; Enter or Tab inserts it'],

@@ -85,6 +85,8 @@ function computeFilter() {
   const groups = parsed.groups;
   if (!groups.length) { view.filter = null; return; }
   const k = groups.length;
+  // links: terms resolve by title against the whole document, once per run
+  for (const g of groups) for (const t of g) if (t.kind === 'links') t.ids = linkedIdsFor(t.v);
   const skipCompleted = completedRowsHidden();
   const matched = new Set(), anc = new Set(), under = new Set();
   const focus = store.getNode(view.focusId);
@@ -103,7 +105,7 @@ function computeFilter() {
     let hit = false, nextStage = stage;
     if (!isFocus) {
       const item = {
-        title: (c.title || '').toLowerCase(), note: (c.note || '').toLowerCase(),
+        id: c.id, title: (c.title || '').toLowerCase(), note: (c.note || '').toLowerCase(),
         starred: !!c.starred, completed: !!c.completed,
       };
       if (stage === k - 1) hit = queryGroupMatches(groups[k - 1], item);

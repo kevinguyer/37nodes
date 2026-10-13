@@ -29,10 +29,11 @@ Click a bullet, or press `Alt+→` on an item, to zoom into it. `Alt+←` zooms 
 - `-draft` finds items that do **not** contain *draft*. It works on words, phrases, tags and flags: `-#later`, `-"to do"`.
 - `is:starred` finds starred items; `-is:starred` finds the rest.
 - `is:done` finds completed items (nothing shows while **Hide completed** is on).
+- `links:"Project plan"` finds the item called *Project plan* and everything linked to or from it. Press `Alt+L` on any item (or use **Show linked items** in its ≡ menu, or the panel) to fill this in for you, and press it again to clear.
 - `acme > #urgent` finds `#urgent` items somewhere inside an item matching *acme*. Chain it for more levels: `acme > launch > #urgent`.
 
 - `>` must stand alone with spaces around it; the matches to its left are shown dimmed for context.
-- To search for a word that begins with `-`, put it in quotes: `"-5"`.
+- To search for a word that begins with `-`, put it in quotes: `"-5"`. Inside quotes, `\"` is a literal quote mark.
 - Matches are shown with their ancestors dimmed. Items keep their folds: a collapsed item stays collapsed, unless something inside it matches. Use ▸ to open or close items while searching; that changes only the search view, not your outline.
 - **Click a tag chip** to search for just that tag, and click it again to clear. **Shift+click** a chip, in the outline or the panel, to add it to the search you already have, or to take it back out.
 - Completed items hidden by `Alt+C` are not results, and neither is anything beneath them.

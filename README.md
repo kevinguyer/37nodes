@@ -33,7 +33,8 @@ See [PRD.md](PRD.md) for the full product requirements.
 - Full **keyboard operation** — press `?` in the app for the reference
 - Live **search/filter** (`Ctrl+F`) with a small query language: several words
   ANDed, `"phrases"`, `-exclude`, `#tags`, `is:starred`, `is:done`, and
-  `acme > #urgent` to search inside matches. Shift+click a tag chip to add it
+  `acme > #urgent` to search inside matches, `links:"Title"` (`Alt+L`) for
+  an item and everything linked to or from it. Shift+click a tag chip to add it
 - **Jump palette** (`Ctrl+K`): fuzzy-match any item's title and zoom straight
   to it from anywhere. Type `Parent/Child` to pick between same-named items,
   and with **Hide completed** on (`Alt+C`) finished items are left out

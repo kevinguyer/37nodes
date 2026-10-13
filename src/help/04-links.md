@@ -8,6 +8,8 @@ Type `[[` in a title or note and pick an item from the list; `Enter` or `Tab` in
 
 Links are matched by **title**, ignoring case. If two items share a title the link goes to the first one in document order. A link whose target does not exist is shown as broken until an item with that title appears.
 
+To see only what an item is connected to, press `Alt+L` on it: the outline narrows to the item, everything that links to it, and everything it links to. Press it again to go back.
+
 If you rename an item that others link to, 37nodes offers to update those links, so they do not quietly stop working.
 
 ## Backlinks

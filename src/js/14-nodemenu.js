@@ -84,6 +84,10 @@ nodeMenuEl.addEventListener('click', e => {
       closeNodeMenu();
       location.hash = '#' + cid;
       break;
+    case 'nm-links':
+      closeNodeMenu();
+      filterToLinked(cid);
+      break;
     case 'nm-note':
       closeNodeMenu();
       openNoteEditor(cid, host);

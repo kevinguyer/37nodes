@@ -8,14 +8,34 @@
      "a phrase"  the same, spaces literal (unterminated: runs to the end)
      #tag        a whole tag (F43), in title or note
      is:starred  / is:done — flags on the item's content
+     links:"Title"  items linked to or from that item (F78); the title is
+                 resolved like a [[link]], so it is matched by name
    Any term takes a leading "-" to negate it. A standalone ">" splits the
    query into GROUPS that must hold down a chain of ancestors (F76).
+   Inside quotes, \" is a literal quote and \\ a literal backslash.
 
    The grammar is total: nothing is a syntax error. Text that only resembles
    syntax (10:30, is:nonsense, a>b, a lone "-") is a plain word. */
 
-/* → [{start, end, neg, kind: 'text'|'tag'|'flag'|'sep', v}] with source spans,
-   so a token can be cut back out of the string it came from */
+/* a quoted run starting at str[at] === '"' → { v, next }: the unescaped text
+   and the index after the closing quote (or the end, if it never closes) */
+function queryReadQuoted(str, at) {
+  let v = '';
+  let j = at + 1;
+  for (; j < str.length && str[j] !== '"'; j++) {
+    if (str[j] === '\\' && (str[j + 1] === '"' || str[j + 1] === '\\')) { v += str[j + 1]; j++; }
+    else v += str[j];
+  }
+  return { v, next: j < str.length ? j + 1 : str.length };
+}
+
+/* a string as one quoted term, escaping what the reader above unescapes */
+function queryQuote(s) {
+  return '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+
+/* → [{start, end, neg, kind: 'text'|'tag'|'flag'|'links'|'sep', v}] with
+   source spans, so a token can be cut back out of the string it came from */
 function queryTokens(str) {
   const out = [];
   const n = str.length;
@@ -27,11 +47,26 @@ function queryTokens(str) {
     let neg = false;
     if (str[i] === '-' && i + 1 < n && !isSpace(str[i + 1])) { neg = true; i++; }
     if (str[i] === '"') {
-      const close = str.indexOf('"', i + 1);
-      const end = close < 0 ? n : close;
-      const v = str.slice(i + 1, end).toLowerCase();
-      i = close < 0 ? n : close + 1;
-      if (v) out.push({ start, end: i, neg, kind: 'text', v });
+      const q = queryReadQuoted(str, i);
+      i = q.next;
+      if (q.v) out.push({ start, end: i, neg, kind: 'text', v: q.v.toLowerCase() });
+      continue;
+    }
+    // links:"A title" (or links:word): the value may be quoted, so it is read
+    // here, before the bare-word scan would stop at its first space
+    if (/^links:/i.test(str.slice(i, i + 6)) && i + 6 < n && !isSpace(str[i + 6])) {
+      let v;
+      if (str[i + 6] === '"') {
+        const q = queryReadQuoted(str, i + 6);
+        v = q.v;
+        i = q.next;
+      } else {
+        let j = i + 6;
+        while (j < n && !isSpace(str[j])) j++;
+        v = str.slice(i + 6, j);
+        i = j;
+      }
+      if (v.trim()) out.push({ start, end: i, neg, kind: 'links', v: v.trim().toLowerCase() });
       continue;
     }
     let j = i;
@@ -78,13 +113,14 @@ function parseQuery(str) {
   return { groups, marks, tags };
 }
 
-/* does one item satisfy every term of a group? `item` carries the title and
-   note ALREADY lowercased, plus the two flags the operators read */
+/* does one item satisfy every term of a group? `item` carries its id, the title
+   and note ALREADY lowercased, and the two flags the operators read */
 function queryGroupMatches(group, item) {
   for (const t of group) {
     let ok;
     if (t.kind === 'text') ok = item.title.includes(t.v) || item.note.includes(t.v);
     else if (t.kind === 'tag') ok = t.re.test(item.title) || t.re.test(item.note);
+    else if (t.kind === 'links') ok = !!(t.ids && t.ids.has(item.id)); // ids: set by computeFilter
     else ok = !!item[t.v === 'starred' ? 'starred' : 'completed'];
     if (ok === t.neg) return false;
   }
@@ -130,4 +166,11 @@ function queryIsOnlyTag(str, tag) {
   return p.groups.length === 1 && p.groups[0].length === 1
     && p.groups[0][0].kind === 'tag' && !p.groups[0][0].neg
     && p.groups[0][0].v === tag.toLowerCase();
+}
+
+/* is the whole query exactly links:"title"? (the gesture then toggles off) */
+function queryIsOnlyLinks(str, title) {
+  const p = parseQuery(str);
+  const t = p.groups.length === 1 && p.groups[0].length === 1 && p.groups[0][0];
+  return !!t && t.kind === 'links' && !t.neg && t.v === String(title).trim().toLowerCase();
 }

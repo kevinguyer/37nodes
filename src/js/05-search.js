@@ -33,6 +33,36 @@ document.addEventListener('click', e => {
   toggleTagFilter(tag.textContent, e.shiftKey);
 });
 
+/* "Show only what links to or from this item" (F78): types links:"Title" into
+   the search box, so the filter is an ordinary query — visible, editable,
+   clearable with Esc, savable. Run it again on the same item to clear.
+   `links:` resolves by title, so the gesture is only honest when this item is
+   the one its title resolves to; otherwise it would quietly filter around a
+   different item, and it says so instead. */
+function filterToLinked(id) {
+  const n = store.getNode(id);
+  if (!n || id === ROOT_ID) return;
+  const title = (n.title || '').trim();
+  const say = msg => showBanner(msg, { kind: 'notice', action: { label: 'OK', onClick: () => hideBanner() } });
+  if (!title) { say('Give this item a title first — links are matched by title.'); return; }
+  if (resolveTitleLink(title) !== id) {
+    say(`Another item is also called “${truncate(title, 40)}”, and links resolve to the first one in the outline. Rename one of them to filter by this item's links.`);
+    return;
+  }
+  if (queryIsOnlyLinks(view.query, title)) clearSearch(false);
+  else setSearch('links:' + queryQuote(title));
+  focusNodeTitle(id, 'end'); // a no-op when the item sits outside the zoom
+}
+document.addEventListener('keydown', e => {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // Alt+letter reports differently across keyboard layouts: match the key too
+  if (e.code !== 'KeyL' && e.key !== 'l' && e.key !== 'L') return;
+  const id = starTargetId(); // the item the caret is in, else the one the panel tracks
+  if (!id) return;
+  e.preventDefault();
+  filterToLinked(id);
+});
+
 function clearSearch(refocusOutline = true) {
   searchEl.value = '';
   clearFilterExempt();

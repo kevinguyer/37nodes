@@ -63,6 +63,22 @@ function sourceHidden(id) {
 }
 function shownBacklinks(id) { return backlinksOf(id).filter(s => !sourceHidden(s.id)); }
 function shownMirrors(id) { return store.mirrorsOf(id).filter(m => !sourceHidden(m.id)); }
+/* The ids the `links:` operator accepts for a title (F78): the item the title
+   names (resolved exactly as a [[link]] is, so duplicates go to the first),
+   everything that links to it, and everything it links to. A mirror row is
+   accepted through its content id, so mirrors of any of these come with them. */
+function linkedIdsFor(title) {
+  const ids = new Set();
+  const target = resolveTitleLink(title);
+  const n = target && store.getNode(target);
+  if (!n) return ids;
+  ids.add(target);
+  for (const s of backlinksOf(target)) ids.add(s.id);
+  const take = t => { const id = resolveTitleLink(t); if (id) ids.add(id); };
+  scanLinks(n.title, take);
+  scanLinks(n.note, take);
+  return ids;
+}
 function linksOutOf(n) {
   if (!n || n.mirrorOf) return 0;
   const seen = new Set();
@@ -222,6 +238,10 @@ function ipItemBody(body, id, n) {
       body.append(ipRow(truncate(src.title, 40) || 'Untitled', where + pathOf(s.id),
         () => jumpToNode(s.id)));
     }
+  }
+
+  if (back.length || linksOutOf(n)) {
+    body.append(ipRow('Show only linked items', 'Alt+L', () => filterToLinked(id)));
   }
 
   // --- mirrors ---
